@@ -1,0 +1,114 @@
+import '@fastify/cookie';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import type { FastifyRequest } from 'fastify';
+import { RegisterDto } from './dtos/register.dto';
+import { AuthService } from './auth.service';
+import { LoginDto } from './dtos/login.dto';
+import { Public } from './decorators/public.decorator';
+import type { SessionDeviceType } from './types/auth.types';
+import { UAParser } from 'ua-parser-js';
+import '@fastify/session';
+import { GetUser } from './decorators/get-user.decorator';
+import { ResendVerificationDto } from './dtos/resend-verification.dto';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { CustomThrottlerGuard } from './guards/throttler-msg.guard';
+import { ThrottlerMessage } from './decorators/throttler.decorator';
+
+declare module 'fastify' {
+  interface Session {
+    userId?: string;
+    email?: string;
+  }
+}
+
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  async registerUser(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  @Public()
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async loginUser(@Body() dto: LoginDto, @Req() req: FastifyRequest) {
+    const user = await this.authService.validateCredentials(dto);
+
+    await req.session.regenerate();
+    req.session.userId = user.id;
+    req.session.email = user.email;
+
+    const uaString = req.headers['user-agent'] || '';
+    const ua = new UAParser(uaString).getResult();
+
+    const sessionInfo: SessionDeviceType = {
+      ipAddress: req.ip,
+      deviceName:
+        ua.device.model || ua.device.vendor || ua.device.type || 'Unknown',
+      clientType: ua.device.type,
+      userAgent: uaString,
+    };
+
+    await this.authService.createSession(
+      user.id,
+      req.session.sessionId,
+      sessionInfo,
+    );
+
+    return user;
+  }
+
+  @Public()
+  @UseGuards(CustomThrottlerGuard)
+  @ThrottlerMessage('Too many requests!')
+  @Throttle({ default: { limit: 1, ttl: 120 * 1000 } })
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerificationEmail(dto.email);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  async logoutAll(
+    @GetUser('userId') userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    await this.authService.logoutAll(userId);
+    await req.session.destroy();
+    return { message: 'Logged out from all devices' };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Req() req: FastifyRequest) {
+    await this.authService.logout(req.session.sessionId);
+    await req.session.destroy();
+    return { message: 'Logged out' };
+  }
+
+  @Get('me')
+  async me(@GetUser('userId') userId: string) {
+    return this.authService.getMe(userId);
+  }
+}

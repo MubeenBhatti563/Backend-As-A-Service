@@ -1,0 +1,21 @@
+{
+  "name": "baas-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@12.6.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter api --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "db:generate": "pnpm --dir app/api exec prisma generate",
+    "db:migrate": "pnpm --dir app/api exec prisma migrate dev",
+    "build": "pnpm --filter api build && pnpm --filter web build",
+    "build:api": "pnpm --filter api build",
+    "build:web": "pnpm --filter web build",
+    "lint": "pnpm --filter api lint && pnpm --filter web lint",
+    "lint:api": "pnpm --filter api lint",
+    "lint:web": "pnpm --filter web lint",
+    "test": "pnpm --filter api test",
+    "test:api": "pnpm --filter api test"
+  }
+}

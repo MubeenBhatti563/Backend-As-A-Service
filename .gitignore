@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnpm-task-run-state*
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS and Backups
+.DS_Store
+Thumbs.db
+*.bak
+
+# MD file
+baas-foundation.md
