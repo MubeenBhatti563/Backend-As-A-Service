@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -21,6 +22,7 @@ import { RedisService } from '../../infra/redis/redis.service';
 import { SESSION_PREFIX } from '../../infra/redis/redis-session.store';
 import { EmailService } from '../../infra/email/email.service';
 import { ThrottlerException } from '@nestjs/throttler';
+import { TokenType } from '@prisma/client';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -121,7 +123,7 @@ export class AuthService {
       }),
     ]);
 
-    // await this.emailService.sendVerificationLink(email, hashToken);
+    await this.emailService.sendVerificationLink(email, rawToken);
 
     return { message: 'Verification email sent successfully' };
   }
@@ -158,10 +160,7 @@ export class AuthService {
           },
         });
 
-        await this.emailService.sendVerificationLink(
-          user.email,
-          verifyEmail.hashToken,
-        );
+        await this.emailService.sendVerificationLink(user.email, rawToken);
 
         return user;
       },
@@ -212,7 +211,46 @@ export class AuthService {
     });
   }
 
-  async verifyEmail(token: string) {}
+  async verifyEmail(rawToken: string) {
+    if (!rawToken || typeof rawToken !== 'string') {
+      throw new BadRequestException('Verification token is required');
+    }
+
+    const hashToken = this.hashToken(rawToken);
+    const tokenRecord = await this.prismaService.verificationToken.findUnique({
+      where: { hashToken },
+    });
+
+    if (!tokenRecord || tokenRecord.type !== TokenType.EMAIL_VERIFICATION) {
+      throw new BadRequestException('Invalid or expired verification link');
+    }
+
+    if (tokenRecord.expiresAt < new Date()) {
+      await this.prismaService.verificationToken.delete({
+        where: { id: tokenRecord.id },
+      });
+
+      throw new BadRequestException(
+        'Verification link has expired. Please request a new one.',
+      );
+    }
+
+    await this.prismaService.$transaction([
+      this.prismaService.platformUser.update({
+        where: { id: tokenRecord.userId },
+        data: {
+          isVerified: true,
+          updatedAt: new Date(),
+        },
+      }),
+
+      this.prismaService.verificationToken.delete({
+        where: { id: tokenRecord.id },
+      }),
+    ]);
+
+    return { message: 'Email verified successfully!' };
+  }
 
   async resetPassword() {}
 

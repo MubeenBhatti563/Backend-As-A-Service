@@ -18,7 +18,10 @@ import type { SessionDeviceType } from './types/auth.types';
 import { UAParser } from 'ua-parser-js';
 import '@fastify/session';
 import { GetUser } from './decorators/get-user.decorator';
-import { ResendVerificationDto } from './dtos/resend-verification.dto';
+import {
+  ResendVerificationDto,
+  VerifyEmailDto,
+} from './dtos/resend-verification.dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CustomThrottlerGuard } from './guards/throttler-msg.guard';
 import { ThrottlerMessage } from './decorators/throttler.decorator';
@@ -84,8 +87,8 @@ export class AuthController {
   @Public()
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  async verifyEmail(@Body() token: string) {
-    return this.authService.verifyEmail(token);
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.token);
   }
 
   @Post('logout-all')

@@ -77,16 +77,11 @@ export class EmailService {
         this.logger.error(
           `Resend API error sending email to ${to}: ${error.message} (status: ${error.name})`,
         );
-        throw new InternalServerErrorException(error.message);
       }
 
       this.logger.log(`Email sent successfully to ${to} (ID: ${data?.id})`);
     } catch (err) {
       this.logger.error(`Failed to send email to ${to}`, err);
-      if (err instanceof InternalServerErrorException) {
-        throw err;
-      }
-      throw new InternalServerErrorException('Failed to send email');
     }
   }
 }

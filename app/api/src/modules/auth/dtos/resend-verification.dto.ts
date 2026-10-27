@@ -8,3 +8,9 @@ const resendVerificationSchema = z.object({
 export class ResendVerificationDto extends createZodDto(
   resendVerificationSchema,
 ) {}
+
+const verifyEmailSchema = z.object({
+  token: z.string().min(32, { message: 'This token is not valid!' }),
+});
+
+export class VerifyEmailDto extends createZodDto(verifyEmailSchema) {}
