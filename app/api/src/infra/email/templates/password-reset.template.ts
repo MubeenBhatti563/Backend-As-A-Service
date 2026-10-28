@@ -19,7 +19,7 @@ export function getPasswordResetEmailTemplate(
     actionText: 'Reset Password',
     actionUrl: resetLink,
     expiryText:
-      'For security reasons, this link is valid for only <strong>1 hour</strong>.',
+      'For security reasons, this link is valid for only <strong>15 minutes</strong>.',
     securityNotice:
       'If you did not request a password reset, no further action is required and your account remains safe. We recommend reviewing your account activity if you suspect unauthorized access.',
   });

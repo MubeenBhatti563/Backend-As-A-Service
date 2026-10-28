@@ -20,6 +20,7 @@ import '@fastify/session';
 import { GetUser } from './decorators/get-user.decorator';
 import {
   ResendVerificationDto,
+  ResetPasswordDto,
   VerifyEmailDto,
 } from './dtos/resend-verification.dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
@@ -46,6 +47,8 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @ThrottlerMessage('Too many requests! try login again after 5 minutes!')
+  @Throttle({ default: { limit: 5, ttl: 5 * 60 * 1000 } })
   @HttpCode(HttpStatus.OK)
   async loginUser(@Body() dto: LoginDto, @Req() req: FastifyRequest) {
     const user = await this.authService.validateCredentials(dto);
@@ -75,8 +78,9 @@ export class AuthController {
   }
 
   @Public()
-  @UseGuards(CustomThrottlerGuard)
-  @ThrottlerMessage('Too many requests!')
+  @ThrottlerMessage(
+    'You can only request one email verification every 2 minutes.',
+  )
   @Throttle({ default: { limit: 1, ttl: 120 * 1000 } })
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
@@ -89,6 +93,22 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto.token);
+  }
+
+  @Public()
+  @ThrottlerMessage('Too many request, wait for 2 minutes to send next!')
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ResendVerificationDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.password);
   }
 
   @Post('logout-all')

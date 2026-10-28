@@ -12,16 +12,11 @@ import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
-import {
-  AccessTokenType,
-  RefreshTokenType,
-  SessionDeviceType,
-} from './types/auth.types';
+import { SessionDeviceType } from './types/auth.types';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../infra/redis/redis.service';
 import { SESSION_PREFIX } from '../../infra/redis/redis-session.store';
 import { EmailService } from '../../infra/email/email.service';
-import { ThrottlerException } from '@nestjs/throttler';
 import { TokenType } from '@prisma/client';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -30,8 +25,6 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export class AuthService {
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
   ) {}
@@ -53,47 +46,6 @@ export class AuthService {
     hash: string,
   ): Promise<boolean> {
     return argon2.verify(hash, password);
-  }
-
-  private async getAccessToken(sub: string, email: string) {
-    const accessTokenPayload: AccessTokenType = {
-      sub,
-      email,
-      type: 'accessToken',
-    };
-
-    const accessToken = await this.jwtService.signAsync(accessTokenPayload, {
-      algorithm: 'HS256',
-      secret: this.configService.getOrThrow('JWT_ACCESS_TOKEN_SECRET'),
-      expiresIn: this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRES_IN'),
-    });
-
-    return accessToken;
-  }
-
-  private async getRefreshToken(sub: string, email: string) {
-    const refreshTokenPayload: RefreshTokenType = {
-      sub,
-      email,
-      type: 'refreshToken',
-    };
-
-    const refreshToken = await this.jwtService.signAsync(refreshTokenPayload, {
-      algorithm: 'HS256',
-      secret: this.configService.getOrThrow('JWT_REFRESH_TOKEN_SECRET'),
-      expiresIn: this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRES_IN'),
-    });
-
-    return refreshToken;
-  }
-
-  private async jwtTokens(sub: string, email: string) {
-    const [accessToken, refreshToken] = await Promise.all([
-      await this.getAccessToken(sub, email),
-      await this.getRefreshToken(sub, email),
-    ]);
-
-    return { accessToken, refreshToken };
   }
 
   async resendVerificationEmail(email: string) {
@@ -151,7 +103,7 @@ export class AuthService {
         const hashToken = this.hashToken(rawToken);
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-        const verifyEmail = await tx.verificationToken.create({
+        await tx.verificationToken.create({
           data: {
             expiresAt,
             hashToken,
@@ -252,7 +204,105 @@ export class AuthService {
     return { message: 'Email verified successfully!' };
   }
 
-  async resetPassword() {}
+  async resetPassword(rawToken: string, password: string) {
+    if (!rawToken || typeof rawToken !== 'string') {
+      throw new BadRequestException('Reset token is required');
+    }
+
+    const hashToken = this.hashToken(rawToken);
+
+    const tokenRecord = await this.prismaService.verificationToken.findUnique({
+      where: { hashToken },
+    });
+
+    if (!tokenRecord || tokenRecord.type !== TokenType.PASSWORD_RESET) {
+      throw new BadRequestException('Invalid or expired password reset link');
+    }
+
+    if (tokenRecord.expiresAt < new Date()) {
+      await this.prismaService.verificationToken.delete({
+        where: { id: tokenRecord.id },
+      });
+      throw new BadRequestException(
+        'Password reset link has expired. Please request a new one.',
+      );
+    }
+
+    const newPasswordHash = await this.hashPassword(password);
+    const activeSessions = await this.prismaService.session.findMany({
+      where: { userId: tokenRecord.userId },
+      select: { id: true },
+    });
+
+    await this.prismaService.$transaction([
+      this.prismaService.platformUser.update({
+        where: { id: tokenRecord.userId },
+        data: {
+          passwordHash: newPasswordHash,
+          updatedAt: new Date(),
+        },
+      }),
+
+      this.prismaService.verificationToken.delete({
+        where: { id: tokenRecord.id },
+      }),
+
+      this.prismaService.session.deleteMany({
+        where: { userId: tokenRecord.userId },
+      }),
+    ]);
+
+    if (activeSessions.length > 0) {
+      const redisKeys = activeSessions.map((s) => `sess:${s.id}`);
+      await this.redisService.del(...redisKeys);
+    }
+
+    return {
+      message:
+        'Password has been reset successfully. Please log in with your new password.',
+    };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prismaService.platformUser.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return {
+        message:
+          'If an account exists with this email, a password reset link has been sent.',
+      };
+    }
+
+    const rawToken = this.generateCryptoToken();
+    const hashToken = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await this.prismaService.$transaction([
+      this.prismaService.verificationToken.deleteMany({
+        where: {
+          userId: user.id,
+          type: TokenType.PASSWORD_RESET,
+        },
+      }),
+      this.prismaService.verificationToken.create({
+        data: {
+          userId: user.id,
+          hashToken,
+          type: TokenType.PASSWORD_RESET,
+          expiresAt,
+        },
+      }),
+    ]);
+
+    await this.emailService.sendPasswordResetLink(user.email, rawToken);
+
+    return {
+      message:
+        'If an account exists with this email, a password reset link has been sent.',
+    };
+  }
 
   async getMe(userId: string) {
     const user = await this.prismaService.platformUser.findUnique({
