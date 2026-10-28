@@ -1,21 +1,30 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
-import { ThrottlerException, ThrottlerGuard } from '@nestjs/throttler';
+import {
+  ThrottlerException,
+  ThrottlerGuard,
+  ThrottlerLimitDetail,
+} from '@nestjs/throttler';
 import { THROTTLER_MESSAGE_KEY } from '../decorators/throttler.decorator';
 
 @Injectable()
 export class CustomThrottlerGuard extends ThrottlerGuard {
-  protected async throwThrottlerException(
+  protected async getErrorMessage(
     context: ExecutionContext,
-  ): Promise<void> {
+    _throttlerLimitDetail: ThrottlerLimitDetail,
+  ): Promise<string> {
     const customMessage = this.reflector.getAllAndOverride<string>(
       THROTTLER_MESSAGE_KEY,
       [context.getHandler(), context.getClass()],
     );
 
-    if (customMessage) {
-      throw new ThrottlerException(customMessage);
-    }
+    return customMessage ?? this.errorMessage;
+  }
 
-    throw new ThrottlerException('Too Many Requests');
+  protected async throwThrottlingException(
+    context: ExecutionContext,
+    throttlerLimitDetail: ThrottlerLimitDetail,
+  ): Promise<void> {
+    const message = await this.getErrorMessage(context, throttlerLimitDetail);
+    throw new ThrottlerException(message);
   }
 }

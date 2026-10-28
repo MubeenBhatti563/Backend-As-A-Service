@@ -19,7 +19,13 @@ export const signupSchema = z
       .string()
       .min(1, "Password is required")
       .min(8, "Password must be at least 8 characters")
-      .max(128, "Password is too long"),
+      .max(128, "Password is too long")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[0-9]/, "Password must contain at least one digit")
+      .regex(
+        /[@$!%*?&_\-#^~()+={}\[\]:;"'<>,.\/\\|]/,
+        "Password must contain at least one special character",
+      ),
 
     confirmPassword: z.string().min(1, "Please confirm your password"),
 
@@ -46,7 +52,13 @@ export const resetPasswordSchema = z
       .string()
       .min(1, "Password is required")
       .min(8, "Password must be at least 8 characters")
-      .max(128, "Password is too long"),
+      .max(128, "Password is too long")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[0-9]/, "Password must contain at least one digit")
+      .regex(
+        /[@$!%*?&_\-#^~()+={}\[\]:;"'<>,.\/\\|]/,
+        "Password must contain at least one special character",
+      ),
 
     confirmPassword: z.string().min(1, "Please confirm your password"),
   })
