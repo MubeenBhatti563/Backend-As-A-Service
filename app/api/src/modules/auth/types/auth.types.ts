@@ -12,8 +12,8 @@ export type RefreshTokenType = {
 export type JwtPayload = AccessTokenType | RefreshTokenType;
 
 export interface SessionDeviceType {
-  ipAddress?: String;
-  userAgent?: String;
-  deviceName?: String;
-  clientType?: String;
+  ipAddress?: string;
+  userAgent?: string;
+  deviceName?: string;
+  clientType?: string;
 }

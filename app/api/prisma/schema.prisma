@@ -37,6 +37,7 @@ model Session {
   expiresAt    DateTime @map("expires_at")
 
   @@index([userId])
+  @@index([expiresAt])
   @@map("sessions")
 }
 
@@ -51,6 +52,7 @@ model VerificationToken {
   user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, type])
   @@index([hashToken, type])
   @@map("verification_tokens")
 }
