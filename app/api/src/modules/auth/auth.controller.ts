@@ -1,4 +1,5 @@
 import '@fastify/cookie';
+import '@fastify/session';
 import {
   Body,
   Controller,
@@ -7,7 +8,6 @@ import {
   HttpStatus,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 import { RegisterDto } from './dtos/register.dto';
@@ -16,15 +16,13 @@ import { LoginDto } from './dtos/login.dto';
 import { Public } from './decorators/public.decorator';
 import type { SessionDeviceType } from './types/auth.types';
 import { UAParser } from 'ua-parser-js';
-import '@fastify/session';
 import { GetUser } from './decorators/get-user.decorator';
 import {
   ResendVerificationDto,
   ResetPasswordDto,
   VerifyEmailDto,
 } from './dtos/resend-verification.dto';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { CustomThrottlerGuard } from './guards/throttler-msg.guard';
+import { Throttle } from '@nestjs/throttler';
 import { ThrottlerMessage } from './decorators/throttler.decorator';
 
 declare module 'fastify' {
@@ -53,26 +51,32 @@ export class AuthController {
   async loginUser(@Body() dto: LoginDto, @Req() req: FastifyRequest) {
     const user = await this.authService.validateCredentials(dto);
 
-    await req.session.regenerate();
-    req.session.userId = user.id;
-    req.session.email = user.email;
+    if (req.session?.regenerate) {
+      await req.session.regenerate();
+    }
+    if (req.session) {
+      req.session.userId = user.id;
+      req.session.email = user.email;
+    }
 
-    const uaString = req.headers['user-agent'] || '';
+    const uaString = (req.headers['user-agent'] as string) || '';
     const ua = new UAParser(uaString).getResult();
 
     const sessionInfo: SessionDeviceType = {
       ipAddress: req.ip,
       deviceName:
         ua.device.model || ua.device.vendor || ua.device.type || 'Unknown',
-      clientType: ua.device.type,
+      clientType: ua.device.type || 'desktop',
       userAgent: uaString,
     };
 
-    await this.authService.createSession(
-      user.id,
-      req.session.sessionId,
-      sessionInfo,
-    );
+    if (req.session?.sessionId) {
+      await this.authService.createSession(
+        user.id,
+        req.session.sessionId,
+        sessionInfo,
+      );
+    }
 
     return user;
   }
@@ -118,15 +122,21 @@ export class AuthController {
     @Req() req: FastifyRequest,
   ) {
     await this.authService.logoutAll(userId);
-    await req.session.destroy();
+    if (req.session?.destroy) {
+      await req.session.destroy();
+    }
     return { message: 'Logged out from all devices' };
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: FastifyRequest) {
-    await this.authService.logout(req.session.sessionId);
-    await req.session.destroy();
+    if (req.session?.sessionId) {
+      await this.authService.logout(req.session.sessionId);
+    }
+    if (req.session?.destroy) {
+      await req.session.destroy();
+    }
     return { message: 'Logged out' };
   }
 

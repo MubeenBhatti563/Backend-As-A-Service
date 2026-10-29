@@ -7,19 +7,21 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
 import { SessionDeviceType } from './types/auth.types';
-import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../infra/redis/redis.service';
 import { SESSION_PREFIX } from '../../infra/redis/redis-session.store';
 import { EmailService } from '../../infra/email/email.service';
 import { TokenType } from '@prisma/client';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Pre-computed argon2id hash to mitigate timing attacks / user enumeration on invalid email
+const DUMMY_ARGON2_HASH =
+  '$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RdescudvJCsgqlfresaAcw';
 
 @Injectable()
 export class AuthService {
@@ -38,23 +40,33 @@ export class AuthService {
   }
 
   private async hashPassword(password: string): Promise<string> {
-    return argon2.hash(password);
+    return argon2.hash(password, { type: argon2.argon2id });
   }
 
   private async verifyPassword(
     password: string,
     hash: string,
   ): Promise<boolean> {
-    return argon2.verify(hash, password);
+    try {
+      return await argon2.verify(hash, password);
+    } catch {
+      return false;
+    }
   }
 
   async resendVerificationEmail(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prismaService.platformUser.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
+      select: { id: true, isVerified: true },
     });
 
     if (!user) {
       throw new NotFoundException('User with this email does not exist');
+    }
+
+    if (user.isVerified) {
+      throw new BadRequestException('Email is already verified');
     }
 
     const rawToken = this.generateCryptoToken();
@@ -63,76 +75,116 @@ export class AuthService {
 
     await this.prismaService.$transaction([
       this.prismaService.verificationToken.deleteMany({
-        where: { userId: user.id, type: 'EMAIL_VERIFICATION' },
+        where: { userId: user.id, type: TokenType.EMAIL_VERIFICATION },
       }),
       this.prismaService.verificationToken.create({
         data: {
           hashToken,
           expiresAt,
-          type: 'EMAIL_VERIFICATION',
+          type: TokenType.EMAIL_VERIFICATION,
           userId: user.id,
         },
       }),
     ]);
 
-    await this.emailService.sendVerificationLink(email, rawToken);
+    await this.emailService.sendVerificationLink(normalizedEmail, rawToken);
 
     return { message: 'Verification email sent successfully' };
   }
 
   async register(dto: RegisterDto) {
-    const email = await this.prismaService.platformUser.findUnique({
-      where: { email: dto.email.toLowerCase() },
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const existingUser = await this.prismaService.platformUser.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
     });
 
-    if (email) throw new ConflictException('This email is already in use!');
+    if (existingUser) {
+      throw new ConflictException('This email is already in use!');
+    }
 
     const passwordHash = await this.hashPassword(dto.password);
+    const rawToken = this.generateCryptoToken();
+    const hashToken = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    const { passwordHash: _, ...user } = await this.prismaService.$transaction(
-      async (tx) => {
-        const user = await tx.platformUser.create({
+    let user: {
+      id: string;
+      fullName: string;
+      email: string;
+      isVerified: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+
+    try {
+      user = await this.prismaService.$transaction(async (tx) => {
+        const createdUser = await tx.platformUser.create({
           data: {
-            email: dto.email.toLowerCase(),
-            fullName: dto.fullName,
+            email: normalizedEmail,
+            fullName: dto.fullName.trim(),
             passwordHash,
           },
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            isVerified: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         });
-
-        const rawToken = this.generateCryptoToken();
-        const hashToken = this.hashToken(rawToken);
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
         await tx.verificationToken.create({
           data: {
             expiresAt,
             hashToken,
-            type: 'EMAIL_VERIFICATION',
-            userId: user.id,
+            type: TokenType.EMAIL_VERIFICATION,
+            userId: createdUser.id,
           },
         });
 
-        await this.emailService.sendVerificationLink(user.email, rawToken);
+        return createdUser;
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        throw new ConflictException('This email is already in use!');
+      }
+      throw error;
+    }
 
-        return user;
-      },
-    );
+    // Deliver email verification outside DB transaction to prevent pool exhaustion & blocking
+    await this.emailService.sendVerificationLink(user.email, rawToken);
 
     return user;
   }
 
   async validateCredentials(dto: LoginDto) {
+    const normalizedEmail = dto.email.trim().toLowerCase();
     const user = await this.prismaService.platformUser.findUnique({
-      where: { email: dto.email.toLowerCase() },
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        passwordHash: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
-    if (!user)
+    if (!user) {
+      // Execute dummy argon2 verification to prevent timing-based email enumeration
+      await this.verifyPassword(dto.password, DUMMY_ARGON2_HASH).catch(() => false);
       throw new UnauthorizedException('Email or password is not correct!');
+    }
 
     const isMatch = await this.verifyPassword(dto.password, user.passwordHash);
 
-    if (!isMatch)
+    if (!isMatch) {
       throw new UnauthorizedException('Email or password is not correct!');
+    }
 
     if (!user.isVerified) {
       throw new ForbiddenException(
@@ -140,7 +192,7 @@ export class AuthService {
       );
     }
 
-    const { passwordHash, ...safeUser } = user;
+    const { passwordHash: _, ...safeUser } = user;
 
     return safeUser;
   }
@@ -171,6 +223,7 @@ export class AuthService {
     const hashToken = this.hashToken(rawToken);
     const tokenRecord = await this.prismaService.verificationToken.findUnique({
       where: { hashToken },
+      select: { id: true, userId: true, type: true, expiresAt: true },
     });
 
     if (!tokenRecord || tokenRecord.type !== TokenType.EMAIL_VERIFICATION) {
@@ -178,7 +231,7 @@ export class AuthService {
     }
 
     if (tokenRecord.expiresAt < new Date()) {
-      await this.prismaService.verificationToken.delete({
+      await this.prismaService.verificationToken.deleteMany({
         where: { id: tokenRecord.id },
       });
 
@@ -192,12 +245,14 @@ export class AuthService {
         where: { id: tokenRecord.userId },
         data: {
           isVerified: true,
-          updatedAt: new Date(),
         },
       }),
 
-      this.prismaService.verificationToken.delete({
-        where: { id: tokenRecord.id },
+      this.prismaService.verificationToken.deleteMany({
+        where: {
+          userId: tokenRecord.userId,
+          type: TokenType.EMAIL_VERIFICATION,
+        },
       }),
     ]);
 
@@ -213,6 +268,7 @@ export class AuthService {
 
     const tokenRecord = await this.prismaService.verificationToken.findUnique({
       where: { hashToken },
+      select: { id: true, userId: true, type: true, expiresAt: true },
     });
 
     if (!tokenRecord || tokenRecord.type !== TokenType.PASSWORD_RESET) {
@@ -220,7 +276,7 @@ export class AuthService {
     }
 
     if (tokenRecord.expiresAt < new Date()) {
-      await this.prismaService.verificationToken.delete({
+      await this.prismaService.verificationToken.deleteMany({
         where: { id: tokenRecord.id },
       });
       throw new BadRequestException(
@@ -239,12 +295,12 @@ export class AuthService {
         where: { id: tokenRecord.userId },
         data: {
           passwordHash: newPasswordHash,
-          updatedAt: new Date(),
+          isVerified: true,
         },
       }),
 
-      this.prismaService.verificationToken.delete({
-        where: { id: tokenRecord.id },
+      this.prismaService.verificationToken.deleteMany({
+        where: { userId: tokenRecord.userId, type: TokenType.PASSWORD_RESET },
       }),
 
       this.prismaService.session.deleteMany({
@@ -253,7 +309,7 @@ export class AuthService {
     ]);
 
     if (activeSessions.length > 0) {
-      const redisKeys = activeSessions.map((s) => `sess:${s.id}`);
+      const redisKeys = activeSessions.map((s) => `${SESSION_PREFIX}${s.id}`);
       await this.redisService.del(...redisKeys);
     }
 
@@ -264,8 +320,10 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prismaService.platformUser.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
+      select: { id: true, email: true },
     });
 
     if (!user) {
@@ -307,15 +365,27 @@ export class AuthService {
   async getMe(userId: string) {
     const user = await this.prismaService.platformUser.findUnique({
       where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     if (!user) throw new UnauthorizedException('User no longer exists');
 
-    const { passwordHash: _, ...safeUser } = user;
-    return safeUser;
+    return user;
   }
 
   async logout(sessionId: string) {
-    await this.prismaService.session.deleteMany({ where: { id: sessionId } });
+    if (sessionId) {
+      await Promise.all([
+        this.prismaService.session.deleteMany({ where: { id: sessionId } }),
+        this.redisService.del(`${SESSION_PREFIX}${sessionId}`),
+      ]);
+    }
   }
 
   async logoutAll(userId: string) {

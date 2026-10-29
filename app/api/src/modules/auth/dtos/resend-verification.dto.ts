@@ -1,8 +1,13 @@
 import { createZodDto } from 'nestjs-zod';
-import z, { email } from 'zod';
+import { z } from 'zod';
 
 const resendVerificationSchema = z.object({
-  email: z.string().email().min(1, { message: 'Email must not empty!' }),
+  email: z
+    .string()
+    .trim()
+    .min(1, { message: 'Email must not empty!' })
+    .email({ message: 'Enter a valid email address' })
+    .toLowerCase(),
 });
 
 const verifyEmailSchema = z.object({
@@ -18,7 +23,7 @@ const resetPasswordSchema = z.object({
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Password must contain at least one digit')
     .regex(
-      /[@$!%*?&_\-#^~()+={}\[\]:;"'<>,.\/\\|]/,
+      /[@$!%*?&_\-#^~()+={}[\]:;"'<>,./\\|]/,
       'Password must contain at least one special character',
     ),
 
