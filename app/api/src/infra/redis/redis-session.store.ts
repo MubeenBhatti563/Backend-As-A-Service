@@ -28,6 +28,15 @@ export class RedisSessionStore implements SessionStore {
       .then(() => callback(), callback);
   }
 
+  compareAndSet(
+    id: string,
+    _expectedGeneration: string,
+    session: StoredSession,
+    callback: (err?: unknown) => void,
+  ) {
+    this.set(id, session, callback);
+  }
+
   get(
     id: string,
     callback: (err: unknown, result?: StoredSession | null) => void,
