@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
-import { APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { LoggerModule } from 'nestjs-pino';
 import { RedisModule } from './infra/redis/redis.module';
@@ -12,6 +12,7 @@ import { EmailModule } from './infra/email/email.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { RedisService } from './infra/redis/redis.service';
+import { AllExceptionsFilter, TransformInterceptor } from './common';
 
 @Module({
   imports: [
@@ -68,6 +69,8 @@ import { RedisService } from './infra/redis/redis.service';
   providers: [
     AppService,
     { provide: APP_PIPE, useClass: ZodValidationPipe },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
   ],
 })

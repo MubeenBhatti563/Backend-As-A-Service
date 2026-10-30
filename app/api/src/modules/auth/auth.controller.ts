@@ -24,6 +24,7 @@ import {
 } from './dtos/resend-verification.dto';
 import { Throttle } from '@nestjs/throttler';
 import { ThrottlerMessage } from './decorators/throttler.decorator';
+import { ResponseMessage } from '../../common';
 
 declare module 'fastify' {
   interface Session {
@@ -37,6 +38,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @ResponseMessage('User registered successfully')
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async registerUser(@Body() dto: RegisterDto) {
@@ -44,6 +46,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('Login successful')
   @Post('login')
   @ThrottlerMessage('Too many requests! try login again after 5 minutes!')
   @Throttle({ default: { limit: 5, ttl: 5 * 60 * 1000 } })
@@ -140,6 +143,7 @@ export class AuthController {
     return { message: 'Logged out' };
   }
 
+  @ResponseMessage('User profile retrieved successfully')
   @Get('me')
   async me(@GetUser('userId') userId: string) {
     return this.authService.getMe(userId);
