@@ -27,6 +27,7 @@ import {
   type ForgotPasswordValues,
 } from "../schemas/auth.schema";
 import { SHOW_LOGO_BELOW_900 } from "..";
+import { useForgotPassword } from "../hooks/use-auth";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -49,17 +50,12 @@ interface ForgotPasswordFormProps {
   backToLoginHref?: string;
 }
 
-async function notConnected(): Promise<void> {
-  throw new Error(
-    "Password reset is not connected to a backend yet. Pass an onSubmit to <ForgotPasswordForm />.",
-  );
-}
-
 export function ForgotPasswordForm({
-  onSubmit = notConnected,
+  onSubmit,
   backToLoginHref = "/auth/login",
 }: ForgotPasswordFormProps) {
   const emailId = useId();
+  const forgotMutation = useForgotPassword();
   const [sentTo, setSentTo] = useState<string | null>(null);
 
   const {
@@ -78,7 +74,11 @@ export function ForgotPasswordForm({
     setSentTo(null);
     clearErrors("root.server");
     try {
-      await onSubmit(values);
+      if (onSubmit) {
+        await onSubmit(values);
+      } else {
+        await forgotMutation.mutateAsync({ email: values.email.trim() });
+      }
       setSentTo(values.email);
     } catch (error) {
       setError("root.server", {

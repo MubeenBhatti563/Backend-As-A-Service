@@ -29,6 +29,7 @@ import { useId, useState, type FormEvent } from "react";
 import { LoginErrors, LoginValues } from "../types";
 import { SHOW_LOGO_BELOW_900 } from "..";
 import OAuthButtons from "./OAuthButtongs";
+import { useLogin } from "../hooks/use-auth";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -136,19 +137,14 @@ interface LoginFormProps {
   signUpHref?: string;
 }
 
-async function notConnected(): Promise<void> {
-  throw new Error(
-    "Sign-in is not connected to a backend yet. Pass an onSubmit to <LoginForm />.",
-  );
-}
-
 export function LoginForm({
-  onSubmit = notConnected,
+  onSubmit,
   redirectTo = "/dashboard",
   forgotPasswordHref = "/auth/forgot-password",
   signUpHref = "/auth/register",
 }: LoginFormProps) {
   const router = useRouter();
+  const loginMutation = useLogin();
   const [values, setValues] = useState<LoginValues>({
     email: "",
     password: "",
@@ -176,7 +172,14 @@ export function LoginForm({
 
     setSubmitting(true);
     try {
-      await onSubmit({ ...values, email: values.email.trim() });
+      if (onSubmit) {
+        await onSubmit({ ...values, email: values.email.trim() });
+      } else {
+        await loginMutation.mutateAsync({
+          email: values.email.trim(),
+          password: values.password,
+        });
+      }
       router.push(redirectTo);
     } catch (error) {
       setSubmitError(

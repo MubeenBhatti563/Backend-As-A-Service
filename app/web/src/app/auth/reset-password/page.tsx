@@ -1,7 +1,7 @@
 import { ResetPasswordForm } from "@/features/auth/components/ResetPassword";
 import { TerminalPane } from "@/features/auth/components/TerminalPane";
-import { Box } from "@mui/material";
-import React from "react";
+import { Box, CircularProgress } from "@mui/material";
+import React, { Suspense } from "react";
 
 const ResetPasswordPage = () => {
   return (
@@ -31,7 +31,15 @@ const ResetPasswordPage = () => {
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 480, m: "auto" }}>
-          <ResetPasswordForm />
+          <Suspense
+            fallback={
+              <Box sx={{ display: "grid", placeItems: "center", py: 8 }}>
+                <CircularProgress />
+              </Box>
+            }
+          >
+            <ResetPasswordForm />
+          </Suspense>
         </Box>
       </Box>
     </Box>

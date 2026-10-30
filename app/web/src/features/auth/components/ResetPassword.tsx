@@ -22,7 +22,7 @@ import {
   IconEye,
   IconEyeOff,
 } from "@tabler/icons-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import {
@@ -32,6 +32,7 @@ import {
   type ResetPasswordFormValues,
   type ResetPasswordPayload,
 } from "../schemas/auth.schema";
+import { useResetPassword } from "../hooks/use-auth";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -169,20 +170,19 @@ function StrengthMeter({ level }: { level: PasswordStrength }) {
 /* ------------------------------ component --------------------------- */
 interface ResetPasswordFormProps {
   onSubmit?: (payload: ResetPasswordPayload) => Promise<void>;
+  token?: string;
   redirectTo?: string;
 }
 
-async function notConnected(): Promise<void> {
-  throw new Error(
-    "Password reset is not connected to a backend yet. Pass an onSubmit to <ResetPasswordForm />.",
-  );
-}
-
 export function ResetPasswordForm({
-  onSubmit = notConnected,
-  redirectTo = "/login",
+  onSubmit,
+  token: tokenProp,
+  redirectTo = "/auth/login",
 }: ResetPasswordFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = tokenProp || searchParams.get("token") || "";
+  const resetMutation = useResetPassword();
   const [visible, setVisible] = useState(false);
 
   const {
@@ -203,8 +203,19 @@ export function ResetPasswordForm({
 
   const submit = handleSubmit(async ({ password }) => {
     clearErrors("root.server");
+    if (!token && !onSubmit) {
+      setError("root.server", {
+        message: "Password reset token is missing or invalid. Please request a new link.",
+      });
+      return;
+    }
+
     try {
-      await onSubmit({ password });
+      if (onSubmit) {
+        await onSubmit({ password });
+      } else {
+        await resetMutation.mutateAsync({ token, password });
+      }
       router.push(redirectTo);
     } catch (error) {
       setError("root.server", {

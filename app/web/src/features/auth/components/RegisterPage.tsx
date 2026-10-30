@@ -40,6 +40,7 @@ import {
 } from "../schemas/auth.schema";
 import { SHOW_LOGO_BELOW_900 } from "..";
 import OAuthButtons from "./OAuthButtongs";
+import { useRegister } from "../hooks/use-auth";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -183,20 +184,15 @@ interface SignupFormProps {
   privacyHref?: string;
 }
 
-async function notConnected(): Promise<void> {
-  throw new Error(
-    "Sign-up is not connected to a backend yet. Pass an onSubmit to <SignupForm />.",
-  );
-}
-
 export function SignupForm({
-  onSubmit = notConnected,
-  redirectTo = "/dashboard",
+  onSubmit,
+  redirectTo = "/auth/login",
   signInHref = "/auth/login",
   termsHref = "/terms",
   privacyHref = "/privacy",
 }: SignupFormProps) {
   const router = useRouter();
+  const registerMutation = useRegister();
 
   const {
     register,
@@ -219,7 +215,11 @@ export function SignupForm({
 
   const submit = handleSubmit(async ({ fullName, email, password }) => {
     try {
-      await onSubmit({ fullName, email, password });
+      if (onSubmit) {
+        await onSubmit({ fullName, email, password });
+      } else {
+        await registerMutation.mutateAsync({ fullName, email, password });
+      }
       router.push(redirectTo);
     } catch (error) {
       setError("root.server", {
