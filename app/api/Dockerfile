@@ -19,8 +19,8 @@ COPY . .
 # Generate Prisma Client (uses devDependency CLI)
 RUN pnpm --filter api exec prisma generate
 
-# Build NestJS production output
-RUN pnpm --filter api build
+# The API imports declarations from the shared workspace package.
+RUN pnpm --filter @baas/types build && pnpm --filter api build
 
 # Prune devDependencies to leave only production node_modules
 RUN pnpm --filter api deploy --prod --legacy /prod/api
