@@ -1,11 +1,11 @@
 # ---------- Stage 1: Builder ----------
 FROM node:24.18-alpine AS builder
 
-WORKDIR /app
+WORKDIR /workspace
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@12.6.0 --activate
 
-COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && \
@@ -17,13 +17,13 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 COPY . .
 
 # Generate Prisma Client (uses devDependency CLI)
-RUN pnpm prisma generate
+RUN pnpm --filter api exec prisma generate
 
 # Build NestJS production output
-RUN pnpm run build
+RUN pnpm --filter api build
 
 # Prune devDependencies to leave only production node_modules
-RUN pnpm prune --prod
+RUN pnpm --filter api deploy --prod --legacy /prod/api
 
 # ---------- Stage 2: Runner ----------
 FROM node:24.18-alpine AS runner
@@ -36,21 +36,14 @@ ENV PORT=3000
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 apprunner
 
-# Copy pruned production node_modules & package.json
-COPY --from=builder /app/node_modules ./node_modules
-
-# Copy the generated Prisma client engine binaries (lives in .prisma, not @prisma/client)
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/package.json ./package.json
-
-# Copy Prisma schema/migrations, config & compiled NestJS dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /prod/api ./
+COPY --from=builder /workspace/app/api/dist ./dist
+COPY --from=builder /workspace/app/api/prisma ./prisma
+COPY --from=builder /workspace/app/api/prisma.config.ts ./prisma.config.ts
 
 USER apprunner
 
 EXPOSE 3000
 
 # Run migrations then start the app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/main.js"]

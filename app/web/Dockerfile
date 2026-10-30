@@ -1,7 +1,7 @@
 # ---------- Stage 1: Builder ----------
 FROM node:24.18-alpine AS builder
 
-WORKDIR /app
+WORKDIR /workspace
 
 RUN corepack enable
 
@@ -21,12 +21,12 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN pnpm run build
+RUN pnpm --filter web build
 
 # ---------- Stage 2: Production ----------
 FROM node:24.18-alpine AS prod-deps
 
-WORKDIR /app
+WORKDIR /workspace
 
 ENV NODE_ENV=production
 ENV PORT=4000
@@ -35,17 +35,19 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -S nextjs && \
     adduser -S nextjs -G nextjs
 
-COPY --from=builder /app/public ./public
+COPY --from=builder \
+    --chown=nextjs:nextjs \
+    /workspace/app/web/.next/standalone ./
 
 COPY --from=builder \
     --chown=nextjs:nextjs \
-    /app/.next/standalone ./
+    /workspace/app/web/.next/static ./app/web/.next/static
 
 COPY --from=builder \
     --chown=nextjs:nextjs \
-    /app/.next/static ./.next/static
+    /workspace/app/web/public ./app/web/public
 
 USER nextjs
 EXPOSE 4000
 
-CMD ["node", "server.js"]
+CMD ["node", "app/web/server.js"]
