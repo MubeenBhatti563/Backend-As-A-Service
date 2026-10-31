@@ -35,6 +35,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Build shared types
+        run: pnpm --filter @baas/types build
+
       - name: Test API
         run: pnpm test
 
