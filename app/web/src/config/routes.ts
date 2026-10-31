@@ -54,6 +54,9 @@ export const ROUTES = {
   privacy: NOT_BUILT_YET, // → "/privacy"
   sla: NOT_BUILT_YET, // → "/sla"
   compliance: NOT_BUILT_YET, // → "/compliance"
+
+  /* Dashboard related */
+  dashboard: "/dashboard",
 } as const;
 
 /** Third-party links. Replace the placeholders with the real URLs. */

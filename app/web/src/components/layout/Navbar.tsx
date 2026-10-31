@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Link } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { IconArrowRight } from "@tabler/icons-react";
@@ -5,6 +7,7 @@ import { NAV_LINKS } from "@/constants/homePage";
 import { ROUTES } from "../../config/routes";
 import { mq, NAV_HEIGHT, pageGutter } from "../../theme/tokens";
 import { Brand, CtaButton } from "../common";
+import { useAuthStore } from "@/stores";
 
 const navLinkSx = {
   color: "text.secondary",
@@ -15,6 +18,8 @@ const navLinkSx = {
 } as const;
 
 export function Navbar() {
+  const { user } = useAuthStore();
+
   return (
     <Box
       component="header"
@@ -67,19 +72,21 @@ export function Navbar() {
           [mq.mobile]: { gap: 2.25 },
         }}
       >
-        <Link
-          href={ROUTES.signIn}
-          underline="none"
-          sx={{
-            ...navLinkSx,
-            [mq.mobile]: { fontSize: 12 },
-            [mq.narrow]: { display: "none" },
-          }}
-        >
-          Sign In
-        </Link>
+        {!user && (
+          <Link
+            href={ROUTES.signIn}
+            underline="none"
+            sx={{
+              ...navLinkSx,
+              [mq.mobile]: { fontSize: 12 },
+              [mq.narrow]: { display: "none" },
+            }}
+          >
+            Sign In
+          </Link>
+        )}
         <CtaButton
-          href={ROUTES.deployFree}
+          href={!user ? ROUTES.deployFree : ROUTES.dashboard}
           compact
           endIcon={<IconArrowRight size={16} aria-hidden />}
         >

@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Typography } from "@mui/material";
 import { IconArrowRight, IconBook, IconBrandGithub } from "@tabler/icons-react";
 import { HERO } from "@/constants/homePage";
@@ -5,8 +7,11 @@ import { EXTERNAL_LINKS, ROUTES } from "@/config/routes";
 import { mq, pageGutter } from "@/theme/tokens";
 import { Badge, CtaButton } from "../../common";
 import { DashboardPreview } from "./DashboardPreview";
+import { useAuthStore } from "@/stores";
 
 export function Hero() {
+  const { user } = useAuthStore();
+
   return (
     <Box
       component="section"
@@ -77,10 +82,10 @@ export function Hero() {
           }}
         >
           <CtaButton
-            href={ROUTES.deployFree}
+            href={!user ? ROUTES.deployFree : ROUTES.dashboard}
             endIcon={<IconArrowRight size={17} aria-hidden />}
           >
-            Get Started Free
+            {!user ? "Get Started Free" : "Go to dashboard"}
           </CtaButton>
           <CtaButton
             href={ROUTES.docs}
