@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/package.json",
   "name": "@baas/types",
   "version": "1.0.0",
   "description": "Shared TypeScript types and interfaces for BaaS monorepo",

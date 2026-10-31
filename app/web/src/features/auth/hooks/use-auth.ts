@@ -10,6 +10,7 @@ import type {
   VerifyEmailInput,
 } from '@baas/types';
 import { ApiError } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth.store';
 
 export const AUTH_KEYS = {
   all: ['auth'] as const,
@@ -33,15 +34,18 @@ export function useCurrentUser() {
 
 /**
  * Hook to perform user login.
+ * Syncs both TanStack Query cache and Zustand store on success.
  */
 export function useLogin() {
   const queryClient = useQueryClient();
+  const setUser = useAuthStore((s) => s.setUser);
 
   return useMutation({
     mutationFn: (payload: LoginInput) => authApi.login(payload),
     onSuccess: (response) => {
-      queryClient.setQueryData(AUTH_KEYS.currentUser(), response.data);
-      queryClient.invalidateQueries({ queryKey: AUTH_KEYS.currentUser() });
+      const user = response.data;
+      queryClient.setQueryData(AUTH_KEYS.currentUser(), user);
+      setUser(user);
     },
   });
 }
@@ -57,13 +61,16 @@ export function useRegister() {
 
 /**
  * Hook to logout from the current session.
+ * Clears both TanStack Query cache and Zustand store on success.
  */
 export function useLogout() {
   const queryClient = useQueryClient();
+  const clearUser = useAuthStore((s) => s.clearUser);
 
   return useMutation({
     mutationFn: () => authApi.logout(),
     onSuccess: () => {
+      clearUser();
       queryClient.setQueryData(AUTH_KEYS.currentUser(), null);
       queryClient.removeQueries({ queryKey: AUTH_KEYS.all });
     },
@@ -72,13 +79,16 @@ export function useLogout() {
 
 /**
  * Hook to logout from all active sessions.
+ * Clears both TanStack Query cache and Zustand store on success.
  */
 export function useLogoutAll() {
   const queryClient = useQueryClient();
+  const clearUser = useAuthStore((s) => s.clearUser);
 
   return useMutation({
     mutationFn: () => authApi.logoutAll(),
     onSuccess: () => {
+      clearUser();
       queryClient.setQueryData(AUTH_KEYS.currentUser(), null);
       queryClient.removeQueries({ queryKey: AUTH_KEYS.all });
     },

@@ -1,4 +1,5 @@
 import apiClient from '@/lib/api-client';
+import { API_ENDPOINTS } from '@/config/endpoints';
 import type {
   ApiResponse,
   ForgotPasswordInput,
@@ -10,26 +11,28 @@ import type {
   VerifyEmailInput,
 } from '@baas/types';
 
+const { AUTH } = API_ENDPOINTS;
+
 export const authApi = {
   /**
    * Register a new user account
    */
   register: async (payload: RegisterInput): Promise<ApiResponse<SafeUser>> => {
-    return (await apiClient.post('/auth/register', payload)) as unknown as ApiResponse<SafeUser>;
+    return (await apiClient.post(AUTH.REGISTER, payload)) as unknown as ApiResponse<SafeUser>;
   },
 
   /**
    * Login with email and password
    */
   login: async (payload: LoginInput): Promise<ApiResponse<SafeUser>> => {
-    return (await apiClient.post('/auth/login', payload)) as unknown as ApiResponse<SafeUser>;
+    return (await apiClient.post(AUTH.LOGIN, payload)) as unknown as ApiResponse<SafeUser>;
   },
 
   /**
    * Fetch current authenticated user's profile
    */
   getMe: async (): Promise<ApiResponse<SafeUser>> => {
-    return (await apiClient.get('/auth/me')) as unknown as ApiResponse<SafeUser>;
+    return (await apiClient.get(AUTH.ME)) as unknown as ApiResponse<SafeUser>;
   },
 
   /**
@@ -39,7 +42,7 @@ export const authApi = {
     payload: ResendVerificationInput,
   ): Promise<ApiResponse<null>> => {
     return (await apiClient.post(
-      '/auth/resend-verification',
+      AUTH.RESEND_VERIFICATION,
       payload,
     )) as unknown as ApiResponse<null>;
   },
@@ -51,7 +54,7 @@ export const authApi = {
     payload: VerifyEmailInput,
   ): Promise<ApiResponse<null>> => {
     return (await apiClient.post(
-      '/auth/verify-email',
+      AUTH.VERIFY_EMAIL,
       payload,
     )) as unknown as ApiResponse<null>;
   },
@@ -63,7 +66,7 @@ export const authApi = {
     payload: ForgotPasswordInput,
   ): Promise<ApiResponse<null>> => {
     return (await apiClient.post(
-      '/auth/forgot-password',
+      AUTH.FORGOT_PASSWORD,
       payload,
     )) as unknown as ApiResponse<null>;
   },
@@ -75,7 +78,7 @@ export const authApi = {
     payload: ResetPasswordInput,
   ): Promise<ApiResponse<null>> => {
     return (await apiClient.post(
-      '/auth/reset-password',
+      AUTH.RESET_PASSWORD,
       payload,
     )) as unknown as ApiResponse<null>;
   },
@@ -84,14 +87,14 @@ export const authApi = {
    * Logout from current active session
    */
   logout: async (): Promise<ApiResponse<null>> => {
-    return (await apiClient.post('/auth/logout')) as unknown as ApiResponse<null>;
+    return (await apiClient.post(AUTH.LOGOUT)) as unknown as ApiResponse<null>;
   },
 
   /**
    * Logout from all active devices/sessions
    */
   logoutAll: async (): Promise<ApiResponse<null>> => {
-    return (await apiClient.post('/auth/logout-all')) as unknown as ApiResponse<null>;
+    return (await apiClient.post(AUTH.LOGOUT_ALL)) as unknown as ApiResponse<null>;
   },
 };
 
