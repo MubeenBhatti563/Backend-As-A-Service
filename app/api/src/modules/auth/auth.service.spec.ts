@@ -502,5 +502,30 @@ describe('AuthService', () => {
         },
       });
     });
+
+    it('should create session record with custom TTL when specified', async () => {
+      prismaMock.session.create.mockResolvedValue({ id: 'sess-2' });
+      const customTtl = 30 * 24 * 60 * 60 * 1000;
+      const before = Date.now();
+
+      await service.createSession(
+        'user-1',
+        'sess-2',
+        { ipAddress: '127.0.0.1' },
+        customTtl,
+      );
+
+      expect(prismaMock.session.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          id: 'sess-2',
+          userId: 'user-1',
+          expiresAt: expect.any(Date),
+        }),
+      });
+
+      const calledArg = prismaMock.session.create.mock.calls[0][0].data;
+      const expiresAt = new Date(calledArg.expiresAt).getTime();
+      expect(expiresAt).toBeGreaterThanOrEqual(before + customTtl);
+    });
   });
 });

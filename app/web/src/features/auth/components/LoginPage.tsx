@@ -25,7 +25,7 @@ import {
 } from "@tabler/icons-react";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState, useSyncExternalStore, type FormEvent } from "react";
 import { LoginErrors, LoginValues } from "../types";
 import { SHOW_LOGO_BELOW_900 } from "..";
 import OAuthButtons from "./OAuthButtongs";
@@ -137,6 +137,21 @@ interface LoginFormProps {
   signUpHref?: string;
 }
 
+const emptySubscribe = () => () => {};
+
+function getSavedEmail(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem("baas_remembered_email") || "";
+  } catch {
+    return "";
+  }
+}
+
+function getServerSnapshot(): string {
+  return "";
+}
+
 export function LoginForm({
   onSubmit,
   redirectTo = "/dashboard",
@@ -145,11 +160,19 @@ export function LoginForm({
 }: LoginFormProps) {
   const router = useRouter();
   const loginMutation = useLogin();
-  const [values, setValues] = useState<LoginValues>({
-    email: "",
-    password: "",
-    remember: true,
-  });
+
+  const savedEmail = useSyncExternalStore(
+    emptySubscribe,
+    getSavedEmail,
+    getServerSnapshot,
+  );
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
+
+  const email = userEmail ?? savedEmail;
+  const values: LoginValues = { email, password, remember };
+
   const [errors, setErrors] = useState<LoginErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -159,7 +182,10 @@ export function LoginForm({
     key: K,
     value: LoginValues[K],
   ) => {
-    setValues((v) => ({ ...v, [key]: value }));
+    if (key === "email") setUserEmail(value as string);
+    else if (key === "password") setPassword(value as string);
+    else if (key === "remember") setRemember(value as boolean);
+
     if (key !== "remember") setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
@@ -172,12 +198,27 @@ export function LoginForm({
 
     setSubmitting(true);
     try {
+      if (values.remember) {
+        try {
+          localStorage.setItem("baas_remembered_email", values.email.trim());
+        } catch {
+          // Ignore if localStorage unavailable
+        }
+      } else {
+        try {
+          localStorage.removeItem("baas_remembered_email");
+        } catch {
+          // Ignore if localStorage unavailable
+        }
+      }
+
       if (onSubmit) {
         await onSubmit({ ...values, email: values.email.trim() });
       } else {
         await loginMutation.mutateAsync({
           email: values.email.trim(),
           password: values.password,
+          rememberMe: values.remember,
         });
       }
       router.push(redirectTo);
@@ -193,7 +234,6 @@ export function LoginForm({
   }
 
   return (
-    // Wrap this in a centered flex container, e.g. <Box sx={{ flexGrow: 1, display: "grid", placeItems: "center", p: 20 }}>
     <Box sx={{ width: "100%", maxWidth: 420 }}>
       {/* the left pane is hidden on small screens, so the logo moves here */}
       <Box

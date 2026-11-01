@@ -9,6 +9,8 @@ const LoginSchema = z.object({
     .email('Enter a valid email address'),
 
   password: z.string().min(8, 'Password must be at least 8 chars long!'),
+
+  rememberMe: z.boolean().optional().default(false),
 });
 
 export class LoginDto extends createZodDto(LoginSchema) {}

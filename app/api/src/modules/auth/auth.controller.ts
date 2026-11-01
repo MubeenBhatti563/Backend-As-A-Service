@@ -11,7 +11,11 @@ import {
 } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 import { RegisterDto } from './dtos/register.dto';
-import { AuthService } from './auth.service';
+import {
+  AuthService,
+  REMEMBER_ME_TTL_MS,
+  SHORT_SESSION_TTL_MS,
+} from './auth.service';
 import { LoginDto } from './dtos/login.dto';
 import { Public } from './decorators/public.decorator';
 import type { SessionDeviceType } from './types/auth.types';
@@ -73,11 +77,20 @@ export class AuthController {
       userAgent: uaString,
     };
 
+    const sessionTtlMs = dto.rememberMe
+      ? REMEMBER_ME_TTL_MS
+      : SHORT_SESSION_TTL_MS;
+
+    if (req.session?.options) {
+      req.session.options({ maxAge: sessionTtlMs });
+    }
+
     if (req.session?.sessionId) {
       await this.authService.createSession(
         user.id,
         req.session.sessionId,
         sessionInfo,
+        sessionTtlMs,
       );
     }
 

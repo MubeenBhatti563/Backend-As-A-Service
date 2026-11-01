@@ -80,6 +80,7 @@ describe('AuthController', () => {
       const mockSession: any = {
         sessionId: 'sess-abc-123',
         regenerate: jest.fn().mockResolvedValue(undefined),
+        options: jest.fn(),
       };
 
       const mockReq = {
@@ -96,14 +97,53 @@ describe('AuthController', () => {
       expect(mockSession.regenerate).toHaveBeenCalled();
       expect(mockSession.userId).toBe('user-1');
       expect(mockSession.email).toBe('user@example.com');
+      expect(mockSession.options).toHaveBeenCalledWith({
+        maxAge: 24 * 60 * 60 * 1000,
+      });
       expect(authServiceMock.createSession).toHaveBeenCalledWith(
         'user-1',
         'sess-abc-123',
         expect.objectContaining({
           ipAddress: '127.0.0.1',
         }),
+        24 * 60 * 60 * 1000,
       );
       expect(result).toEqual(user);
+    });
+
+    it('should set 30 days maxAge when rememberMe is true', async () => {
+      const dto = {
+        email: 'user@example.com',
+        password: 'Password123!',
+        rememberMe: true,
+      };
+      const user = { id: 'user-1', email: 'user@example.com', fullName: 'Jane' };
+      authServiceMock.validateCredentials.mockResolvedValue(user);
+      authServiceMock.createSession.mockResolvedValue(undefined);
+
+      const mockSession: any = {
+        sessionId: 'sess-abc-123',
+        regenerate: jest.fn().mockResolvedValue(undefined),
+        options: jest.fn(),
+      };
+
+      const mockReq = {
+        session: mockSession,
+        ip: '127.0.0.1',
+        headers: {},
+      } as unknown as FastifyRequest;
+
+      await controller.loginUser(dto, mockReq);
+
+      expect(mockSession.options).toHaveBeenCalledWith({
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+      expect(authServiceMock.createSession).toHaveBeenCalledWith(
+        'user-1',
+        'sess-abc-123',
+        expect.anything(),
+        30 * 24 * 60 * 60 * 1000,
+      );
     });
   });
 

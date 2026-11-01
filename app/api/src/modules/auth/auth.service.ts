@@ -17,7 +17,9 @@ import { SESSION_PREFIX } from '../../infra/redis/redis-session.store';
 import { EmailService } from '../../infra/email/email.service';
 import { TokenType } from '@prisma/client';
 
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const REMEMBER_ME_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const SHORT_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 1 day
 
 // Pre-computed argon2id hash to mitigate timing attacks / user enumeration on invalid email
 const DUMMY_ARGON2_HASH =
@@ -201,12 +203,13 @@ export class AuthService {
     userId: string,
     sessionId: string,
     info: SessionDeviceType,
+    ttlMs: number = SESSION_TTL_MS,
   ) {
     await this.prismaService.session.create({
       data: {
         id: sessionId,
         userId,
-        expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+        expiresAt: new Date(Date.now() + ttlMs),
         ipAddress: info.ipAddress ? String(info.ipAddress) : undefined,
         deviceName: info.deviceName ? String(info.deviceName) : undefined,
         clientType: info.clientType ? String(info.clientType) : undefined,
