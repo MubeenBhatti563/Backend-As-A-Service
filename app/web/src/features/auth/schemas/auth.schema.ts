@@ -67,6 +67,14 @@ export const resetPasswordSchema = z
     message: "Passwords do not match",
   });
 
+export const resendVerificationSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Enter a valid email address"),
+});
+
 export type SignupFormValues = z.infer<typeof signupSchema>;
 export type SignupPayload = Pick<
   SignupFormValues,
@@ -77,6 +85,9 @@ export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 export type ResetPasswordPayload = Pick<ResetPasswordFormValues, "password">;
 export type PasswordStrength = 0 | 1 | 2 | 3 | 4;
+export type ResendVerificationFormValues = z.infer<
+  typeof resendVerificationSchema
+>;
 
 export function getPasswordStrength(password: string): PasswordStrength {
   if (!password) return 0;

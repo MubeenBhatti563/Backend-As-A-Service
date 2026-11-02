@@ -186,7 +186,7 @@ interface SignupFormProps {
 
 export function SignupForm({
   onSubmit,
-  redirectTo = "/auth/login",
+  redirectTo = "/auth/verify-email",
   signInHref = "/auth/login",
   termsHref = "/terms",
   privacyHref = "/privacy",

@@ -22,7 +22,7 @@ import {
   IconEye,
   IconEyeOff,
 } from "@tabler/icons-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import {
@@ -33,6 +33,7 @@ import {
   type ResetPasswordPayload,
 } from "../schemas/auth.schema";
 import { useResetPassword } from "../hooks/use-auth";
+import { PasswordUpdatedPanel } from "./Passwordupdatedpanel";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -177,9 +178,7 @@ interface ResetPasswordFormProps {
 export function ResetPasswordForm({
   onSubmit,
   token: tokenProp,
-  redirectTo = "/auth/login",
 }: ResetPasswordFormProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = tokenProp || searchParams.get("token") || "";
   const resetMutation = useResetPassword();
@@ -205,7 +204,8 @@ export function ResetPasswordForm({
     clearErrors("root.server");
     if (!token && !onSubmit) {
       setError("root.server", {
-        message: "Password reset token is missing or invalid. Please request a new link.",
+        message:
+          "Password reset token is missing or invalid. Please request a new link.",
       });
       return;
     }
@@ -216,7 +216,6 @@ export function ResetPasswordForm({
       } else {
         await resetMutation.mutateAsync({ token, password });
       }
-      router.push(redirectTo);
     } catch (error) {
       setError("root.server", {
         message:
@@ -237,121 +236,135 @@ export function ResetPasswordForm({
   const type = visible ? "text" : "password";
 
   return (
-    <Box sx={{ width: "100%", maxWidth: 420 }}>
-      {/* the left pane is hidden on small screens, so the logo moves here */}
-      <Box
-        sx={{
-          display: "none",
-          alignItems: "center",
-          gap: 2.5,
-          mb: 8,
-          [SHOW_LOGO_BELOW_900]: { display: "inline-flex" },
-        }}
-      >
-        <Box
-          sx={{
-            display: "grid",
-            placeItems: "center",
-            width: 40,
-            height: 40,
-            borderRadius: 0.75,
-            bgcolor: "primary.main",
-            color: "common.white",
-          }}
-        >
-          <IconDatabaseSearch size={22} aria-hidden />
-        </Box>
-        <Typography
-          component="span"
-          variant="h6"
-          sx={{ fontSize: 25, fontWeight: 800, lineHeight: "32px" }}
-        >
-          DevStack
-        </Typography>
-      </Box>
-
-      <Box
-        component="form"
-        noValidate
-        onSubmit={submit}
-        sx={{ display: "flex", flexDirection: "column", gap: 8 }}
-      >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Typography variant="h3" component="h1" sx={{ lineHeight: "40px" }}>
-            {COPY.title}
-          </Typography>
-          <Typography
-            sx={{ color: "text.secondary", fontSize: 14, lineHeight: "18px" }}
+    <>
+      {!resetMutation.isSuccess ? (
+        <Box sx={{ width: "100%", maxWidth: 420 }}>
+          {/* the left pane is hidden on small screens, so the logo moves here */}
+          <Box
+            sx={{
+              display: "none",
+              alignItems: "center",
+              gap: 2.5,
+              mb: 8,
+              [SHOW_LOGO_BELOW_900]: { display: "inline-flex" },
+            }}
           >
-            {COPY.subtitle}
-          </Typography>
-        </Box>
+            <Box
+              sx={{
+                display: "grid",
+                placeItems: "center",
+                width: 40,
+                height: 40,
+                borderRadius: 0.75,
+                bgcolor: "primary.main",
+                color: "common.white",
+              }}
+            >
+              <IconDatabaseSearch size={22} aria-hidden />
+            </Box>
+            <Typography
+              component="span"
+              variant="h6"
+              sx={{ fontSize: 25, fontWeight: 800, lineHeight: "32px" }}
+            >
+              DevStack
+            </Typography>
+          </Box>
 
-        {errors.root?.server?.message && (
-          <Alert severity="error" role="alert" sx={{ mt: -3 }}>
-            {errors.root.server.message}
-          </Alert>
-        )}
-
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          <Field
-            label={COPY.passwordLabel}
-            registration={passwordRegistration}
-            error={errors.password?.message}
-            type={type}
-            placeholder="********"
-            autoComplete="new-password"
-            endAdornment={
-              <InputAdornment position="end" sx={{ m: 0 }}>
-                <IconButton
-                  size="small"
-                  edge="end"
-                  onClick={() => setVisible((v) => !v)}
-                  aria-label={visible ? "Hide passwords" : "Show passwords"}
-                  aria-pressed={visible}
-                  sx={{
-                    p: 1,
-                    color: "text.disabled",
-                    "&:hover": {
-                      color: "common.white",
-                      bgcolor: "transparent",
-                    },
-                  }}
-                >
-                  {!visible ? (
-                    <IconEyeOff size={16} aria-hidden />
-                  ) : (
-                    <IconEye size={16} aria-hidden />
-                  )}
-                </IconButton>
-              </InputAdornment>
-            }
+          <Box
+            component="form"
+            noValidate
+            onSubmit={submit}
+            sx={{ display: "flex", flexDirection: "column", gap: 8 }}
           >
-            <StrengthMeter level={strength} />
-          </Field>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Typography
+                variant="h3"
+                component="h1"
+                sx={{ lineHeight: "40px" }}
+              >
+                {COPY.title}
+              </Typography>
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                  fontSize: 14,
+                  lineHeight: "18px",
+                }}
+              >
+                {COPY.subtitle}
+              </Typography>
+            </Box>
 
-          <Field
-            label={COPY.confirmLabel}
-            registration={register("confirmPassword")}
-            error={errors.confirmPassword?.message}
-            type={type}
-            autoComplete="new-password"
-            placeholder="********"
-          />
+            {errors.root?.server?.message && (
+              <Alert severity="error" role="alert" sx={{ mt: -3 }}>
+                {errors.root.server.message}
+              </Alert>
+            )}
+
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <Field
+                label={COPY.passwordLabel}
+                registration={passwordRegistration}
+                error={errors.password?.message}
+                type={type}
+                placeholder="********"
+                autoComplete="new-password"
+                endAdornment={
+                  <InputAdornment position="end" sx={{ m: 0 }}>
+                    <IconButton
+                      size="small"
+                      edge="end"
+                      onClick={() => setVisible((v) => !v)}
+                      aria-label={visible ? "Hide passwords" : "Show passwords"}
+                      aria-pressed={visible}
+                      sx={{
+                        p: 1,
+                        color: "text.disabled",
+                        "&:hover": {
+                          color: "common.white",
+                          bgcolor: "transparent",
+                        },
+                      }}
+                    >
+                      {!visible ? (
+                        <IconEyeOff size={16} aria-hidden />
+                      ) : (
+                        <IconEye size={16} aria-hidden />
+                      )}
+                    </IconButton>
+                  </InputAdornment>
+                }
+              >
+                <StrengthMeter level={strength} />
+              </Field>
+
+              <Field
+                label={COPY.confirmLabel}
+                registration={register("confirmPassword")}
+                error={errors.confirmPassword?.message}
+                type={type}
+                autoComplete="new-password"
+                placeholder="********"
+              />
+            </Box>
+
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              loading={isSubmitting}
+              loadingPosition="end"
+              endIcon={<IconArrowRight size={16} aria-hidden />}
+              sx={{ minHeight: 42, py: 0, gap: 0.5 }}
+            >
+              {COPY.submit}
+            </Button>
+          </Box>
         </Box>
-
-        <Button
-          type="submit"
-          variant="contained"
-          fullWidth
-          loading={isSubmitting}
-          loadingPosition="end"
-          endIcon={<IconArrowRight size={16} aria-hidden />}
-          sx={{ minHeight: 42, py: 0, gap: 0.5 }}
-        >
-          {COPY.submit}
-        </Button>
-      </Box>
-    </Box>
+      ) : (
+        <PasswordUpdatedPanel />
+      )}
+    </>
   );
 }

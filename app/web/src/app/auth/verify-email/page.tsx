@@ -2,6 +2,8 @@
 
 import React, { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import {
   Alert,
   Box,
@@ -18,7 +20,77 @@ import {
 } from "@tabler/icons-react";
 import NextLink from "next/link";
 import { TerminalPane } from "@/features/auth/components/TerminalPane";
-import { useVerifyEmail } from "@/features/auth";
+import { useVerifyEmail, useResendVerification } from "@/features/auth";
+import {
+  ResendVerificationFormValues,
+  resendVerificationSchema,
+} from "@/features/auth/schemas/auth.schema";
+import { Field } from "@/features/auth/components/Field";
+// NEW: put this file next to the other schemas of the feature and fix the path if needed
+
+/**
+ * NEW – shown when the page is opened without a ?token=...
+ * Asks for the email and sends a fresh verification link.
+ */
+function ResendVerificationForm() {
+  const resendMutation = useResendVerification();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ResendVerificationFormValues>({
+    resolver: zodResolver(resendVerificationSchema),
+    defaultValues: { email: "" },
+    mode: "onTouched",
+  });
+
+  const onSubmit = handleSubmit((values) => {
+    resendMutation.mutate(values, {
+      onSuccess: () => reset(),
+    });
+  });
+
+  return (
+    <Box component="form" noValidate onSubmit={onSubmit} sx={{ width: "100%" }}>
+      <Stack spacing={2}>
+        {resendMutation.isSuccess && (
+          <Alert severity="success" role="status" sx={{ textAlign: "left" }}>
+            If an account exists for that email, a new verification link is on
+            its way. Check your inbox.
+          </Alert>
+        )}
+        {resendMutation.isError && (
+          <Alert severity="error" role="alert" sx={{ textAlign: "left" }}>
+            {resendMutation.error?.message ||
+              "Could not send the verification link. Please try again."}
+          </Alert>
+        )}
+
+        <Field
+          label="Email Address"
+          registration={register("email")}
+          error={errors.email?.message}
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          disabled={resendMutation.isPending}
+        />
+
+        <Button
+          type="submit"
+          variant="contained"
+          fullWidth
+          loading={resendMutation.isPending}
+          endIcon={<IconArrowRight size={18} aria-hidden />}
+        >
+          Resend verification link
+        </Button>
+      </Stack>
+    </Box>
+  );
+}
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -66,11 +138,13 @@ function VerifyEmailContent() {
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               Verify your email
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              A verification link was dispatched to your email address. Please
-              click the link in the email to activate your account and start
-              provisioning databases.
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+              We couldn&apos;t find a verification token. Enter your email and
+              we&apos;ll send you a new verification link.
             </Typography>
+
+            <ResendVerificationForm />
+
             <Button
               component={NextLink}
               href="/auth/login"
@@ -86,7 +160,7 @@ function VerifyEmailContent() {
             <Typography variant="h6">
               Verifying your email address...
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Validating your security cryptographic token with the server.
             </Typography>
           </>
@@ -108,7 +182,7 @@ function VerifyEmailContent() {
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               Email Verified Successfully!
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Your account has been fully authenticated. You can now log in to
               access the console and developer APIs.
             </Typography>
@@ -144,6 +218,13 @@ function VerifyEmailContent() {
               {verifyEmailMutation.error?.message ||
                 "This verification link is invalid or has expired."}
             </Alert>
+
+            {/* NEW: an expired / invalid link can be replaced with a fresh one right here */}
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+              Need a new link? Enter your email below.
+            </Typography>
+            <ResendVerificationForm />
+
             <Stack direction="row" spacing={2} sx={{ width: "100%" }}>
               <Button
                 component={NextLink}
