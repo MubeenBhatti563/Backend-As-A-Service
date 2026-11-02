@@ -22,7 +22,7 @@ interface PasswordUpdatedPanelProps {
 }
 
 export function PasswordUpdatedPanel({
-  loginHref = "/login",
+  loginHref = "/auth/login",
 }: PasswordUpdatedPanelProps) {
   return (
     // Wrap in a centered flex container, e.g. <Box sx={{ flexGrow: 1, display: "grid", placeItems: "center", p: 20 }}>
