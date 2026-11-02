@@ -17,9 +17,9 @@ import { SESSION_PREFIX } from '../../infra/redis/redis-session.store';
 import { EmailService } from '../../infra/email/email.service';
 import { TokenType } from '@prisma/client';
 
-export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-export const REMEMBER_ME_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-export const SHORT_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 1 day
+export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+export const REMEMBER_ME_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 30 days
+export const SHORT_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 1 day
 
 // Pre-computed argon2id hash to mitigate timing attacks / user enumeration on invalid email
 const DUMMY_ARGON2_HASH =
@@ -178,7 +178,9 @@ export class AuthService {
 
     if (!user) {
       // Execute dummy argon2 verification to prevent timing-based email enumeration
-      await this.verifyPassword(dto.password, DUMMY_ARGON2_HASH).catch(() => false);
+      await this.verifyPassword(dto.password, DUMMY_ARGON2_HASH).catch(
+        () => false,
+      );
       throw new UnauthorizedException('Email or password is not correct!');
     }
 

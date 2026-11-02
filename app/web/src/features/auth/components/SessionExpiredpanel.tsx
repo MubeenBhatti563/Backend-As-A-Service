@@ -5,6 +5,7 @@
 import { Box, Button, Link as MuiLink, Typography } from "@mui/material";
 import { IconAlarm, IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
 import NextLink from "next/link";
+import { ROUTES } from "@/config/routes";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -24,8 +25,8 @@ interface SessionExpiredPanelProps {
 }
 
 export function SessionExpiredPanel({
-  loginHref = "/login",
-  homeHref = "/",
+  loginHref = ROUTES.signIn,
+  homeHref = ROUTES.home,
 }: SessionExpiredPanelProps) {
   return (
     // Wrap in a centered flex container, e.g. <Box sx={{ flexGrow: 1, display: "grid", placeItems: "center", p: 20 }}>

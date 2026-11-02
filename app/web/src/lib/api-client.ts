@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import type { ApiErrorResponse } from '@baas/types';
+import { useAuthStore } from '@/stores/auth.store';
 
 /**
  * Custom application API error wrapping the standardized server error envelope.
@@ -62,6 +63,23 @@ apiClient.interceptors.response.use(
     return response.data;
   },
   (error: AxiosError<ApiErrorResponse>) => {
+    // Session expiration detection: redirect when 401 received for authenticated user
+    if (error.response?.status === 401) {
+      if (typeof window !== 'undefined') {
+        const pathname = window.location.pathname;
+        const isAuthPage = pathname.startsWith('/auth');
+        const isLoginRequest = error.config?.url?.includes('/auth/login');
+        const wasAuthenticated = useAuthStore.getState().isAuthenticated;
+        const isProtectedRoute = pathname.startsWith('/dashboard');
+
+        if (!isAuthPage && !isLoginRequest && (wasAuthenticated || isProtectedRoute)) {
+          useAuthStore.getState().clearUser();
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+          window.location.href = '/auth/session-expired';
+        }
+      }
+    }
+
     if (error.response?.data) {
       const { message, statusCode, error: errTitle, errors, path } =
         error.response.data;

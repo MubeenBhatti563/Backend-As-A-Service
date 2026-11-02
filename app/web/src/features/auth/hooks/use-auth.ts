@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import authApi from '../api/auth.api';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import authApi from "../api/auth.api";
 import type {
   ForgotPasswordInput,
   LoginInput,
@@ -8,13 +8,13 @@ import type {
   ResetPasswordInput,
   SafeUser,
   VerifyEmailInput,
-} from '@baas/types';
-import { ApiError } from '@/lib/api-client';
-import { useAuthStore } from '@/stores/auth.store';
+} from "@baas/types";
+import { ApiError } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth.store";
 
 export const AUTH_KEYS = {
-  all: ['auth'] as const,
-  currentUser: () => [...AUTH_KEYS.all, 'currentUser'] as const,
+  all: ["auth"] as const,
+  currentUser: () => [...AUTH_KEYS.all, "currentUser"] as const,
 };
 
 /**

@@ -45,6 +45,7 @@ export const ROUTES = {
   signIn: "/auth/login", // → "/sign-in"
   deployFree: "/auth/register", // → "/signup"
   signUp: "/auth/register", // → "/signup"
+  sessionExpired: "/auth/session-expired",
   contactSales: anchor(SECTION_IDS.top), // → "/contact"
 
   /* company + legal */

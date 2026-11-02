@@ -19,7 +19,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
   app.useLogger(app.get(Logger));
 
-  const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:4000,http://127.0.0.1:4000')
+  const allowedOrigins = (
+    process.env.CORS_ORIGINS ?? 'http://localhost:4000,http://127.0.0.1:4000'
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -40,7 +42,6 @@ async function bootstrap() {
       'AI-powered Backend-as-a-Service platform providing authentication, database management, REST APIs, realtime communication, storage, server-side functions, and intelligent backend generation.',
     )
     .setVersion('1.0.0')
-    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
+import {
+  AuthService,
+  REMEMBER_ME_TTL_MS,
+  SHORT_SESSION_TTL_MS,
+} from './auth.service';
 import type { FastifyRequest } from 'fastify';
 
 describe('AuthController', () => {
@@ -98,7 +102,7 @@ describe('AuthController', () => {
       expect(mockSession.userId).toBe('user-1');
       expect(mockSession.email).toBe('user@example.com');
       expect(mockSession.options).toHaveBeenCalledWith({
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: SHORT_SESSION_TTL_MS,
       });
       expect(authServiceMock.createSession).toHaveBeenCalledWith(
         'user-1',
@@ -106,12 +110,12 @@ describe('AuthController', () => {
         expect.objectContaining({
           ipAddress: '127.0.0.1',
         }),
-        24 * 60 * 60 * 1000,
+        SHORT_SESSION_TTL_MS,
       );
       expect(result).toEqual(user);
     });
 
-    it('should set 30 days maxAge when rememberMe is true', async () => {
+    it('should set remember me maxAge when rememberMe is true', async () => {
       const dto = {
         email: 'user@example.com',
         password: 'Password123!',
@@ -136,13 +140,13 @@ describe('AuthController', () => {
       await controller.loginUser(dto, mockReq);
 
       expect(mockSession.options).toHaveBeenCalledWith({
-        maxAge: 30 * 24 * 60 * 60 * 1000,
+        maxAge: REMEMBER_ME_TTL_MS,
       });
       expect(authServiceMock.createSession).toHaveBeenCalledWith(
         'user-1',
         'sess-abc-123',
         expect.anything(),
-        30 * 24 * 60 * 60 * 1000,
+        REMEMBER_ME_TTL_MS,
       );
     });
   });

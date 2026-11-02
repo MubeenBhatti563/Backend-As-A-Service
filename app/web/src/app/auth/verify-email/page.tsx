@@ -83,7 +83,9 @@ function VerifyEmailContent() {
         ) : verifyEmailMutation.isPending ? (
           <>
             <CircularProgress size={44} />
-            <Typography variant="h6">Verifying your email address...</Typography>
+            <Typography variant="h6">
+              Verifying your email address...
+            </Typography>
             <Typography variant="body2" color="text.secondary">
               Validating your security cryptographic token with the server.
             </Typography>
