@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useRef } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -32,7 +32,8 @@ import { Field } from "@/features/auth/components/Field";
  * NEW – shown when the page is opened without a ?token=...
  * Asks for the email and sends a fresh verification link.
  */
-function ResendVerificationForm() {
+
+function ResendVerificationForm({ isResendEmail }: { isResendEmail: boolean }) {
   const resendMutation = useResendVerification();
 
   const {
@@ -68,31 +69,36 @@ function ResendVerificationForm() {
           </Alert>
         )}
 
-        <Field
-          label="Email Address"
-          registration={register("email")}
-          error={errors.email?.message}
-          type="email"
-          autoComplete="email"
-          placeholder="you@example.com"
-          disabled={resendMutation.isPending}
-        />
+        {isResendEmail && (
+          <Field
+            label="Email Address"
+            registration={register("email")}
+            error={errors.email?.message}
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            disabled={resendMutation.isPending}
+          />
+        )}
 
-        <Button
-          type="submit"
-          variant="contained"
-          fullWidth
-          loading={resendMutation.isPending}
-          endIcon={<IconArrowRight size={18} aria-hidden />}
-        >
-          Resend verification link
-        </Button>
+        {isResendEmail && (
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            loading={resendMutation.isPending}
+            endIcon={<IconArrowRight size={18} aria-hidden />}
+          >
+            Resend verification link
+          </Button>
+        )}
       </Stack>
     </Box>
   );
 }
 
 function VerifyEmailContent() {
+  const [isResendEmail, setIsResendEmail] = useState(false);
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -139,11 +145,12 @@ function VerifyEmailContent() {
               Verify your email
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              We couldn&apos;t find a verification token. Enter your email and
-              we&apos;ll send you a new verification link.
+              {isResendEmail
+                ? "Enter your email and we'll send you a new verification link."
+                : "A verification link was dispatched to your email address. Please click the link in the email to activate your account and start provisioning databases."}
             </Typography>
 
-            <ResendVerificationForm />
+            <ResendVerificationForm isResendEmail={isResendEmail} />
 
             <Button
               component={NextLink}
@@ -153,6 +160,16 @@ function VerifyEmailContent() {
             >
               Return to Sign In
             </Button>
+
+            {!isResendEmail && (
+              <Button
+                variant="text"
+                fullWidth
+                onClick={() => setIsResendEmail(true)}
+              >
+                Didn&apos;t get link? Click here
+              </Button>
+            )}
           </>
         ) : verifyEmailMutation.isPending ? (
           <>
@@ -223,7 +240,8 @@ function VerifyEmailContent() {
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Need a new link? Enter your email below.
             </Typography>
-            <ResendVerificationForm />
+
+            <ResendVerificationForm isResendEmail={isResendEmail} />
 
             <Stack direction="row" spacing={2} sx={{ width: "100%" }}>
               <Button

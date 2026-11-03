@@ -14,10 +14,49 @@ model PlatformUser {
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
   isVerified         Boolean             @default(false) @map("is_verified")
+  isCreated          Boolean             @default(false) @map("is_created")
   sessions           Session[]
   verificationTokens VerificationToken[]
+  projects           Project[]
 
   @@map("platform_users")
+}
+
+model Project {
+  id               String        @id @default(uuid())
+  name             String        @db.VarChar(100)
+  schemaName       String        @unique @map("schema_name") @db.VarChar(63)
+  description      String?
+  deploymentRegion String        @map("deployment_region")
+  ownerId          String        @map("owner_id")
+  status           ProjectStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  owner PlatformUser @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  apiKeys ApiKey[]
+
+  @@index([ownerId])
+  @@map("projects")
+}
+
+model ApiKey {
+  id         String        @id @default(uuid())
+  projectId  String        @map("project_id")
+  name       String        @db.VarChar(50)
+  keyHash    String        @unique @map("key_hash") @db.VarChar(255)
+  keyPrefix  String        @map("key_prefix") @db.VarChar(30)
+  status     ProjectStatus @default(ACTIVE)
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  expiresAt  DateTime?     @map("expires_at") @db.Timestamptz
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("api_keys")
 }
 
 model Session {
@@ -53,11 +92,20 @@ model VerificationToken {
 
   @@index([userId])
   @@index([userId, type])
-  @@index([hashToken, type])
   @@map("verification_tokens")
 }
 
 enum TokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum ApiKeyRole {
+  anon
+  service
 }
