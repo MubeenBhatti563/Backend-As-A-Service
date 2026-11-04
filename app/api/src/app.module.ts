@@ -27,7 +27,7 @@ import { AllExceptionsFilter, TransformInterceptor } from './common';
             {
               name: 'default',
               ttl: 60000,
-              limit: 10,
+              limit: 100,
             },
           ],
           storage: new ThrottlerStorageRedisService(redisService.getClient()),

@@ -26,7 +26,7 @@ import {
   ResetPasswordDto,
   VerifyEmailDto,
 } from './dtos/resend-verification.dto';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ThrottlerMessage } from './decorators/throttler.decorator';
 import { ResponseMessage } from '../../common';
 
@@ -156,6 +156,7 @@ export class AuthController {
     return { message: 'Logged out' };
   }
 
+  @SkipThrottle()
   @ResponseMessage('User profile retrieved successfully')
   @Get('me')
   async me(@GetUser('userId') userId: string) {
