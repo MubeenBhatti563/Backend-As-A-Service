@@ -155,7 +155,7 @@ function VerifyEmailContent() {
             <Button
               component={NextLink}
               href="/auth/login"
-              variant="outlined"
+              variant={isResendEmail ? "outlined" : "contained"}
               fullWidth
             >
               Return to Sign In
