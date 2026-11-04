@@ -154,7 +154,7 @@ function getServerSnapshot(): string {
 
 export function LoginForm({
   onSubmit,
-  redirectTo = "/dashboard",
+  redirectTo = "/dashboard/projects",
   forgotPasswordHref = "/auth/forgot-password",
   signUpHref = "/auth/register",
 }: LoginFormProps) {

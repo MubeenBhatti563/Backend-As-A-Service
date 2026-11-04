@@ -57,7 +57,7 @@ export const ROUTES = {
   compliance: NOT_BUILT_YET, // → "/compliance"
 
   /* Dashboard related */
-  dashboard: "/dashboard",
+  dashboard: "/dashboard/projects",
 } as const;
 
 /** Third-party links. Replace the placeholders with the real URLs. */
@@ -65,4 +65,17 @@ export const EXTERNAL_LINKS = {
   github: NOT_BUILT_YET, // → "https://github.com/<org>"
   twitter: NOT_BUILT_YET, // → "https://twitter.com/<handle>"
   x: NOT_BUILT_YET, // → "https://x.com/<handle>"
+} as const;
+
+// Every link used by the account screens lives here – change a route in one place.
+export const ACCOUNT_ROUTES = {
+  home: "/",
+  projects: "/dashboard/projects",
+  usage: "/account/usage",
+  settings: "/account/settings",
+  newProject: "/projects/new",
+  docs: "/docs",
+  help: "/help",
+  quickstart: "/docs/quickstart",
+  project: (id: string) => `/projects/${id}`,
 } as const;
