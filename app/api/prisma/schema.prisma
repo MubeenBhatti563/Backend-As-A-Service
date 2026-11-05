@@ -14,7 +14,6 @@ model PlatformUser {
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
   isVerified         Boolean             @default(false) @map("is_verified")
-  isCreated          Boolean             @default(false) @map("is_created")
   sessions           Session[]
   verificationTokens VerificationToken[]
   projects           Project[]

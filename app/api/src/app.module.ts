@@ -13,6 +13,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { RedisService } from './infra/redis/redis.service';
 import { AllExceptionsFilter, TransformInterceptor } from './common';
+import { ProjectModule } from './modules/project/project.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { AllExceptionsFilter, TransformInterceptor } from './common';
     RedisModule,
     AuthModule,
     EmailModule,
+    ProjectModule,
   ],
   controllers: [AppController],
   providers: [
