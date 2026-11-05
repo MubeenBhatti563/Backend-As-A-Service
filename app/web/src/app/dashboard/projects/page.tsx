@@ -12,15 +12,16 @@ import {
   Project,
   UsageMetric,
 } from "@/types/projectPage";
-import { AccountShell } from "@/components/sections/projects/AccountShell";
-import { PageHeader } from "@/components/sections/projects/PageHeader";
-import { STACK_BELOW_1100 } from "@/components/ui/projectStyle";
-import { ProjectsSection } from "@/components/sections/projects/ProjectsSection";
-import { RecentActivity } from "@/components/sections/projects/RecentActivity";
-import { QuickstartHint } from "@/components/sections/projects/QuickstartHint";
-import { UsagePanel } from "@/components/sections/projects/UsagePanel";
-import { PlanCard } from "@/components/sections/projects/PlanCard";
+import { AccountShell } from "@/features/projects/components/projects/AccountShell";
+import { PageHeader } from "@/features/projects/components/projects/PageHeader";
+import { STACK_BELOW_1100 } from "@/features/projects/components/projectStyle";
+import { ProjectsSection } from "@/features/projects/components/projects/ProjectsSection";
+import { RecentActivity } from "@/features/projects/components/projects/RecentActivity";
+import { QuickstartHint } from "@/features/projects/components/projects/QuickstartHint";
+import { UsagePanel } from "@/features/projects/components/projects/UsagePanel";
+import { PlanCard } from "@/features/projects/components/projects/PlanCard";
 import { useAuthStore } from "@/stores";
+import Loading from "@/app/loading";
 
 interface AccountOverviewPageProps {
   userMock?: AccountUser;
@@ -30,7 +31,6 @@ interface AccountOverviewPageProps {
   usageResetNote?: string;
 }
 
-/** "Account – Projects overview". Pass real data as props; defaults are the Figma sample data. */
 function AccountOverviewPage({
   userMock = MOCK_USER,
   projects = MOCK_PROJECTS,
@@ -39,6 +39,10 @@ function AccountOverviewPage({
   usageResetNote = "API quota resets Dec 1, 2026 (UTC)",
 }: AccountOverviewPageProps) {
   const { user } = useAuthStore();
+
+  if (!user) {
+    return <Loading />;
+  }
 
   return (
     <AccountShell user={user!} projectCount={projects.length}>

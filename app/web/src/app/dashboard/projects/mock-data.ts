@@ -1,5 +1,3 @@
-// Sample data matching the Figma frame. Replace with API data (same shapes, see types.ts).
-
 import {
   AccountUser,
   ActivityEvent,
