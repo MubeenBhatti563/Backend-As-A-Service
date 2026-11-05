@@ -1,5 +1,5 @@
 "use client";
-import { font } from "@/components/ui/projectStyle";
+import { font } from "@/features/projects/components/projectStyle";
 import { ACCOUNT_ROUTES } from "@/config/routes";
 import { Box, Button, Typography } from "@mui/material";
 import { IconPlus } from "@tabler/icons-react";

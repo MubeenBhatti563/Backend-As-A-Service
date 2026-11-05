@@ -1,5 +1,5 @@
 "use client";
-import { font, panelSx } from "@/components/ui/projectStyle";
+import { font, panelSx } from "@/features/projects/components/projectStyle";
 import { ActivityEvent, ActivityIconKey } from "@/types/projectPage";
 import { Box, Typography } from "@mui/material";
 import {

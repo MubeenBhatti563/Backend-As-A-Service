@@ -1,5 +1,9 @@
 "use client";
-import { badgeSx, font, HIDE_BELOW_900 } from "@/components/ui/projectStyle";
+import {
+  badgeSx,
+  font,
+  HIDE_BELOW_900,
+} from "@/features/projects/components/projectStyle";
 import { ACCOUNT_ROUTES } from "@/config/routes";
 import { Box, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
@@ -136,7 +140,7 @@ export function AccountSidebar({
         width: 240,
         p: 4,
         overflowY: "auto",
-        bgcolor: "background.default",
+        bgcolor: "background.canvas",
         borderRight: 1,
         borderColor: "border.default",
         [HIDE_BELOW_900]: { display: "none" },
@@ -188,7 +192,7 @@ export function AccountSidebar({
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, px: 3 }}>
           <Box aria-hidden sx={{ height: "1px", bgcolor: "border.default" }} />
           <Typography
-            sx={{ color: "text.disabled", fontSize: 12, lineHeight: 1.6 }}
+            sx={{ color: "text.secondary", fontSize: 12, lineHeight: 1.6 }}
           >
             {COPY.scopeNote}
           </Typography>

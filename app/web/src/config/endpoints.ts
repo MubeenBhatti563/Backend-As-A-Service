@@ -11,15 +11,15 @@
 export const API_ENDPOINTS = {
   // ── Auth ──────────────────────────────────────────────────────────────────
   AUTH: {
-    REGISTER: '/auth/register',
-    LOGIN: '/auth/login',
-    LOGOUT: '/auth/logout',
-    LOGOUT_ALL: '/auth/logout-all',
-    ME: '/auth/me',
-    VERIFY_EMAIL: '/auth/verify-email',
-    RESEND_VERIFICATION: '/auth/resend-verification',
-    FORGOT_PASSWORD: '/auth/forgot-password',
-    RESET_PASSWORD: '/auth/reset-password',
+    REGISTER: "/auth/register",
+    LOGIN: "/auth/login",
+    LOGOUT: "/auth/logout",
+    LOGOUT_ALL: "/auth/logout-all",
+    ME: "/auth/me",
+    VERIFY_EMAIL: "/auth/verify-email",
+    RESEND_VERIFICATION: "/auth/resend-verification",
+    FORGOT_PASSWORD: "/auth/forgot-password",
+    RESET_PASSWORD: "/auth/reset-password",
   },
 
   // ── Users (future) ───────────────────────────────────────────────────────
@@ -41,7 +41,11 @@ export const API_ENDPOINTS = {
 
   // ── Health ────────────────────────────────────────────────────────────────
   HEALTH: {
-    CHECK: '/',
+    CHECK: "/",
+  },
+
+  PROJECT: {
+    CREATE: "/project/create-project",
   },
 } as const;
 

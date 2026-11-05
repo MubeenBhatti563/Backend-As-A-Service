@@ -1,6 +1,6 @@
 "use client";
 import { Brand } from "@/components/common";
-import { HIDE_BELOW_720 } from "@/components/ui/projectStyle";
+import { HIDE_BELOW_720 } from "@/features/projects/components/projectStyle";
 import { ACCOUNT_ROUTES } from "@/config/routes";
 import { useLogout } from "@/features/auth";
 import {

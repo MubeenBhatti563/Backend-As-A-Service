@@ -5,7 +5,7 @@ import NextLink from "next/link";
 import { UsageMeter } from "./UsageMeter";
 import { UsageMetric } from "@/types/projectPage";
 import { ACCOUNT_ROUTES } from "@/config/routes";
-import { panelSx } from "@/components/ui/projectStyle";
+import { panelSx } from "@/features/projects/components/projectStyle";
 
 interface UsagePanelProps {
   metrics: UsageMetric[];

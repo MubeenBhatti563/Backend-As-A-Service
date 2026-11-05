@@ -1,5 +1,5 @@
 "use client";
-import { font } from "@/components/ui/projectStyle";
+import { font } from "@/features/projects/components/projectStyle";
 import { UsageIconKey, UsageMetric } from "@/types/projectPage";
 import { Box, Typography } from "@mui/material";
 import {

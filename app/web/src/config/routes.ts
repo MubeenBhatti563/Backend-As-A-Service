@@ -73,9 +73,41 @@ export const ACCOUNT_ROUTES = {
   projects: "/dashboard/projects",
   usage: "/account/usage",
   settings: "/account/settings",
-  newProject: "/projects/new",
+  newProject: "/dashboard/projects/new",
   docs: "/docs",
   help: "/help",
   quickstart: "/docs/quickstart",
   project: (id: string) => `/projects/${id}`,
+} as const;
+
+// The 3 onboarding steps. The sidebar renders this list and the step badge reads its length.
+export const ONBOARDING_STEPS = [
+  {
+    id: "welcome",
+    title: "Welcome to BaaS",
+    description: "Get started with your instance",
+  },
+  {
+    id: "project",
+    title: "Create First Project",
+    description: "Define your backend workspace",
+  },
+  {
+    id: "sdk",
+    title: "Connect Client SDK",
+    description: "Download configuration schemas",
+  },
+] as const;
+
+export type OnboardingStepId = (typeof ONBOARDING_STEPS)[number]["id"];
+
+export const ONBOARDING_ROUTES = {
+  home: "/",
+  welcome: "/dashboard/projects/new",
+  createProject: "/dashboard/projects/new/project",
+  initializing: "/dashboard/projects/new/initializing",
+  connectSdk: "/dashboard/projects/new/sdk",
+  docs: "/docs",
+  dashboard: "/dashboard/projects",
+  supportEmail: "support@devstack.com",
 } as const;

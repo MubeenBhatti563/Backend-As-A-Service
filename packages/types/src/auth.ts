@@ -6,7 +6,6 @@ export interface SafeUser {
   fullName: string;
   email: string;
   isVerified: boolean;
-  isCreated: boolean;
   createdAt: string | Date;
   updatedAt: string | Date;
 }

@@ -8,7 +8,11 @@ import {
   type SelectOption,
 } from "./ProjectsToolbar";
 import { Project, ProjectStatus } from "@/types/projectPage";
-import { badgeSx, font, HIDE_BELOW_720 } from "@/components/ui/projectStyle";
+import {
+  badgeSx,
+  font,
+  HIDE_BELOW_720,
+} from "@/features/projects/components/projectStyle";
 
 type StatusFilter = "all" | ProjectStatus;
 type SortKey = "updated" | "name" | "status";

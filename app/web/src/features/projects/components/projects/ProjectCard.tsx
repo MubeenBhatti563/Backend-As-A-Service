@@ -1,5 +1,5 @@
 "use client";
-import { font, panelSx } from "@/components/ui/projectStyle";
+import { font, panelSx } from "@/features/projects/components/projectStyle";
 import { ACCOUNT_ROUTES } from "@/config/routes";
 import { Project, ProjectIconKey } from "@/types/projectPage";
 import { Box, IconButton, Typography } from "@mui/material";
