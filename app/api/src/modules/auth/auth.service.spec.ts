@@ -139,7 +139,9 @@ describe('AuthService', () => {
     });
 
     it('should throw ConflictException if email is already in use', async () => {
-      prismaMock.platformUser.findUnique.mockResolvedValue({ id: 'existing-id' });
+      prismaMock.platformUser.findUnique.mockResolvedValue({
+        id: 'existing-id',
+      });
 
       await expect(service.register(registerDto)).rejects.toThrow(
         ConflictException,
@@ -162,6 +164,7 @@ describe('AuthService', () => {
     const loginDto = {
       email: 'user@example.com',
       password: 'ValidPassword123!',
+      rememberMe: true,
     };
 
     it('should validate credentials and return safe user when correct', async () => {
@@ -171,6 +174,7 @@ describe('AuthService', () => {
         email: 'user@example.com',
         fullName: 'Jane Doe',
         passwordHash,
+        isCreated: true,
         isVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -182,6 +186,7 @@ describe('AuthService', () => {
         id: 'user-1',
         email: 'user@example.com',
         fullName: 'Jane Doe',
+        isCreated: true,
         isVerified: true,
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
@@ -420,6 +425,7 @@ describe('AuthService', () => {
         id: 'user-1',
         fullName: 'Alice',
         email: 'alice@example.com',
+        isCreated: true,
         isVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -435,6 +441,7 @@ describe('AuthService', () => {
           id: true,
           fullName: true,
           email: true,
+          isCreated: true,
           isVerified: true,
           createdAt: true,
           updatedAt: true,
