@@ -17,6 +17,7 @@ model PlatformUser {
   sessions           Session[]
   verificationTokens VerificationToken[]
   projects           Project[]
+  apiKeys            ApiKey[]
 
   @@map("platform_users")
 }
@@ -43,18 +44,22 @@ model Project {
 model ApiKey {
   id         String        @id @default(uuid())
   projectId  String        @map("project_id")
+  createdBy  String?       @map("created_by")
   name       String        @db.VarChar(50)
   keyHash    String        @unique @map("key_hash") @db.VarChar(255)
   keyPrefix  String        @map("key_prefix") @db.VarChar(30)
+  role       ApiKeyRole
   status     ProjectStatus @default(ACTIVE)
   lastUsedAt DateTime?
   revokedAt  DateTime?
   expiresAt  DateTime?     @map("expires_at") @db.Timestamptz
   createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator PlatformUser? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@index([projectId])
+  @@index([projectId, role])
   @@map("api_keys")
 }
 
@@ -102,6 +107,7 @@ enum TokenType {
 enum ProjectStatus {
   ACTIVE
   PAUSED
+  PENDING
 }
 
 enum ApiKeyRole {
