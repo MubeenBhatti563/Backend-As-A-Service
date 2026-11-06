@@ -21,7 +21,7 @@ const COPY = {
   title: "Your Project is Ready!",
   endpoint: "PROJECT ENDPOINT URL",
   publicKey: "PUBLIC API KEY (ANON)",
-  secretKey: "SECRET SERVICE ROLE KEY",
+  secretKey: "SECRET SERVICE ROLE KEY (You are only allowed to see it once!)",
   warning:
     "Never expose your Secret API Key in client-side code. This key bypasses row-level security and grants root access to your DB.",
   docs: "View SDK Documentation",

@@ -46,6 +46,7 @@ export const API_ENDPOINTS = {
 
   PROJECT: {
     CREATE: "/project/create-project",
+    GET_ALL: "/project/get-all-project",
   },
 } as const;
 

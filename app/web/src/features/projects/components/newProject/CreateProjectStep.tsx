@@ -14,7 +14,6 @@ import {
 } from "../../schemas/create-project.schema";
 import { Field, SelectField } from "./OnboardingField";
 import { StepHeader } from "./StepHeader";
-import { usePostProject } from "../../hooks/use-project";
 
 const COPY = {
   label: "Infrastructure Setup",
@@ -54,13 +53,10 @@ export function CreateProjectStep({
     mode: "onTouched",
   });
 
-  const createProject = usePostProject();
-
   const submit = handleSubmit(async (values) => {
     try {
       if (!onSubmit)
         throw new Error("Project creation is not connected to a backend yet.");
-      await createProject.mutateAsync(values);
       await onSubmit(values);
       onSuccess();
     } catch (error) {
