@@ -12,6 +12,14 @@ export interface ProjectData {
   schemaName: string;
   description: string | null;
   deploymentRegion: string;
-  status: "ACTIVE" | "PAUSED";
+  status: "ACTIVE" | "PAUSED" | "PENDING";
   ownerId: string;
+}
+
+export interface CreateProjectResponse {
+  project: ProjectData;
+  keys: {
+    anon: string;
+    service: string;
+  };
 }
