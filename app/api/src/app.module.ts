@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './infra/prisma/prisma.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { LoggerModule } from 'nestjs-pino';
@@ -14,11 +14,34 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { RedisService } from './infra/redis/redis.service';
 import { AllExceptionsFilter, TransformInterceptor } from './common';
 import { ProjectModule } from './modules/project/project.module';
+import { BullModule } from '@nestjs/bullmq';
+import { WorkersModule } from './workers/workers.module';
 
 @Module({
   imports: [
     PrismaModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          port: Number(configService.get('REDIS_PORT', 6380)),
+          host: configService.get('REDIS_HOST', 'localhost'),
+          password: configService.get('REDIS_PASSWORD'),
+          tls: configService.get('REDIS_TLS') === 'true' ? {} : undefined,
+        },
+        defaultJobOptions: {
+          removeOnComplete: { count: 1000, age: 24 * 3600 },
+          removeOnFail: { count: 5000, age: 7 * 24 * 3600 },
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 1000,
+          },
+        },
+      }),
+    }),
     ThrottlerModule.forRootAsync({
       imports: [RedisModule],
       inject: [RedisService],
@@ -66,6 +89,7 @@ import { ProjectModule } from './modules/project/project.module';
     AuthModule,
     EmailModule,
     ProjectModule,
+    WorkersModule,
   ],
   controllers: [AppController],
   providers: [

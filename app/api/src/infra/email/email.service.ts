@@ -1,86 +1,63 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
-import {
-  getVerificationEmailTemplate,
-  getPasswordResetEmailTemplate,
-} from './templates';
+  EMAIL_JOBS,
+  EMAIL_QUEUE,
+  SendPasswordResetEmailPayload,
+  SendVerificationEmailPayload,
+} from '../../workers/email-workers';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly resend: Resend;
-  private readonly fromEmail: string;
 
-  constructor(private readonly configService: ConfigService) {
-    this.resend = new Resend(this.configService.getOrThrow('RESEND_EMAIL_KEY'));
-    this.fromEmail =
-      this.configService.get<string>('EMAIL_FROM') ||
-      'DevStack Auth <baas_app@resend.dev>';
-  }
+  constructor(
+    @InjectQueue(EMAIL_QUEUE)
+    private readonly emailQueue: Queue,
+  ) {}
 
   /**
-   * Helper to resolve the frontend base URL with protocol
-   */
-  private getFrontendUrl(): string {
-    const rawUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
-    return rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
-      ? rawUrl
-      : `http://${rawUrl}`;
-  }
-
-  /**
-   * Send Email Verification Link
+   * Enqueue Email Verification Link delivery
    */
   async sendVerificationLink(email: string, token: string): Promise<void> {
-    const appUrl = this.getFrontendUrl();
-    const verifyLink = `${appUrl}/auth/verify-email?token=${token}`;
-    const { subject, html, text } = getVerificationEmailTemplate(verifyLink);
+    try {
+      const job = await this.emailQueue.add(
+        EMAIL_JOBS.VERIFICATION,
+        { email, token } satisfies SendVerificationEmailPayload,
+      );
 
-    await this.sendEmail(email, subject, html, text);
+      this.logger.debug(
+        `Queued verification email job ${job.id} for recipient ${email}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to enqueue verification email for ${email}: ${(err as Error).message}`,
+        (err as Error).stack,
+      );
+      throw err;
+    }
   }
 
   /**
-   * Send Password Reset Link
+   * Enqueue Password Reset Link delivery
    */
   async sendPasswordResetLink(email: string, token: string): Promise<void> {
-    const appUrl = this.getFrontendUrl();
-    const resetLink = `${appUrl}/auth/reset-password?token=${token}`;
-    const { subject, html, text } = getPasswordResetEmailTemplate(resetLink);
-
-    await this.sendEmail(email, subject, html, text);
-  }
-
-  /**
-   * Core Resend API delivery method with explicit error inspection
-   */
-  private async sendEmail(
-    to: string,
-    subject: string,
-    html: string,
-    text: string,
-  ): Promise<void> {
     try {
-      const { data, error } = await this.resend.emails.send({
-        from: this.fromEmail,
-        to: [to],
-        subject,
-        html,
-        text,
-      });
+      const job = await this.emailQueue.add(
+        EMAIL_JOBS.PASSWORD_RESET,
+        { email, token } satisfies SendPasswordResetEmailPayload,
+      );
 
-      if (error) {
-        this.logger.error(
-          `Resend API error sending email to ${to}: ${error.message} (status: ${error.name})`,
-        );
-      }
-
-      this.logger.log(`Email sent successfully to ${to} (ID: ${data?.id})`);
+      this.logger.debug(
+        `Queued password reset email job ${job.id} for recipient ${email}`,
+      );
     } catch (err) {
-      this.logger.error(`Failed to send email to ${to}`, err);
+      this.logger.error(
+        `Failed to enqueue password reset email for ${email}: ${(err as Error).message}`,
+        (err as Error).stack,
+      );
+      throw err;
     }
   }
 }
