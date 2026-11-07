@@ -77,7 +77,7 @@ export const ACCOUNT_ROUTES = {
   docs: "/docs",
   help: "/help",
   quickstart: "/docs/quickstart",
-  project: (id: string) => `/projects/${id}`,
+  project: (id: string) => `/dashboard/projects/${id}`,
 } as const;
 
 // The 3 onboarding steps. The sidebar renders this list and the step badge reads its length.
