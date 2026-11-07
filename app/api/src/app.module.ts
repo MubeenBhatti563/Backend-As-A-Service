@@ -75,7 +75,9 @@ import { WorkersModule } from './workers/workers.module';
                 options: {
                   singleLine: true,
                   colorize: true,
-                  translateTime: 'MM/DD/YYYY, h:MM:ss TT',
+                  // Pino's timestamps are UTC by default; render them in the
+                  // system timezone and use dateformat's month/day tokens.
+                  translateTime: 'SYS:mm/dd/yyyy, h:MM:ss TT',
                   messageFormat: '[{context}] {msg}',
                   ignore: 'pid,hostname,context',
                 },
