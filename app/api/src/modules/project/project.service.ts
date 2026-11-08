@@ -61,6 +61,16 @@ export class ProjectService {
         ],
       });
 
+      await tx.activityLog.create({
+        data: {
+          userId,
+          projectId: newProject.id,
+          projectName: newProject.name,
+          type: 'PROJECT_CREATED',
+          description: 'Project created',
+        },
+      });
+
       return newProject;
     });
 
@@ -75,5 +85,52 @@ export class ProjectService {
 
   async getAllProjects(userId: string) {
     return this.prismaService.project.findMany({ where: { ownerId: userId } });
+  }
+
+  async getRecentActivity(userId: string) {
+    let logs = await this.prismaService.activityLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    // Retroactive backfill: If user has existing projects but 0 activity logs, generate them
+    if (logs.length === 0) {
+      const existingProjects = await this.prismaService.project.findMany({
+        where: { ownerId: userId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+
+      if (existingProjects.length > 0) {
+        await this.prismaService.activityLog.createMany({
+          data: existingProjects.map((p) => ({
+            userId,
+            projectId: p.id,
+            projectName: p.name,
+            type: 'PROJECT_CREATED' as const,
+            description: 'Project created',
+            createdAt: p.createdAt,
+          })),
+        });
+
+        logs = await this.prismaService.activityLog.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        });
+      }
+    }
+
+    return logs.map((log) => ({
+      id: log.id,
+      userId: log.userId,
+      projectId: log.projectId,
+      projectName: log.projectName,
+      type: log.type,
+      description: log.description,
+      metadata: log.metadata,
+      createdAt: log.createdAt.toISOString(),
+    }));
   }
 }

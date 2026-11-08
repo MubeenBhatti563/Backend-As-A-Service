@@ -7,12 +7,14 @@ describe('ProjectController', () => {
   let projectServiceMock: {
     createProject: jest.Mock;
     getAllProjects: jest.Mock;
+    getRecentActivity: jest.Mock;
   };
 
   beforeEach(async () => {
     projectServiceMock = {
       createProject: jest.fn(),
       getAllProjects: jest.fn(),
+      getRecentActivity: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -105,6 +107,41 @@ describe('ProjectController', () => {
 
       await expect(controller.getAllProjects(userId)).rejects.toThrow(
         'Fetch failed',
+      );
+    });
+  });
+
+  describe('getRecentActivity', () => {
+    const userId = 'user-abc-123';
+
+    it('should delegate to projectService.getRecentActivity and return activities list', async () => {
+      const mockActivities = [
+        {
+          id: 'act-1',
+          userId,
+          projectId: 'proj-1',
+          projectName: 'alpha-db',
+          type: 'PROJECT_CREATED',
+          description: 'Project created',
+          createdAt: '2026-11-08T12:00:00.000Z',
+        },
+      ];
+
+      projectServiceMock.getRecentActivity.mockResolvedValue(mockActivities);
+
+      const result = await controller.getRecentActivity(userId);
+
+      expect(projectServiceMock.getRecentActivity).toHaveBeenCalledTimes(1);
+      expect(projectServiceMock.getRecentActivity).toHaveBeenCalledWith(userId);
+      expect(result).toEqual(mockActivities);
+    });
+
+    it('should propagate errors from projectService.getRecentActivity', async () => {
+      const error = new Error('Activity fetch failed');
+      projectServiceMock.getRecentActivity.mockRejectedValue(error);
+
+      await expect(controller.getRecentActivity(userId)).rejects.toThrow(
+        'Activity fetch failed',
       );
     });
   });

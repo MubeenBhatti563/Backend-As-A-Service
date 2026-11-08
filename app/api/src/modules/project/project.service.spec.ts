@@ -14,6 +14,10 @@ describe('ProjectService', () => {
     apiKey: {
       createMany: jest.Mock;
     };
+    activityLog: {
+      findMany: jest.Mock;
+      createMany: jest.Mock;
+    };
   };
 
   const mockTx = {
@@ -22,6 +26,9 @@ describe('ProjectService', () => {
     },
     apiKey: {
       createMany: jest.fn(),
+    },
+    activityLog: {
+      create: jest.fn(),
     },
   };
 
@@ -35,6 +42,10 @@ describe('ProjectService', () => {
         findMany: jest.fn(),
       },
       apiKey: {
+        createMany: jest.fn(),
+      },
+      activityLog: {
+        findMany: jest.fn(),
         createMany: jest.fn(),
       },
     };
@@ -209,6 +220,82 @@ describe('ProjectService', () => {
       await expect(service.getAllProjects(userId)).rejects.toThrow(
         'Database connection failed',
       );
+    });
+  });
+
+  describe('getRecentActivity', () => {
+    const userId = 'user-123';
+    const now = new Date('2026-11-08T12:00:00Z');
+
+    it('should return mapped activity logs when they exist', async () => {
+      const mockLogs = [
+        {
+          id: 'log-1',
+          userId,
+          projectId: 'proj-1',
+          projectName: 'My Project',
+          type: 'PROJECT_CREATED',
+          description: 'Project created',
+          metadata: null,
+          createdAt: now,
+        },
+      ];
+      prismaMock.activityLog.findMany.mockResolvedValueOnce(mockLogs);
+
+      const result = await service.getRecentActivity(userId);
+
+      expect(prismaMock.activityLog.findMany).toHaveBeenCalledWith({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('log-1');
+      expect(result[0].createdAt).toBe(now.toISOString());
+    });
+
+    it('should backfill from projects if no activity logs exist', async () => {
+      prismaMock.activityLog.findMany
+        .mockResolvedValueOnce([]) // First query returns empty
+        .mockResolvedValueOnce([
+          {
+            id: 'log-backfilled',
+            userId,
+            projectId: 'proj-1',
+            projectName: 'Old Project',
+            type: 'PROJECT_CREATED',
+            description: 'Project created',
+            metadata: null,
+            createdAt: now,
+          },
+        ]);
+      prismaMock.project.findMany.mockResolvedValueOnce([
+        {
+          id: 'proj-1',
+          name: 'Old Project',
+          createdAt: now,
+        },
+      ]);
+      prismaMock.activityLog.createMany.mockResolvedValueOnce({ count: 1 });
+
+      const result = await service.getRecentActivity(userId);
+
+      expect(prismaMock.project.findMany).toHaveBeenCalledWith({
+        where: { ownerId: userId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+      expect(prismaMock.activityLog.createMany).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+    });
+
+    it('should return empty array if no logs and no projects exist', async () => {
+      prismaMock.activityLog.findMany.mockResolvedValueOnce([]);
+      prismaMock.project.findMany.mockResolvedValueOnce([]);
+
+      const result = await service.getRecentActivity(userId);
+
+      expect(result).toEqual([]);
     });
   });
 });

@@ -28,4 +28,10 @@ export class ProjectController {
   async getAllProjects(@GetUser('userId') userId: string) {
     return this.projectService.getAllProjects(userId);
   }
+
+  @Get('activity')
+  @HttpCode(HttpStatus.OK)
+  async getRecentActivity(@GetUser('userId') userId: string) {
+    return this.projectService.getRecentActivity(userId);
+  }
 }
