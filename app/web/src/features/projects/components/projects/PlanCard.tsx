@@ -19,7 +19,7 @@ interface PlanCardProps {
 export function PlanCard({
   plan,
   tier,
-  upgradeHref = `${ACCOUNT_ROUTES.usage}#upgrade`,
+  upgradeHref = ACCOUNT_ROUTES.billing,
 }: PlanCardProps) {
   return (
     <Box

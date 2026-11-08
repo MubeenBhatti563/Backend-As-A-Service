@@ -12,6 +12,7 @@ interface UsagePanelProps {
   projectCount: number;
   resetNote?: string;
   href?: string;
+  showLink?: boolean;
 }
 
 export function UsagePanel({
@@ -19,6 +20,7 @@ export function UsagePanel({
   projectCount,
   resetNote,
   href = ACCOUNT_ROUTES.usage,
+  showLink = true,
 }: UsagePanelProps) {
   return (
     <Box
@@ -48,19 +50,21 @@ export function UsagePanel({
           >
             Account usage
           </Typography>
-          <IconButton
-            component={NextLink}
-            href={href}
-            aria-label="Open usage & billing"
-            size="small"
-            sx={{
-              p: 0.5,
-              color: "text.secondary",
-              "&:hover": { color: "text.primary" },
-            }}
-          >
-            <IconArrowUpRight size={15} aria-hidden />
-          </IconButton>
+          {showLink && (
+            <IconButton
+              component={NextLink}
+              href={href}
+              aria-label="Open usage & billing"
+              size="small"
+              sx={{
+                p: 0.5,
+                color: "text.secondary",
+                "&:hover": { color: "text.primary" },
+              }}
+            >
+              <IconArrowUpRight size={15} aria-hidden />
+            </IconButton>
+          )}
         </Box>
         <Typography
           sx={{ color: "text.secondary", fontSize: 12, lineHeight: "16px" }}

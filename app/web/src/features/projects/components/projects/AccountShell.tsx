@@ -9,6 +9,8 @@ interface AccountShellProps {
   user: SafeUser;
   projectCount: number;
   activeNav?: AccountNavKey;
+  plan?: string;
+  tier?: string;
   children: ReactNode;
 }
 
@@ -17,6 +19,8 @@ export function AccountShell({
   user,
   projectCount,
   activeNav = "projects",
+  plan = "Developer",
+  tier = "Free",
   children,
 }: AccountShellProps) {
   return (
@@ -35,8 +39,8 @@ export function AccountShell({
       <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
         <AccountSidebar
           accountName={user?.fullName}
-          plan={"Developer"}
-          tier={"Free"}
+          plan={plan}
+          tier={tier}
           activeKey={activeNav}
           projectCount={projectCount}
         />

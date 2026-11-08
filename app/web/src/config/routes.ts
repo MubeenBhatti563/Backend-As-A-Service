@@ -71,8 +71,10 @@ export const EXTERNAL_LINKS = {
 export const ACCOUNT_ROUTES = {
   home: "/",
   projects: "/dashboard/projects",
-  usage: "/account/usage",
-  settings: "/account/settings",
+  usage: "/dashboard/billing",
+  billing: "/dashboard/billing",
+  upgrade: "/upgrade",
+  settings: "/dashboard/settings",
   newProject: "/dashboard/projects/new",
   docs: "/docs",
   help: "/help",
