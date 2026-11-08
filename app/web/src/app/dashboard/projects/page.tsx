@@ -7,7 +7,7 @@ import {
   Project,
   UsageMetric,
 } from "@/types/projectPage";
-import { MyPlanResponse, ProjectData } from "@baas/types";
+import { ActivityLogData, MyPlanResponse, ProjectData } from "@baas/types";
 import { AccountShell } from "@/features/projects/components/projects/AccountShell";
 import { PageHeader } from "@/features/projects/components/projects/PageHeader";
 import { STACK_BELOW_1100 } from "@/features/projects/components/projectStyle";
@@ -18,10 +18,51 @@ import { UsagePanel } from "@/features/projects/components/projects/UsagePanel";
 import { PlanCard } from "@/features/projects/components/projects/PlanCard";
 import { useAuthStore } from "@/stores";
 import Loading from "@/app/loading";
-import { useAllProjects } from "@/features/projects/hooks/use-project";
+import {
+  useAllProjects,
+  useRecentActivity,
+} from "@/features/projects/hooks/use-project";
 import { useMyPlan } from "@/features/projects/hooks/use-plan";
 import { panelSx } from "@/features/projects/components/projectStyle";
 import { IconRefresh } from "@tabler/icons-react";
+
+/** Map API ActivityLogData → ActivityEvent */
+function toActivityEvent(log: ActivityLogData): ActivityEvent {
+  let icon: ActivityEvent["icon"] = "updated";
+  if (log.type === "PROJECT_CREATED" || log.type === "API_KEY_CREATED") {
+    icon = "created";
+  } else if (log.type === "PROJECT_PAUSED") {
+    icon = "paused";
+  } else {
+    icon = "updated";
+  }
+
+  const createdAt = new Date(log.createdAt);
+  const diffMs = Date.now() - createdAt.getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  let time: string;
+  if (diffMins < 1) time = "Just now";
+  else if (diffMins < 60) time = `${diffMins} min ago`;
+  else if (diffMins < 1440) {
+    const hours = Math.floor(diffMins / 60);
+    time = `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  } else if (diffMins < 2880) {
+    time = "Yesterday";
+  } else {
+    time = createdAt.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  return {
+    id: log.id,
+    icon,
+    description: log.description,
+    project: log.projectName ?? "General",
+    time,
+  };
+}
 
 /** Map API ProjectData → page-local Project shape */
 function toProject(p: ProjectData): Project {
@@ -153,6 +194,7 @@ function AccountOverviewPage({
   const { user } = useAuthStore();
   const { data: rawProjects, isLoading, isError, refetch } = useAllProjects();
   const { data: myPlan } = useMyPlan();
+  const { data: rawActivities } = useRecentActivity();
 
   if (!user) {
     return <Loading />;
@@ -166,6 +208,9 @@ function AccountOverviewPage({
       ? "Free"
       : (myPlan?.plan.name ?? userMock.tier);
   const displayUsage = toUsageMetrics(myPlan, usage);
+  const displayActivities: ActivityEvent[] = rawActivities
+    ? rawActivities.map(toActivityEvent)
+    : activity;
 
   return (
     <AccountShell user={user} projectCount={projects.length}>
@@ -247,7 +292,7 @@ function AccountOverviewPage({
           )}
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <RecentActivity events={activity} />
+            <RecentActivity events={displayActivities} />
             <QuickstartHint />
           </Box>
         </Box>

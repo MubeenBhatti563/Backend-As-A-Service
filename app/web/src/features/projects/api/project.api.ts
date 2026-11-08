@@ -1,6 +1,7 @@
 import API_ENDPOINTS from "@/config/endpoints";
 import apiClient from "@/lib/api-client";
 import {
+  ActivityLogData,
   ApiResponse,
   CreateProjectInput,
   CreateProjectResponse,
@@ -23,5 +24,11 @@ export const projectApi = {
     return (await apiClient.get(
       API_ENDPOINTS.PROJECT.GET_ALL,
     )) as unknown as ApiResponse<ProjectData[]>;
+  },
+
+  getActivity: async (): Promise<ApiResponse<ActivityLogData[]>> => {
+    return (await apiClient.get(
+      API_ENDPOINTS.PROJECT.ACTIVITY,
+    )) as unknown as ApiResponse<ActivityLogData[]>;
   },
 };

@@ -51,76 +51,89 @@ export function RecentActivity({ events }: { events: ActivityEvent[] }) {
         </Typography>
       </Box>
 
-      <Box
-        component="ul"
-        sx={{
-          listStyle: "none",
-          m: 0,
-          p: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 3,
-        }}
-      >
-        {events.map((e) => {
-          const EventIcon = ICONS[e.icon];
-          return (
-            <Box
-              component="li"
-              key={e.id}
-              sx={{ display: "flex", alignItems: "center", gap: 3 }}
-            >
+      {events.length === 0 ? (
+        <Typography
+          sx={{
+            color: "text.disabled",
+            fontSize: 12,
+            py: 2,
+            textAlign: "center",
+          }}
+        >
+          No account activity recorded yet.
+        </Typography>
+      ) : (
+        <Box
+          component="ul"
+          sx={{
+            listStyle: "none",
+            m: 0,
+            p: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 3,
+          }}
+        >
+          {events.map((e) => {
+            const EventIcon = ICONS[e.icon];
+            return (
               <Box
-                sx={{
-                  display: "grid",
-                  placeItems: "center",
-                  flex: "none",
-                  width: 30,
-                  height: 30,
-                  bgcolor: "background.elevated",
-                  borderRadius: 0.75,
-                  color: "secondary.main",
-                }}
+                component="li"
+                key={e.id}
+                sx={{ display: "flex", alignItems: "center", gap: 3 }}
               >
-                <EventIcon size={14} aria-hidden />
-              </Box>
-              <Box
-                sx={{
-                  flexGrow: 1,
-                  minWidth: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "3px",
-                }}
-              >
-                <Typography sx={{ fontSize: 12, lineHeight: "16px" }}>
-                  {e.description}
-                </Typography>
-                <Typography
+                <Box
                   sx={{
-                    color: "text.secondary",
-                    fontFamily: font.mono,
-                    fontSize: 10,
-                    lineHeight: "13px",
+                    display: "grid",
+                    placeItems: "center",
+                    flex: "none",
+                    width: 30,
+                    height: 30,
+                    bgcolor: "background.elevated",
+                    borderRadius: 0.75,
+                    color: "secondary.main",
                   }}
                 >
-                  {e.project}
+                  <EventIcon size={14} aria-hidden />
+                </Box>
+                <Box
+                  sx={{
+                    flexGrow: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "3px",
+                  }}
+                >
+                  <Typography sx={{ fontSize: 12, lineHeight: "16px" }}>
+                    {e.description}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: "text.secondary",
+                      fontFamily: font.mono,
+                      fontSize: 10,
+                      lineHeight: "13px",
+                    }}
+                  >
+                    {e.project}
+                  </Typography>
+                </Box>
+                <Typography
+                  sx={{
+                    flex: "none",
+                    color: "text.disabled",
+                    fontSize: 11,
+                    lineHeight: "14px",
+                  }}
+                >
+                  {e.time}
                 </Typography>
               </Box>
-              <Typography
-                sx={{
-                  flex: "none",
-                  color: "text.disabled",
-                  fontSize: 11,
-                  lineHeight: "14px",
-                }}
-              >
-                {e.time}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
+            );
+          })}
+        </Box>
+      )}
     </Box>
   );
 }

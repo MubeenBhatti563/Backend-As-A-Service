@@ -23,3 +23,20 @@ export interface CreateProjectResponse {
     service: string;
   };
 }
+
+export interface ActivityLogData {
+  id: string;
+  userId: string;
+  projectId: string | null;
+  projectName: string | null;
+  type:
+    | "PROJECT_CREATED"
+    | "PROJECT_UPDATED"
+    | "PROJECT_PAUSED"
+    | "PROJECT_RESUMED"
+    | "API_KEY_CREATED"
+    | "API_KEY_REVOKED";
+  description: string;
+  metadata?: unknown;
+  createdAt: string;
+}
