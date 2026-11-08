@@ -18,6 +18,8 @@ model PlatformUser {
   verificationTokens VerificationToken[]
   projects           Project[]
   apiKeys            ApiKey[]
+  subscription       Subscription?
+  activityLogs       ActivityLog[]
 
   @@map("platform_users")
 }
@@ -35,7 +37,9 @@ model Project {
 
   owner PlatformUser @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  apiKeys ApiKey[]
+  apiKeys       ApiKey[]
+  projectUsages ProjectUsage[]
+  activityLogs  ActivityLog[]
 
   @@index([ownerId])
   @@map("projects")
@@ -99,6 +103,88 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+model Plan {
+  id          String   @id @default(uuid())
+  code        PlanCode @unique
+  name        String   @db.VarChar(50)
+  description String?
+  priceCents  Int?     @map("price_cents") // null = custom pricing (Enterprise)
+  currency    String   @default("USD") @db.VarChar(3)
+  isAvailable Boolean  @default(true) @map("is_available")
+
+  // Limits. null = unlimited / custom.
+  maxProjects            Int?    @map("max_projects")
+  maxRealtimeConnections Int?    @map("max_realtime_connections")
+  apiRequestsMonthly     BigInt? @map("api_requests_monthly")
+  dbStorageBytes         BigInt? @map("db_storage_bytes")
+  fileStorageBytes       BigInt? @map("file_storage_bytes")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  userId             String             @unique @map("user_id")
+  planId             String             @map("plan_id")
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime           @map("current_period_start") @db.Timestamptz
+  currentPeriodEnd   DateTime           @map("current_period_end") @db.Timestamptz
+  cancelAtPeriodEnd  Boolean            @default(false) @map("cancel_at_period_end")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan         @relation(fields: [planId], references: [id])
+
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+// One row per project per billing period.
+// Project table (Database / Files columns): current period row.
+// Usage meters: SUM across the user's projects vs the Plan limits.
+model ProjectUsage {
+  id                String   @id @default(uuid())
+  projectId         String   @map("project_id")
+  periodStart       DateTime @map("period_start") @db.Timestamptz
+  periodEnd         DateTime @map("period_end") @db.Timestamptz
+  dbBytes           BigInt   @default(0) @map("db_bytes")
+  fileBytes         BigInt   @default(0) @map("file_bytes")
+  apiRequests       BigInt   @default(0) @map("api_requests")
+  peakRealtimeConns Int      @default(0) @map("peak_realtime_connections")
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, periodStart])
+  @@index([periodStart])
+  @@map("project_usage")
+}
+
+// "Recent activity" feed. projectName is a snapshot so entries survive project deletion.
+model ActivityLog {
+  id          String       @id @default(uuid())
+  userId      String       @map("user_id")
+  projectId   String?      @map("project_id")
+  projectName String?      @map("project_name") @db.VarChar(100)
+  type        ActivityType
+  description String
+  metadata    Json?
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  user    PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([projectId])
+  @@map("activity_logs")
+}
+
 enum TokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -113,4 +199,25 @@ enum ProjectStatus {
 enum ApiKeyRole {
   anon
   service
+}
+
+enum PlanCode {
+  HOBBY
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum ActivityType {
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_PAUSED
+  PROJECT_RESUMED
+  API_KEY_CREATED
+  API_KEY_REVOKED
 }

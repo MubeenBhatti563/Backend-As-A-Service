@@ -16,6 +16,7 @@ import { AllExceptionsFilter, TransformInterceptor } from './common';
 import { ProjectModule } from './modules/project/project.module';
 import { BullModule } from '@nestjs/bullmq';
 import { WorkersModule } from './workers/workers.module';
+import { PlanModule } from './modules/plan/plan.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { WorkersModule } from './workers/workers.module';
     EmailModule,
     ProjectModule,
     WorkersModule,
+    PlanModule,
   ],
   controllers: [AppController],
   providers: [
