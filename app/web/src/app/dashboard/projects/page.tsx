@@ -7,7 +7,7 @@ import {
   Project,
   UsageMetric,
 } from "@/types/projectPage";
-import { ProjectData } from "@baas/types";
+import { MyPlanResponse, ProjectData } from "@baas/types";
 import { AccountShell } from "@/features/projects/components/projects/AccountShell";
 import { PageHeader } from "@/features/projects/components/projects/PageHeader";
 import { STACK_BELOW_1100 } from "@/features/projects/components/projectStyle";
@@ -19,6 +19,7 @@ import { PlanCard } from "@/features/projects/components/projects/PlanCard";
 import { useAuthStore } from "@/stores";
 import Loading from "@/app/loading";
 import { useAllProjects } from "@/features/projects/hooks/use-project";
+import { useMyPlan } from "@/features/projects/hooks/use-plan";
 import { panelSx } from "@/features/projects/components/projectStyle";
 import { IconRefresh } from "@tabler/icons-react";
 
@@ -58,6 +59,54 @@ function toProject(p: ProjectData): Project {
     lastActivity,
     updatedAt,
   };
+}
+
+/** Map API MyPlanResponse usage + plan limits → UsageMetric[] */
+function toUsageMetrics(
+  myPlan: MyPlanResponse | undefined,
+  fallback: UsageMetric[],
+): UsageMetric[] {
+  if (!myPlan) return fallback;
+  const { usage, plan } = myPlan;
+  const toGB = (bytes: string) =>
+    Number((Number(bytes) / 1_000_000_000).toFixed(2));
+  const toLimitGB = (bytes: string | null) =>
+    bytes ? Number((Number(bytes) / 1_000_000_000).toFixed(2)) : null;
+
+  return [
+    {
+      key: "db",
+      label: "Database storage",
+      icon: "database",
+      used: toGB(usage.dbBytes),
+      limit: toLimitGB(plan.dbStorageBytes) ?? 0,
+      unit: "GB",
+    },
+    {
+      key: "files",
+      label: "File storage",
+      icon: "files",
+      used: toGB(usage.fileBytes),
+      limit: toLimitGB(plan.fileStorageBytes) ?? 0,
+      unit: "GB",
+    },
+    {
+      key: "api",
+      label: "API requests",
+      icon: "api",
+      used: Number(usage.apiRequests),
+      limit: plan.apiRequestsMonthly ? Number(plan.apiRequestsMonthly) : 0,
+      basis: "Monthly",
+    },
+    {
+      key: "realtime",
+      label: "Realtime connections",
+      icon: "realtime",
+      used: usage.peakRealtimeConns,
+      limit: plan.maxRealtimeConnections ?? 0,
+      basis: "Concurrent · current connections",
+    },
+  ];
 }
 
 function ProjectsSkeleton() {
@@ -103,12 +152,20 @@ function AccountOverviewPage({
 }: AccountOverviewPageProps) {
   const { user } = useAuthStore();
   const { data: rawProjects, isLoading, isError, refetch } = useAllProjects();
+  const { data: myPlan } = useMyPlan();
 
   if (!user) {
     return <Loading />;
   }
 
   const projects: Project[] = (rawProjects ?? []).map(toProject);
+
+  const planName = myPlan?.plan.name ?? userMock.plan;
+  const planTier =
+    myPlan?.plan.priceCents === 0
+      ? "Free"
+      : (myPlan?.plan.name ?? userMock.tier);
+  const displayUsage = toUsageMetrics(myPlan, usage);
 
   return (
     <AccountShell user={user} projectCount={projects.length}>
@@ -207,11 +264,11 @@ function AccountOverviewPage({
           }}
         >
           <UsagePanel
-            metrics={usage}
+            metrics={displayUsage}
             projectCount={projects.length}
             resetNote={usageResetNote}
           />
-          <PlanCard plan={userMock.plan} tier={userMock.tier} />
+          <PlanCard plan={planName} tier={planTier} />
         </Box>
       </Box>
     </AccountShell>

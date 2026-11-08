@@ -48,6 +48,11 @@ export const API_ENDPOINTS = {
     CREATE: "/project/create-project",
     GET_ALL: "/project/get-all-project",
   },
+
+  PLAN: {
+    MY_PLAN: "/plan/my-plan",
+    ALL_PLANS: "/plan/plans",
+  },
 } as const;
 
 export default API_ENDPOINTS;

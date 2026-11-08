@@ -72,7 +72,9 @@ export function PlanCard({
       <Typography
         sx={{ color: "text.secondary", fontSize: 12, lineHeight: 1.6 }}
       >
-        Make room for what&apos;s next with Pro.
+        {tier === "Free"
+          ? "Make room for what's next with Pro."
+          : `You're on the ${plan} plan.`}
       </Typography>
 
       <Box
@@ -103,24 +105,26 @@ export function PlanCard({
         ))}
       </Box>
 
-      <Button
-        component={NextLink}
-        href={upgradeHref}
-        variant="contained"
-        fullWidth
-        startIcon={<IconBolt size={14} aria-hidden />}
-        endIcon={<IconArrowRight size={14} aria-hidden />}
-        sx={{
-          height: 36,
-          minHeight: 36,
-          gap: 0.5,
-          borderRadius: 0.75,
-          fontSize: 12,
-          "& .MuiButton-startIcon, & .MuiButton-endIcon": { m: 0 },
-        }}
-      >
-        Upgrade to Pro
-      </Button>
+      {tier === "Free" && (
+        <Button
+          component={NextLink}
+          href={upgradeHref}
+          variant="contained"
+          fullWidth
+          startIcon={<IconBolt size={14} aria-hidden />}
+          endIcon={<IconArrowRight size={14} aria-hidden />}
+          sx={{
+            height: 36,
+            minHeight: 36,
+            gap: 0.5,
+            borderRadius: 0.75,
+            fontSize: 12,
+            "& .MuiButton-startIcon, & .MuiButton-endIcon": { m: 0 },
+          }}
+        >
+          Upgrade to Pro
+        </Button>
+      )}
     </Box>
   );
 }
