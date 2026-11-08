@@ -17,10 +17,10 @@ async function main() {
       priceCents: 0,
       isAvailable: true,
       maxProjects: 2,
-      maxRealtimeConnections: 5,
+      maxRealtimeConnections: 10,
       apiRequestsMonthly: BigInt(50_000),
       dbStorageBytes: GB(0.5),
-      fileStorageBytes: GB(0.25),
+      fileStorageBytes: GB(1),
     },
     {
       code: "PRO" as const,
