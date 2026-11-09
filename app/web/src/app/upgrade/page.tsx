@@ -2,6 +2,7 @@
 
 import { Brand } from "@/components/common";
 import { ACCOUNT_ROUTES, ROUTES } from "@/config/routes";
+import { useAuthStore } from "@/stores";
 import { Box, Button, Divider, Typography } from "@mui/material";
 import { IconArrowRight, IconCheck, IconSparkles } from "@tabler/icons-react";
 import NextLink from "next/link";
@@ -15,6 +16,8 @@ const FEATURES = [
 ];
 
 export default function UpgradePage() {
+  const { user } = useAuthStore();
+
   return (
     <Box
       sx={{
@@ -36,14 +39,16 @@ export default function UpgradePage() {
         }}
       >
         <Brand size="sm" />
-        <Button
-          component={NextLink}
-          href={ROUTES.signIn}
-          variant="text"
-          sx={{ color: "text.secondary", fontSize: 12 }}
-        >
-          Sign in
-        </Button>
+        {user === null && (
+          <Button
+            component={NextLink}
+            href={ROUTES.signIn}
+            variant="text"
+            sx={{ color: "text.secondary", fontSize: 12 }}
+          >
+            Sign in
+          </Button>
+        )}
       </Box>
 
       <Box
