@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
+import { InternalServerErrorException } from '@nestjs/common';
 import {
   AuthService,
   REMEMBER_ME_TTL_MS,
@@ -20,6 +21,9 @@ describe('AuthController', () => {
     logout: jest.Mock;
     logoutAll: jest.Mock;
     getMe: jest.Mock;
+    getAllSessions: jest.Mock;
+    revokeSession: jest.Mock;
+    revokeOtherSessions: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -34,6 +38,9 @@ describe('AuthController', () => {
       logout: jest.fn(),
       logoutAll: jest.fn(),
       getMe: jest.fn(),
+      getAllSessions: jest.fn(),
+      revokeSession: jest.fn(),
+      revokeOtherSessions: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -83,6 +90,7 @@ describe('AuthController', () => {
 
       const mockSession: any = {
         sessionId: 'sess-abc-123',
+        sessionStoreId: 'sess-store-123',
         regenerate: jest.fn().mockResolvedValue(undefined),
         options: jest.fn(),
       };
@@ -106,7 +114,7 @@ describe('AuthController', () => {
       });
       expect(authServiceMock.createSession).toHaveBeenCalledWith(
         'user-1',
-        'sess-abc-123',
+        'sess-store-123',
         expect.objectContaining({
           ipAddress: '127.0.0.1',
         }),
@@ -127,6 +135,7 @@ describe('AuthController', () => {
 
       const mockSession: any = {
         sessionId: 'sess-abc-123',
+        sessionStoreId: 'sess-store-123',
         regenerate: jest.fn().mockResolvedValue(undefined),
         options: jest.fn(),
       };
@@ -144,10 +153,34 @@ describe('AuthController', () => {
       });
       expect(authServiceMock.createSession).toHaveBeenCalledWith(
         'user-1',
-        'sess-abc-123',
+        'sess-store-123',
         expect.anything(),
         REMEMBER_ME_TTL_MS,
       );
+    });
+
+    it('should fail rather than report login success without a session store ID', async () => {
+      authServiceMock.validateCredentials.mockResolvedValue({
+        id: 'user-1',
+        email: 'user@example.com',
+        fullName: 'Jane',
+      });
+
+      const mockReq = {
+        session: {
+          sessionId: 'public-session-id',
+          regenerate: jest.fn().mockResolvedValue(undefined),
+          options: jest.fn(),
+        },
+      } as unknown as FastifyRequest;
+
+      await expect(
+        controller.loginUser(
+          { email: 'user@example.com', password: 'Password123!' },
+          mockReq,
+        ),
+      ).rejects.toThrow(InternalServerErrorException);
+      expect(authServiceMock.createSession).not.toHaveBeenCalled();
     });
   });
 
@@ -227,7 +260,7 @@ describe('AuthController', () => {
       const mockDestroy = jest.fn().mockResolvedValue(undefined);
       const mockReq = {
         session: {
-          sessionId: 'sess-123',
+          sessionStoreId: 'sess-123',
           destroy: mockDestroy,
         },
       } as unknown as FastifyRequest;
@@ -272,6 +305,82 @@ describe('AuthController', () => {
 
       expect(authServiceMock.getMe).toHaveBeenCalledWith('user-1');
       expect(result).toEqual(user);
+    });
+  });
+
+  describe('getAllSessions', () => {
+    it('should delegate to authService.getAllSessions with userId and sessionId', async () => {
+      const mockSessions = [
+        { id: 'sess-1', userId: 'user-1', isCurrent: true },
+      ];
+      authServiceMock.getAllSessions.mockResolvedValue(mockSessions);
+      const mockReq = {
+        session: { sessionId: 'public-session-id', sessionStoreId: 'store-id' },
+      } as unknown as FastifyRequest;
+
+      const result = await controller.getAllSessions('user-1', mockReq);
+
+      expect(authServiceMock.getAllSessions).toHaveBeenCalledWith(
+        'user-1',
+        'store-id',
+      );
+      expect(result).toEqual(mockSessions);
+    });
+  });
+
+  describe('revokeSession', () => {
+    it('should delegate to authService.revokeSession and destroy session if current', async () => {
+      authServiceMock.revokeSession.mockResolvedValue({
+        message: 'Session revoked successfully',
+      });
+      const mockDestroy = jest.fn().mockResolvedValue(undefined);
+      const mockReq = {
+        session: { sessionStoreId: 'sess-1', destroy: mockDestroy },
+      } as unknown as FastifyRequest;
+
+      const result = await controller.revokeSession(
+        'sess-1',
+        'user-1',
+        mockReq,
+      );
+
+      expect(authServiceMock.revokeSession).toHaveBeenCalledWith(
+        'user-1',
+        'sess-1',
+      );
+      expect(mockDestroy).toHaveBeenCalled();
+      expect(result).toEqual({ message: 'Session revoked successfully' });
+    });
+  });
+
+  describe('revokeOtherSessions', () => {
+    it('should delegate to authService.revokeOtherSessions', async () => {
+      authServiceMock.revokeOtherSessions.mockResolvedValue({
+        message: 'All other sessions revoked successfully',
+      });
+      const mockReq = {
+        session: { sessionStoreId: 'sess-current' },
+      } as unknown as FastifyRequest;
+
+      const result = await controller.revokeOtherSessions('user-1', mockReq);
+
+      expect(authServiceMock.revokeOtherSessions).toHaveBeenCalledWith(
+        'user-1',
+        'sess-current',
+      );
+      expect(result).toEqual({
+        message: 'All other sessions revoked successfully',
+      });
+    });
+
+    it('should throw UnauthorizedException if no currentSessionId is present', async () => {
+      const mockReq = {
+        session: {},
+      } as unknown as FastifyRequest;
+
+      await expect(
+        controller.revokeOtherSessions('user-1', mockReq),
+      ).rejects.toThrow('No active session found');
     });
   });
 });

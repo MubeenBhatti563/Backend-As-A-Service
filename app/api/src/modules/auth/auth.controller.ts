@@ -6,8 +6,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
+  Param,
   Post,
   Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 import { RegisterDto } from './dtos/register.dto';
@@ -58,13 +61,24 @@ export class AuthController {
   async loginUser(@Body() dto: LoginDto, @Req() req: FastifyRequest) {
     const user = await this.authService.validateCredentials(dto);
 
-    if (req.session?.regenerate) {
-      await req.session.regenerate();
+    if (!req.session?.regenerate) {
+      throw new InternalServerErrorException(
+        'Unable to establish an authenticated session',
+      );
     }
-    if (req.session) {
-      req.session.userId = user.id;
-      req.session.email = user.email;
+    await req.session.regenerate();
+    if (
+      !req.session.sessionId ||
+      !req.session.sessionStoreId ||
+      !req.session.options
+    ) {
+      throw new InternalServerErrorException(
+        'Unable to establish an authenticated session',
+      );
     }
+
+    req.session.userId = user.id;
+    req.session.email = user.email;
 
     const uaString = (req.headers['user-agent'] as string) || '';
     const ua = new UAParser(uaString).getResult();
@@ -81,18 +95,14 @@ export class AuthController {
       ? REMEMBER_ME_TTL_MS
       : SHORT_SESSION_TTL_MS;
 
-    if (req.session?.options) {
-      req.session.options({ maxAge: sessionTtlMs });
-    }
+    req.session.options({ maxAge: sessionTtlMs });
 
-    if (req.session?.sessionId) {
-      await this.authService.createSession(
-        user.id,
-        req.session.sessionId,
-        sessionInfo,
-        sessionTtlMs,
-      );
-    }
+    await this.authService.createSession(
+      user.id,
+      req.session.sessionStoreId,
+      sessionInfo,
+      sessionTtlMs,
+    );
 
     return user;
   }
@@ -147,8 +157,8 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: FastifyRequest) {
-    if (req.session?.sessionId) {
-      await this.authService.logout(req.session.sessionId);
+    if (req.session?.sessionStoreId) {
+      await this.authService.logout(req.session.sessionStoreId);
     }
     if (req.session?.destroy) {
       await req.session.destroy();
@@ -161,5 +171,44 @@ export class AuthController {
   @Get('me')
   async me(@GetUser('userId') userId: string) {
     return this.authService.getMe(userId);
+  }
+
+  @Get('get-sessions')
+  @HttpCode(HttpStatus.OK)
+  async getAllSessions(
+    @GetUser('userId') userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    return this.authService.getAllSessions(userId, req.session?.sessionStoreId);
+  }
+
+  @Post('revoke-session/:sessionId')
+  @HttpCode(HttpStatus.OK)
+  async revokeSession(
+    @Param('sessionId') sessionId: string,
+    @GetUser('userId') userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    const result = await this.authService.revokeSession(userId, sessionId);
+    if (req.session?.sessionStoreId === sessionId && req.session?.destroy) {
+      await req.session.destroy();
+    }
+    return result;
+  }
+
+  @Post('revoke-other-sessions')
+  @HttpCode(HttpStatus.OK)
+  async revokeOtherSessions(
+    @GetUser('userId') userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    const currentSessionStoreId = req.session?.sessionStoreId;
+    if (!currentSessionStoreId) {
+      throw new UnauthorizedException('No active session found');
+    }
+    return this.authService.revokeOtherSessions(
+      userId,
+      currentSessionStoreId,
+    );
   }
 }

@@ -80,4 +80,20 @@ export interface UserSession {
   createdAt: string | Date;
   lastActiveAt: string | Date;
   expiresAt: string | Date;
+  isCurrent?: boolean;
+}
+
+/**
+ * Sessions Interface
+ */
+export interface GetSession {
+  id: string;
+  userId: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  deviceName: string | null;
+  clientType: string | null;
+  createdAt: Date;
+  lastActiveAt: Date;
+  expiresAt: Date;
 }

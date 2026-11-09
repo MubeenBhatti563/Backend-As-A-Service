@@ -18,8 +18,8 @@ import { EmailService } from '../../infra/email/email.service';
 import { TokenType } from '@prisma/client';
 
 export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-export const REMEMBER_ME_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 30 days
-export const SHORT_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 1 day
+export const REMEMBER_ME_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const SHORT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 // Pre-computed argon2id hash to mitigate timing attacks / user enumeration on invalid email
 const DUMMY_ARGON2_HASH =
@@ -295,6 +295,12 @@ export class AuthService {
       select: { id: true },
     });
 
+    if (activeSessions.length > 0) {
+      await this.redisService.del(
+        ...activeSessions.map((session) => `${SESSION_PREFIX}${session.id}`),
+      );
+    }
+
     await this.prismaService.$transaction([
       this.prismaService.platformUser.update({
         where: { id: tokenRecord.userId },
@@ -312,11 +318,6 @@ export class AuthService {
         where: { userId: tokenRecord.userId },
       }),
     ]);
-
-    if (activeSessions.length > 0) {
-      const redisKeys = activeSessions.map((s) => `${SESSION_PREFIX}${s.id}`);
-      await this.redisService.del(...redisKeys);
-    }
 
     return {
       message:
@@ -384,12 +385,85 @@ export class AuthService {
     return user;
   }
 
+  async getAllSessions(userId: string, currentSessionId?: string) {
+    const now = new Date();
+
+    const sessions = await this.prismaService.session.findMany({
+      where: {
+        userId,
+        expiresAt: { gt: now },
+      },
+      orderBy: { lastActiveAt: 'desc' },
+    });
+
+    if (currentSessionId) {
+      const current = sessions.find((s) => s.id === currentSessionId);
+      if (current) {
+        await this.prismaService.session.update({
+          where: { id: currentSessionId },
+          data: { lastActiveAt: now },
+        });
+        current.lastActiveAt = now;
+      }
+    }
+
+    return sessions.map((session) => ({
+      id: session.id,
+      userId: session.userId,
+      ipAddress: session.ipAddress,
+      userAgent: session.userAgent,
+      deviceName: session.deviceName,
+      clientType: session.clientType,
+      createdAt: session.createdAt.toISOString(),
+      lastActiveAt: session.lastActiveAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
+      isCurrent: session.id === currentSessionId,
+    }));
+  }
+
+  async revokeSession(userId: string, sessionId: string) {
+    const session = await this.prismaService.session.findFirst({
+      where: { id: sessionId, userId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found or already revoked');
+    }
+
+    await this.redisService.del(`${SESSION_PREFIX}${sessionId}`);
+    await this.prismaService.session.delete({ where: { id: sessionId } });
+
+    return { message: 'Session revoked successfully' };
+  }
+
+  async revokeOtherSessions(userId: string, currentSessionId: string) {
+    const otherSessions = await this.prismaService.session.findMany({
+      where: {
+        userId,
+        id: { not: currentSessionId },
+      },
+      select: { id: true },
+    });
+
+    if (otherSessions.length > 0) {
+      await this.redisService.del(
+        ...otherSessions.map((session) => `${SESSION_PREFIX}${session.id}`),
+      );
+      await this.prismaService.session.deleteMany({
+        where: {
+          userId,
+          id: { not: currentSessionId },
+        },
+      });
+    }
+
+    return { message: 'All other sessions revoked successfully' };
+  }
+
   async logout(sessionId: string) {
     if (sessionId) {
-      await Promise.all([
-        this.prismaService.session.deleteMany({ where: { id: sessionId } }),
-        this.redisService.del(`${SESSION_PREFIX}${sessionId}`),
-      ]);
+      await this.redisService.del(`${SESSION_PREFIX}${sessionId}`);
+      await this.prismaService.session.deleteMany({ where: { id: sessionId } });
     }
   }
 
@@ -401,9 +475,10 @@ export class AuthService {
 
     if (sessions.length > 0) {
       await this.redisService.del(
-        ...sessions.map((s) => `${SESSION_PREFIX}${s.id}`),
+        ...sessions.map((session) => `${SESSION_PREFIX}${session.id}`),
       );
     }
+
     await this.prismaService.session.deleteMany({ where: { userId } });
   }
 }

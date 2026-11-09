@@ -30,6 +30,9 @@ describe('AuthService', () => {
       create: jest.Mock;
       findMany: jest.Mock;
       deleteMany: jest.Mock;
+      findFirst: jest.Mock;
+      delete: jest.Mock;
+      update: jest.Mock;
     };
     $transaction: jest.Mock;
   };
@@ -59,6 +62,9 @@ describe('AuthService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         deleteMany: jest.fn(),
+        findFirst: jest.fn(),
+        delete: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
       },
       $transaction: jest.fn(),
     };
@@ -529,6 +535,130 @@ describe('AuthService', () => {
       const calledArg = prismaMock.session.create.mock.calls[0][0].data;
       const expiresAt = new Date(calledArg.expiresAt).getTime();
       expect(expiresAt).toBeGreaterThanOrEqual(before + customTtl);
+    });
+  });
+
+  describe('getAllSessions, revokeSession, and revokeOtherSessions', () => {
+    const userId = 'user-1';
+    const now = new Date('2026-11-08T12:00:00Z');
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    it('should return all active sessions and mark current session', async () => {
+      const mockSessions = [
+        {
+          id: 'sess-current',
+          userId,
+          ipAddress: '127.0.0.1',
+          userAgent: 'Chrome',
+          deviceName: 'MacBook',
+          clientType: 'desktop',
+          createdAt: now,
+          lastActiveAt: now,
+          expiresAt: future,
+        },
+        {
+          id: 'sess-other',
+          userId,
+          ipAddress: '192.168.1.1',
+          userAgent: 'Firefox',
+          deviceName: 'Ubuntu',
+          clientType: 'desktop',
+          createdAt: now,
+          lastActiveAt: now,
+          expiresAt: future,
+        },
+      ];
+
+      prismaMock.session.findMany.mockResolvedValueOnce(mockSessions);
+
+      const result = await service.getAllSessions(userId, 'sess-current');
+
+      expect(prismaMock.session.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          expiresAt: { gt: expect.any(Date) },
+        },
+        orderBy: { lastActiveAt: 'desc' },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0].isCurrent).toBe(true);
+      expect(result[1].isCurrent).toBe(false);
+      expect(prismaMock.session.update).toHaveBeenCalledWith({
+        where: { id: 'sess-current' },
+        data: { lastActiveAt: expect.any(Date) },
+      });
+      expect(result[0].lastActiveAt).not.toEqual(now.toISOString());
+    });
+
+    it('does not fabricate a session record when the current session is missing', async () => {
+      prismaMock.session.findMany.mockResolvedValueOnce([]);
+
+      const result = await service.getAllSessions(userId, 'sess-not-recorded');
+
+      expect(result).toEqual([]);
+      expect(prismaMock.session.create).not.toHaveBeenCalled();
+    });
+
+    it('should revoke a specific session', async () => {
+      prismaMock.session.findFirst.mockResolvedValueOnce({
+        id: 'sess-to-revoke',
+        userId,
+      });
+      prismaMock.session.delete.mockResolvedValueOnce({ id: 'sess-to-revoke' });
+
+      const result = await service.revokeSession(userId, 'sess-to-revoke');
+
+      expect(prismaMock.session.findFirst).toHaveBeenCalledWith({
+        where: { id: 'sess-to-revoke', userId },
+      });
+      expect(prismaMock.session.delete).toHaveBeenCalledWith({
+        where: { id: 'sess-to-revoke' },
+      });
+      expect(redisMock.del).toHaveBeenCalledWith('sess:sess-to-revoke');
+      expect(result.message).toBe('Session revoked successfully');
+    });
+
+    it('should throw NotFoundException when revoking non-existent session', async () => {
+      prismaMock.session.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        service.revokeSession(userId, 'non-existent'),
+      ).rejects.toThrow('Session not found or already revoked');
+    });
+
+    it('does not remove the database record if Redis revocation fails', async () => {
+      prismaMock.session.findFirst.mockResolvedValueOnce({
+        id: 'sess-to-revoke',
+        userId,
+      });
+      redisMock.del.mockRejectedValueOnce(new Error('Redis unavailable'));
+
+      await expect(
+        service.revokeSession(userId, 'sess-to-revoke'),
+      ).rejects.toThrow('Redis unavailable');
+      expect(prismaMock.session.delete).not.toHaveBeenCalled();
+    });
+
+    it('should revoke all other sessions except current', async () => {
+      prismaMock.session.findMany.mockResolvedValueOnce([
+        { id: 'sess-other-1' },
+        { id: 'sess-other-2' },
+      ]);
+      prismaMock.session.deleteMany.mockResolvedValueOnce({ count: 2 });
+
+      const result = await service.revokeOtherSessions(userId, 'sess-current');
+
+      expect(prismaMock.session.deleteMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          id: { not: 'sess-current' },
+        },
+      });
+      expect(redisMock.del).toHaveBeenCalledWith(
+        'sess:sess-other-1',
+        'sess:sess-other-2',
+      );
+      expect(result.message).toBe('All other sessions revoked successfully');
     });
   });
 });

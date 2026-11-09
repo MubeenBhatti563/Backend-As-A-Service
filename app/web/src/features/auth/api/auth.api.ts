@@ -1,5 +1,5 @@
-import apiClient from '@/lib/api-client';
-import { API_ENDPOINTS } from '@/config/endpoints';
+import apiClient from "@/lib/api-client";
+import { API_ENDPOINTS } from "@/config/endpoints";
 import type {
   ApiResponse,
   ForgotPasswordInput,
@@ -8,8 +8,9 @@ import type {
   ResendVerificationInput,
   ResetPasswordInput,
   SafeUser,
+  UserSession,
   VerifyEmailInput,
-} from '@baas/types';
+} from "@baas/types";
 
 const { AUTH } = API_ENDPOINTS;
 
@@ -18,14 +19,20 @@ export const authApi = {
    * Register a new user account
    */
   register: async (payload: RegisterInput): Promise<ApiResponse<SafeUser>> => {
-    return (await apiClient.post(AUTH.REGISTER, payload)) as unknown as ApiResponse<SafeUser>;
+    return (await apiClient.post(
+      AUTH.REGISTER,
+      payload,
+    )) as unknown as ApiResponse<SafeUser>;
   },
 
   /**
    * Login with email and password
    */
   login: async (payload: LoginInput): Promise<ApiResponse<SafeUser>> => {
-    return (await apiClient.post(AUTH.LOGIN, payload)) as unknown as ApiResponse<SafeUser>;
+    return (await apiClient.post(
+      AUTH.LOGIN,
+      payload,
+    )) as unknown as ApiResponse<SafeUser>;
   },
 
   /**
@@ -94,7 +101,32 @@ export const authApi = {
    * Logout from all active devices/sessions
    */
   logoutAll: async (): Promise<ApiResponse<null>> => {
-    return (await apiClient.post(AUTH.LOGOUT_ALL)) as unknown as ApiResponse<null>;
+    return (await apiClient.post(
+      AUTH.LOGOUT_ALL,
+    )) as unknown as ApiResponse<null>;
+  },
+
+  /**
+   * Get all sessions
+   */
+  getAllSessions: async (): Promise<ApiResponse<UserSession[]>> => {
+    return (await apiClient.get(
+      AUTH.GET_ALL_SESSION,
+    )) as unknown as ApiResponse<UserSession[]>;
+  },
+
+  revokeSession: async (
+    sessionId: string,
+  ): Promise<ApiResponse<{ message: string }>> => {
+    return (await apiClient.post(
+      AUTH.REVOKE_SESSION(sessionId),
+    )) as unknown as ApiResponse<{ message: string }>;
+  },
+
+  revokeOtherSessions: async (): Promise<ApiResponse<{ message: string }>> => {
+    return (await apiClient.post(
+      AUTH.REVOKE_OTHER_SESSIONS,
+    )) as unknown as ApiResponse<{ message: string }>;
   },
 };
 

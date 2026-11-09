@@ -38,11 +38,23 @@ import {
   IconTrash,
   IconUser,
 } from "@tabler/icons-react";
+import {
+  useGetAllSessions,
+  useRevokeOtherSessions,
+  useRevokeSession,
+} from "@/features/auth";
 
 export default function AccountSettingsPage() {
   const { user } = useAuthStore();
   const { data: projects } = useAllProjects();
   const { data: myPlan } = useMyPlan();
+  const {
+    data: sessions,
+    isLoading: isSessionsLoading,
+    isError: isSessionsError,
+  } = useGetAllSessions();
+  const revokeSession = useRevokeSession();
+  const revokeOtherSessions = useRevokeOtherSessions();
 
   const [copiedId, setCopiedId] = useState(false);
   const [fullName, setFullName] = useState(user?.fullName || "Admin");
@@ -53,7 +65,8 @@ export default function AccountSettingsPage() {
   if (!user) return <Loading />;
 
   const planName = myPlan?.plan.name ?? "Hobby";
-  const planTier = myPlan?.plan.priceCents === 0 ? "Free" : myPlan?.plan.name ?? "Free";
+  const planTier =
+    myPlan?.plan.priceCents === 0 ? "Free" : (myPlan?.plan.name ?? "Free");
 
   const handleCopyId = () => {
     if (user?.id) {
@@ -99,7 +112,8 @@ export default function AccountSettingsPage() {
           Account settings
         </Typography>
         <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
-          Manage your personal profile, authentication, active sessions, and security preferences.
+          Manage your personal profile, authentication, active sessions, and
+          security preferences.
         </Typography>
       </Box>
 
@@ -185,7 +199,9 @@ export default function AccountSettingsPage() {
             }}
           >
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 500, color: "text.secondary" }}>
+              <Typography
+                sx={{ fontSize: 12, fontWeight: 500, color: "text.secondary" }}
+              >
                 Full name
               </Typography>
               <TextField
@@ -203,8 +219,20 @@ export default function AccountSettingsPage() {
             </Box>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <Typography sx={{ fontSize: 12, fontWeight: 500, color: "text.secondary" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "text.secondary",
+                  }}
+                >
                   Email address
                 </Typography>
                 {user.isVerified ? (
@@ -253,7 +281,13 @@ export default function AccountSettingsPage() {
             }}
           >
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-              <Typography sx={{ color: "text.disabled", fontSize: 10, letterSpacing: "0.5px" }}>
+              <Typography
+                sx={{
+                  color: "text.disabled",
+                  fontSize: 10,
+                  letterSpacing: "0.5px",
+                }}
+              >
                 ACCOUNT ID
               </Typography>
               <Typography
@@ -267,8 +301,16 @@ export default function AccountSettingsPage() {
               </Typography>
             </Box>
             <Tooltip title={copiedId ? "Copied!" : "Copy Account ID"}>
-              <IconButton size="small" onClick={handleCopyId} sx={{ color: "text.secondary" }}>
-                {copiedId ? <IconCheck size={15} color="#06B6D4" /> : <IconCopy size={15} />}
+              <IconButton
+                size="small"
+                onClick={handleCopyId}
+                sx={{ color: "text.secondary" }}
+              >
+                {copiedId ? (
+                  <IconCheck size={15} color="#06B6D4" />
+                ) : (
+                  <IconCopy size={15} />
+                )}
               </IconButton>
             </Tooltip>
           </Box>
@@ -362,7 +404,10 @@ export default function AccountSettingsPage() {
                 textTransform: "none",
                 borderColor: "border.strong",
                 color: "text.primary",
-                "&:hover": { borderColor: "text.secondary", bgcolor: "background.elevated" },
+                "&:hover": {
+                  borderColor: "text.secondary",
+                  bgcolor: "background.elevated",
+                },
               }}
             >
               Change password
@@ -399,8 +444,11 @@ export default function AccountSettingsPage() {
                     }}
                   />
                 </Box>
-                <Typography sx={{ color: "text.secondary", fontSize: 11, mt: 0.5 }}>
-                  Add an extra layer of security using Google Authenticator or 1Password
+                <Typography
+                  sx={{ color: "text.secondary", fontSize: 11, mt: 0.5 }}
+                >
+                  Add an extra layer of security using Google Authenticator or
+                  1Password
                 </Typography>
               </Box>
             </Box>
@@ -413,7 +461,10 @@ export default function AccountSettingsPage() {
                 textTransform: "none",
                 borderColor: "border.strong",
                 color: "text.primary",
-                "&:hover": { borderColor: "text.secondary", bgcolor: "background.elevated" },
+                "&:hover": {
+                  borderColor: "text.secondary",
+                  bgcolor: "background.elevated",
+                },
               }}
             >
               Configure 2FA
@@ -463,60 +514,113 @@ export default function AccountSettingsPage() {
 
           <Divider sx={{ borderColor: "border.default" }} />
 
-          {/* Current Session Item */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              p: 3,
-              bgcolor: "background.elevated",
-              borderRadius: 1,
-              border: 1,
-              borderColor: "border.default",
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2.5 }}>
-              <IconDeviceDesktop size={20} color="#06B6D4" aria-hidden />
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
-                    Current Browser Session
-                  </Typography>
-                  <Box
-                    component="span"
-                    sx={{
-                      ...badgeSx,
-                      bgcolor: "rgba(6, 182, 212, 0.12)",
-                      color: "secondary.main",
-                    }}
-                  >
-                    Active now
-                  </Box>
-                </Box>
-                <Typography
-                  sx={{
-                    color: "text.secondary",
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    mt: 0.5,
-                  }}
-                >
-                  Redis session · 30-day sliding TTL
-                </Typography>
-              </Box>
-            </Box>
-
-            <Typography
+          {isSessionsLoading && (
+            <Typography sx={{ color: "text.secondary", fontSize: 12 }}>
+              Loading active sessions…
+            </Typography>
+          )}
+          {isSessionsError && (
+            <Alert severity="error">Unable to load active sessions.</Alert>
+          )}
+          {sessions?.map((session) => (
+            <Box
+              key={session.id}
               sx={{
-                color: "text.disabled",
-                fontFamily: font.mono,
-                fontSize: 11,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                p: 3,
+                bgcolor: "background.elevated",
+                borderRadius: 1,
+                border: 1,
+                borderColor: "border.default",
               }}
             >
-              This device
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2.5 }}>
+                <IconDeviceDesktop size={20} color="#06B6D4" aria-hidden />
+                <Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
+                      {session.deviceName ||
+                        session.clientType ||
+                        "Unknown device"}
+                    </Typography>
+                    {session.isCurrent && (
+                      <Box
+                        component="span"
+                        sx={{
+                          ...badgeSx,
+                          bgcolor: "rgba(6, 182, 212, 0.12)",
+                          color: "secondary.main",
+                        }}
+                      >
+                        This device
+                      </Box>
+                    )}
+                  </Box>
+                  <Typography
+                    sx={{
+                      color: "text.secondary",
+                      fontFamily: font.mono,
+                      fontSize: 11,
+                      mt: 0.5,
+                    }}
+                  >
+                    {[session.clientType, session.ipAddress]
+                      .filter(Boolean)
+                      .join(" · ") || "Device details unavailable"}
+                    {" · "}Last active{" "}
+                    {new Date(session.lastActiveAt).toLocaleString()}
+                  </Typography>
+                </Box>
+              </Box>
+              {!session.isCurrent && (
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<IconTrash size={14} />}
+                  disabled={revokeSession.isPending}
+                  onClick={() => revokeSession.mutate(session.id)}
+                  sx={{ flexShrink: 0, textTransform: "none" }}
+                >
+                  Revoke
+                </Button>
+              )}
+            </Box>
+          ))}
+          {sessions?.length === 0 && !isSessionsLoading && !isSessionsError && (
+            <Typography sx={{ color: "text.secondary", fontSize: 12 }}>
+              No active sessions found.
             </Typography>
-          </Box>
+          )}
+          {(revokeSession.isError || revokeOtherSessions.isError) && (
+            <Alert severity="error">
+              {revokeSession.error?.message ??
+                revokeOtherSessions.error?.message ??
+                "Unable to update sessions."}
+            </Alert>
+          )}
+          {sessions && sessions.some((session) => !session.isCurrent) && (
+            <Button
+              variant="outlined"
+              color="error"
+              disabled={revokeOtherSessions.isPending}
+              onClick={() => revokeOtherSessions.mutate()}
+              sx={{ alignSelf: "flex-start", textTransform: "none" }}
+            >
+              {revokeOtherSessions.isPending
+                ? "Revoking sessions…"
+                : "Sign out all other sessions"}
+            </Button>
+          )}
         </Box>
 
         {/* ── 4. Notifications & Alerts ───────────────────────────────── */}
@@ -671,12 +775,22 @@ export default function AccountSettingsPage() {
             }}
           >
             <Box sx={{ maxWidth: 520 }}>
-              <Typography sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}>
+              <Typography
+                sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}
+              >
                 Delete this account
               </Typography>
-              <Typography sx={{ color: "text.secondary", fontSize: 12, mt: 0.5, lineHeight: 1.6 }}>
-                Permanently remove your account, active subscriptions, and all associated projects,
-                databases, storage buckets, and API keys. This cannot be undone.
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                  fontSize: 12,
+                  mt: 0.5,
+                  lineHeight: 1.6,
+                }}
+              >
+                Permanently remove your account, active subscriptions, and all
+                associated projects, databases, storage buckets, and API keys.
+                This cannot be undone.
               </Typography>
             </Box>
             <Button

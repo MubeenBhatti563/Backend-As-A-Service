@@ -5,6 +5,22 @@ type StoredSession = Parameters<SessionStore['set']>[1];
 
 export const SESSION_PREFIX = 'sess:';
 const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
+const COMPARE_AND_SET_SCRIPT = `
+local stored = redis.call('GET', KEYS[1])
+if not stored then
+  return 0
+end
+
+local session = cjson.decode(stored)
+local metadata = session['__fastifySessionMetadata']
+local generation = metadata and metadata['generation'] or ARGV[4]
+if generation ~= ARGV[1] then
+  return 0
+end
+
+redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+return 1
+`;
 
 export class RedisSessionStore implements SessionStore {
   constructor(private readonly redis: RedisService) {}
@@ -30,11 +46,33 @@ export class RedisSessionStore implements SessionStore {
 
   compareAndSet(
     id: string,
-    _expectedGeneration: string,
+    expectedGeneration: string,
     session: StoredSession,
     callback: (err?: unknown) => void,
   ) {
-    this.set(id, session, callback);
+    this.redis
+      .getClient()
+      .eval(
+        COMPARE_AND_SET_SCRIPT,
+        1,
+        this.key(id),
+        expectedGeneration,
+        JSON.stringify(session),
+        String(this.ttl(session)),
+        id,
+      )
+      .then((result) => {
+        if (result === 1) {
+          callback();
+          return;
+        }
+
+        callback(
+          Object.assign(new Error('The session does not exist or has changed'), {
+            code: 'ENOENT',
+          }),
+        );
+      }, callback);
   }
 
   get(

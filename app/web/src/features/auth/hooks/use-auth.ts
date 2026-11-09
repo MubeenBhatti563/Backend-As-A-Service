@@ -15,6 +15,7 @@ import { useAuthStore } from "@/stores/auth.store";
 export const AUTH_KEYS = {
   all: ["auth"] as const,
   currentUser: () => [...AUTH_KEYS.all, "currentUser"] as const,
+  sessions: () => [...AUTH_KEYS.all, "sessions"] as const,
 };
 
 /**
@@ -135,5 +136,42 @@ export function useResendVerification() {
   return useMutation({
     mutationFn: (payload: ResendVerificationInput) =>
       authApi.resendVerification(payload),
+  });
+}
+
+/**
+ * User Session hook
+ */
+export function useGetAllSessions() {
+  return useQuery({
+    queryKey: AUTH_KEYS.sessions(),
+    queryFn: async () => {
+      const response = await authApi.getAllSessions();
+      return response.data;
+    },
+  });
+}
+
+export const useGetAllSession = useGetAllSessions;
+
+export function useRevokeSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sessionId: string) => authApi.revokeSession(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: AUTH_KEYS.sessions() });
+    },
+  });
+}
+
+export function useRevokeOtherSessions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => authApi.revokeOtherSessions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: AUTH_KEYS.sessions() });
+    },
   });
 }
