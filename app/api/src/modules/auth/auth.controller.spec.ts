@@ -6,6 +6,7 @@ import {
   REMEMBER_ME_TTL_MS,
   SHORT_SESSION_TTL_MS,
 } from './auth.service';
+import { THROTTLER_LIMIT, THROTTLER_TTL } from '@nestjs/throttler';
 import type { FastifyRequest } from 'fastify';
 
 describe('AuthController', () => {
@@ -18,6 +19,7 @@ describe('AuthController', () => {
     verifyEmail: jest.Mock;
     forgotPassword: jest.Mock;
     resetPassword: jest.Mock;
+    changePassword: jest.Mock;
     logout: jest.Mock;
     logoutAll: jest.Mock;
     getMe: jest.Mock;
@@ -35,6 +37,7 @@ describe('AuthController', () => {
       verifyEmail: jest.fn(),
       forgotPassword: jest.fn(),
       resetPassword: jest.fn(),
+      changePassword: jest.fn(),
       logout: jest.fn(),
       logoutAll: jest.fn(),
       getMe: jest.fn(),
@@ -251,6 +254,56 @@ describe('AuthController', () => {
         'NewStrongPassword123!',
       );
       expect(result.message).toContain('Password has been reset successfully');
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should limit password changes to three attempts per 15 minutes', () => {
+      const handler = AuthController.prototype.changePassword;
+
+      expect(Reflect.getMetadata(`${THROTTLER_LIMIT}default`, handler)).toBe(3);
+      expect(Reflect.getMetadata(`${THROTTLER_TTL}default`, handler)).toBe(
+        15 * 60 * 1000,
+      );
+    });
+
+    it('should pass the authenticated user and current session to the service', async () => {
+      const dto = {
+        currentPassword: 'CurrentPassword123!',
+        newPassword: 'NewPassword456!',
+      };
+      authServiceMock.changePassword.mockResolvedValue({
+        message: 'Password updated successfully.',
+      });
+      const req = {
+        session: { sessionStoreId: 'current-session' },
+      } as unknown as FastifyRequest;
+
+      const result = await controller.changePassword(dto, 'user-1', req);
+
+      expect(authServiceMock.changePassword).toHaveBeenCalledWith(
+        'user-1',
+        'current-session',
+        dto.currentPassword,
+        dto.newPassword,
+      );
+      expect(result.message).toBe('Password updated successfully.');
+    });
+
+    it('should reject the request if there is no active session ID', async () => {
+      const req = { session: {} } as unknown as FastifyRequest;
+
+      await expect(
+        controller.changePassword(
+          {
+            currentPassword: 'CurrentPassword123!',
+            newPassword: 'NewPassword456!',
+          },
+          'user-1',
+          req,
+        ),
+      ).rejects.toThrow('No active session found');
+      expect(authServiceMock.changePassword).not.toHaveBeenCalled();
     });
   });
 

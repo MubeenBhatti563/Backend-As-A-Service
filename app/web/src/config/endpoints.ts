@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
     RESEND_VERIFICATION: "/auth/resend-verification",
     FORGOT_PASSWORD: "/auth/forgot-password",
     RESET_PASSWORD: "/auth/reset-password",
+    CHANGE_PASSWORD: "/auth/change-password",
     GET_ALL_SESSION: "/auth/get-sessions",
     REVOKE_SESSION: (id: string) => `/auth/revoke-session/${id}`,
     REVOKE_OTHER_SESSIONS: "/auth/revoke-other-sessions",

@@ -325,6 +325,54 @@ export class AuthService {
     };
   }
 
+  async changePassword(
+    userId: string,
+    currentSessionId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prismaService.platformUser.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+
+    if (
+      !user ||
+      !(await this.verifyPassword(currentPassword, user.passwordHash))
+    ) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const newPasswordHash = await this.hashPassword(newPassword);
+    const otherSessions = await this.prismaService.session.findMany({
+      where: { userId, id: { not: currentSessionId } },
+      select: { id: true },
+    });
+
+    if (otherSessions.length > 0) {
+      await this.redisService.del(
+        ...otherSessions.map((session) => `${SESSION_PREFIX}${session.id}`),
+      );
+    }
+
+    await this.prismaService.$transaction([
+      this.prismaService.platformUser.update({
+        where: { id: userId },
+        data: { passwordHash: newPasswordHash },
+      }),
+      this.prismaService.session.deleteMany({
+        where: { userId, id: { not: currentSessionId } },
+      }),
+      this.prismaService.verificationToken.deleteMany({
+        where: { userId, type: TokenType.PASSWORD_RESET },
+      }),
+    ]);
+
+    return {
+      message: 'Password updated successfully. Other sessions have been signed out.',
+    };
+  }
+
   async forgotPassword(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prismaService.platformUser.findUnique({

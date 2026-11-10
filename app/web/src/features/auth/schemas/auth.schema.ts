@@ -81,10 +81,33 @@ export type SignupPayload = Pick<
   "fullName" | "email" | "password"
 >;
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z
+      .string()
+      .min(1, "New password is required")
+      .min(8, "Password must be at least 8 characters")
+      .max(128, "Password must be at most 128 characters")
+      .regex(/[a-z]/, "Include at least one lowercase letter")
+      .regex(/[A-Z]/, "Include at least one uppercase letter")
+      .regex(/[0-9]/, "Include at least one number")
+      .regex(
+        /[@$!%*?&_\-#^~()+={}[\]:;"'<>,./\\|]/,
+        "Include at least one special character",
+      ),
+    confirmPassword: z.string().min(1, "Please confirm your new password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 export type ResetPasswordPayload = Pick<ResetPasswordFormValues, "password">;
 export type PasswordStrength = 0 | 1 | 2 | 3 | 4;
+export type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 export type ResendVerificationFormValues = z.infer<
   typeof resendVerificationSchema
 >;

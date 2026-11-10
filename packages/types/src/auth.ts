@@ -58,6 +58,14 @@ export interface ResetPasswordInput {
 }
 
 /**
+ * Change password payload for an authenticated user.
+ */
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
  * Device and client tracking metadata.
  */
 export interface SessionDeviceType {

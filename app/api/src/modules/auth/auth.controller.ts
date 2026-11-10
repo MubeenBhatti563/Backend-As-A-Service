@@ -32,6 +32,7 @@ import {
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ThrottlerMessage } from './decorators/throttler.decorator';
 import { ResponseMessage } from '../../common';
+import { ChangePasswordDto } from './dtos/change-password.dto';
 
 declare module 'fastify' {
   interface Session {
@@ -139,6 +140,28 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);
+  }
+
+  @ThrottlerMessage('Too many password change attempts. Try again in 15 minutes.')
+  @Throttle({ default: { limit: 3, ttl: 15 * 60 * 1000 } })
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @GetUser('userId') userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    const currentSessionId = req.session?.sessionStoreId;
+    if (!currentSessionId) {
+      throw new UnauthorizedException('No active session found');
+    }
+
+    return this.authService.changePassword(
+      userId,
+      currentSessionId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @Post('logout-all')

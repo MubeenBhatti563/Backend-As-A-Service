@@ -423,6 +423,84 @@ describe('AuthService', () => {
     });
   });
 
+  describe('changePassword', () => {
+    const currentPassword = 'CurrentPassword123!';
+    const newPassword = 'NewPassword456!';
+
+    it('should update the password, revoke other sessions, and invalidate reset tokens', async () => {
+      const currentPasswordHash = await argon2.hash(currentPassword);
+      prismaMock.platformUser.findUnique.mockResolvedValue({
+        passwordHash: currentPasswordHash,
+      });
+      prismaMock.session.findMany.mockResolvedValue([
+        { id: 'sess-other-1' },
+        { id: 'sess-other-2' },
+      ]);
+      prismaMock.$transaction.mockResolvedValue([]);
+
+      const result = await service.changePassword(
+        'user-1',
+        'sess-current',
+        currentPassword,
+        newPassword,
+      );
+
+      expect(result.message).toContain('Password updated successfully');
+      expect(redisMock.del).toHaveBeenCalledWith(
+        'sess:sess-other-1',
+        'sess:sess-other-2',
+      );
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+      expect(prismaMock.$transaction.mock.calls[0][0]).toHaveLength(3);
+      expect(prismaMock.platformUser.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { passwordHash: expect.any(String) },
+      });
+      const savedHash = prismaMock.platformUser.update.mock.calls[0][0].data
+        .passwordHash;
+      expect(await argon2.verify(savedHash, newPassword)).toBe(true);
+      expect(prismaMock.session.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', id: { not: 'sess-current' } },
+      });
+      expect(prismaMock.verificationToken.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', type: TokenType.PASSWORD_RESET },
+      });
+    });
+
+    it('should not change credentials when the current password is incorrect', async () => {
+      prismaMock.platformUser.findUnique.mockResolvedValue({
+        passwordHash: await argon2.hash(currentPassword),
+      });
+
+      await expect(
+        service.changePassword(
+          'user-1',
+          'sess-current',
+          'WrongPassword123!',
+          newPassword,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(prismaMock.platformUser.update).not.toHaveBeenCalled();
+      expect(prismaMock.session.findMany).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should reject a user that no longer exists', async () => {
+      prismaMock.platformUser.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword(
+          'missing-user',
+          'sess-current',
+          currentPassword,
+          newPassword,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(prismaMock.platformUser.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getMe', () => {
     it('should return safe user when found', async () => {
       const safeUser = {

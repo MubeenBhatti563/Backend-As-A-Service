@@ -2,6 +2,7 @@ import apiClient from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/config/endpoints";
 import type {
   ApiResponse,
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
@@ -88,6 +89,18 @@ export const authApi = {
       AUTH.RESET_PASSWORD,
       payload,
     )) as unknown as ApiResponse<null>;
+  },
+
+  /**
+   * Change password for the authenticated user
+   */
+  changePassword: async (
+    payload: ChangePasswordInput,
+  ): Promise<ApiResponse<{ message: string }>> => {
+    return (await apiClient.post(
+      AUTH.CHANGE_PASSWORD,
+      payload,
+    )) as unknown as ApiResponse<{ message: string }>;
   },
 
   /**

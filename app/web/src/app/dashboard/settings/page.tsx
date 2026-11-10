@@ -32,7 +32,6 @@ import {
   IconDeviceDesktop,
   IconDevices,
   IconKey,
-  IconLock,
   IconMail,
   IconShieldCheck,
   IconTrash,
@@ -43,6 +42,7 @@ import {
   useRevokeOtherSessions,
   useRevokeSession,
 } from "@/features/auth";
+import { PasswordItem } from "./PasswordItem";
 
 export default function AccountSettingsPage() {
   const { user } = useAuthStore();
@@ -375,44 +375,7 @@ export default function AccountSettingsPage() {
           <Divider sx={{ borderColor: "border.default" }} />
 
           {/* Password Item */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 3,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <IconLock size={16} color="#94A3B8" aria-hidden />
-              <Box>
-                <Typography sx={{ fontSize: 13, fontWeight: 500 }}>
-                  Password
-                </Typography>
-                <Typography sx={{ color: "text.secondary", fontSize: 11 }}>
-                  Set a secure password using argon2id hashing
-                </Typography>
-              </Box>
-            </Box>
-            <Button
-              variant="outlined"
-              size="small"
-              sx={{
-                height: 32,
-                fontSize: 12,
-                textTransform: "none",
-                borderColor: "border.strong",
-                color: "text.primary",
-                "&:hover": {
-                  borderColor: "text.secondary",
-                  bgcolor: "background.elevated",
-                },
-              }}
-            >
-              Change password
-            </Button>
-          </Box>
+          <PasswordItem />
 
           <Divider sx={{ borderColor: "border.default" }} />
 
