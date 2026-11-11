@@ -6,7 +6,6 @@ import {
   REMEMBER_ME_TTL_MS,
   SHORT_SESSION_TTL_MS,
 } from './auth.service';
-import { THROTTLER_LIMIT, THROTTLER_TTL } from '@nestjs/throttler';
 import type { FastifyRequest } from 'fastify';
 
 describe('AuthController', () => {
@@ -259,10 +258,10 @@ describe('AuthController', () => {
 
   describe('changePassword', () => {
     it('should limit password changes to three attempts per 15 minutes', () => {
-      const handler = AuthController.prototype.changePassword;
+      const handler = Reflect.get(AuthController.prototype, 'changePassword');
 
-      expect(Reflect.getMetadata(`${THROTTLER_LIMIT}default`, handler)).toBe(3);
-      expect(Reflect.getMetadata(`${THROTTLER_TTL}default`, handler)).toBe(
+      expect(Reflect.getMetadata('THROTTLER:LIMITdefault', handler)).toBe(3);
+      expect(Reflect.getMetadata('THROTTLER:TTLdefault', handler)).toBe(
         15 * 60 * 1000,
       );
     });
