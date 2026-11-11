@@ -119,6 +119,12 @@ export const authApi = {
     )) as unknown as ApiResponse<null>;
   },
 
+  deleteAccount: async (): Promise<ApiResponse<{ message: string }>> => {
+    return (await apiClient.post(
+      AUTH.DELETE_ACCOUNT,
+    )) as unknown as ApiResponse<{ message: string }>;
+  },
+
   /**
    * Get all sessions
    */

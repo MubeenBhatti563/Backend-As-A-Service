@@ -189,6 +189,21 @@ export class AuthController {
     return { message: 'Logged out' };
   }
 
+  @ThrottlerMessage('Too many account deletion attempts. Try again later.')
+  @Throttle({ default: { limit: 2, ttl: 15 * 60 * 1000 } })
+  @Post('delete-account')
+  @HttpCode(HttpStatus.OK)
+  async deleteAccount(
+    @GetUser('userId') userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    const result = await this.authService.deleteAccount(userId);
+    if (req.session?.destroy) {
+      await req.session.destroy();
+    }
+    return result;
+  }
+
   @SkipThrottle()
   @ResponseMessage('User profile retrieved successfully')
   @Get('me')

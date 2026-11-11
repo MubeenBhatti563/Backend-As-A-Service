@@ -7,3 +7,7 @@ export interface SendPasswordResetEmailPayload {
   email: string;
   token: string;
 }
+
+export interface SendAccountDeletedEmailPayload {
+  email: string;
+}

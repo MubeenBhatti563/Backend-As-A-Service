@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AccountShell } from "@/features/projects/components/projects/AccountShell";
 import { useAuthStore } from "@/stores";
 import Loading from "@/app/loading";
@@ -41,8 +42,10 @@ import {
   useGetAllSessions,
   useRevokeOtherSessions,
   useRevokeSession,
+  useDeleteAccount,
 } from "@/features/auth";
 import { PasswordItem } from "./PasswordItem";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 
 export default function AccountSettingsPage() {
   const { user } = useAuthStore();
@@ -55,12 +58,15 @@ export default function AccountSettingsPage() {
   } = useGetAllSessions();
   const revokeSession = useRevokeSession();
   const revokeOtherSessions = useRevokeOtherSessions();
+  const deleteAccount = useDeleteAccount();
+  const router = useRouter();
 
   const [copiedId, setCopiedId] = useState(false);
   const [fullName, setFullName] = useState(user?.fullName || "Admin");
   const [email] = useState(user?.email || "admin@devstack.com");
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [securityAlerts, setSecurityAlerts] = useState(true);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   if (!user) return <Loading />;
 
@@ -751,9 +757,8 @@ export default function AccountSettingsPage() {
                   lineHeight: 1.6,
                 }}
               >
-                Permanently remove your account, active subscriptions, and all
-                associated projects, databases, storage buckets, and API keys.
-                This cannot be undone.
+                Permanently remove your account, subscription, projects, API
+                keys, and associated account records. This cannot be undone.
               </Typography>
             </Box>
             <Button
@@ -761,6 +766,7 @@ export default function AccountSettingsPage() {
               color="error"
               size="small"
               startIcon={<IconTrash size={14} />}
+              onClick={() => setIsDeleteDialogOpen(true)}
               sx={{
                 height: 34,
                 fontSize: 12,
@@ -775,6 +781,27 @@ export default function AccountSettingsPage() {
           </Box>
         </Box>
       </Box>
+      <ConfirmDeleteDialog
+        open={isDeleteDialogOpen}
+        projectName={user.email}
+        title="Delete your account?"
+        eyebrow="Permanent account deletion"
+        confirmLabel="Delete account permanently"
+        confirmationLabel={<>Type &quot;{user.email}&quot; to confirm</>}
+        description={
+          <>
+            This permanently deletes your account and its associated project
+            records, API keys, subscription, and account data. You will be
+            signed out from every device. This action cannot be undone.
+          </>
+        }
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={async () => {
+          await deleteAccount.mutateAsync();
+          setIsDeleteDialogOpen(false);
+          router.replace("/auth/login");
+        }}
+      />
     </AccountShell>
   );
 }

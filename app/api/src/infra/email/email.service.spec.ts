@@ -86,4 +86,23 @@ describe('EmailService', () => {
       );
     });
   });
+
+  describe('sendAccountDeletedNotice', () => {
+    it('queues a deletion confirmation email', async () => {
+      await service.sendAccountDeletedNotice('user@example.com');
+
+      expect(queueMock.add).toHaveBeenCalledWith(
+        EMAIL_JOBS.ACCOUNT_DELETED,
+        { email: 'user@example.com' },
+      );
+    });
+
+    it('rejects when the queue cannot accept the email job', async () => {
+      queueMock.add.mockRejectedValueOnce(new Error('Queue unavailable'));
+
+      await expect(
+        service.sendAccountDeletedNotice('user@example.com'),
+      ).rejects.toThrow('Queue unavailable');
+    });
+  });
 });

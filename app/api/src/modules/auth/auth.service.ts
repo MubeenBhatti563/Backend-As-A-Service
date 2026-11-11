@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -27,6 +28,8 @@ const DUMMY_ARGON2_HASH =
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
@@ -369,7 +372,8 @@ export class AuthService {
     ]);
 
     return {
-      message: 'Password updated successfully. Other sessions have been signed out.',
+      message:
+        'Password updated successfully. Other sessions have been signed out.',
     };
   }
 
@@ -528,5 +532,44 @@ export class AuthService {
     }
 
     await this.prismaService.session.deleteMany({ where: { userId } });
+  }
+
+  async deleteAccount(userId: string) {
+    const user = await this.prismaService.platformUser.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!user) {
+      throw new NotFoundException('Account not found');
+    }
+
+    const sessions = await this.prismaService.session.findMany({
+      where: { userId },
+      select: { id: true },
+    });
+
+    // Remove server-side sessions first. If Redis is unavailable, fail closed
+    // and keep the account intact rather than leaving valid sessions behind.
+    if (sessions.length > 0) {
+      await this.redisService.del(
+        ...sessions.map((session) => `${SESSION_PREFIX}${session.id}`),
+      );
+    }
+
+    // Related platform records (projects, keys, subscriptions, and audit
+    // records) are removed by the database's configured FK cascades.
+    await this.prismaService.platformUser.delete({ where: { id: userId } });
+
+    // Notification is best effort: the account is already gone and delivery
+    // failure must not turn a successful deletion into an apparent failure.
+    try {
+      await this.emailService.sendAccountDeletedNotice(user.email);
+    } catch (error) {
+      this.logger.error(
+        `Account ${userId} was deleted, but its confirmation email could not be queued: ${(error as Error).message}`,
+      );
+    }
+
+    return { message: 'Account deleted successfully' };
   }
 }

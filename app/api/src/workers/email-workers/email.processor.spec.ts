@@ -108,6 +108,33 @@ describe('EmailProcessor', () => {
     });
   });
 
+  describe('process account deletion email', () => {
+    it('sends a notice confirming permanent account deletion', async () => {
+      mockResendSend.mockResolvedValue({
+        data: { id: 'resend_deleted_123' },
+        error: null,
+      });
+
+      const job = {
+        id: 'job_deleted',
+        name: EMAIL_JOBS.ACCOUNT_DELETED,
+        attemptsMade: 0,
+        data: { email: 'user@example.com' },
+      } as unknown as Job;
+
+      await processor.process(job);
+
+      expect(mockResendSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: ['user@example.com'],
+          subject: expect.stringContaining('account has been deleted'),
+          html: expect.stringContaining('Your account has been deleted'),
+          text: expect.stringContaining('permanently deleted'),
+        }),
+      );
+    });
+  });
+
   describe('process password reset email', () => {
     it('should send password reset email through Resend successfully', async () => {
       mockResendSend.mockResolvedValue({

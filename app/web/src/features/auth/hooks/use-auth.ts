@@ -97,6 +97,20 @@ export function useLogoutAll() {
   });
 }
 
+/** Permanently delete the authenticated account and clear all client state. */
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  const clearUser = useAuthStore((s) => s.clearUser);
+
+  return useMutation({
+    mutationFn: () => authApi.deleteAccount(),
+    onSuccess: () => {
+      clearUser();
+      queryClient.clear();
+    },
+  });
+}
+
 /**
  * Hook to request password reset link.
  */

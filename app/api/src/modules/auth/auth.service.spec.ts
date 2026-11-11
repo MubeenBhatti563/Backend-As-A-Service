@@ -20,6 +20,7 @@ describe('AuthService', () => {
       findUnique: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      delete: jest.Mock;
     };
     verificationToken: {
       findUnique: jest.Mock;
@@ -44,6 +45,7 @@ describe('AuthService', () => {
   let emailMock: {
     sendVerificationLink: jest.Mock;
     sendPasswordResetLink: jest.Mock;
+    sendAccountDeletedNotice: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -52,6 +54,7 @@ describe('AuthService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        delete: jest.fn(),
       },
       verificationToken: {
         findUnique: jest.fn(),
@@ -78,6 +81,7 @@ describe('AuthService', () => {
     emailMock = {
       sendVerificationLink: jest.fn().mockResolvedValue(undefined),
       sendPasswordResetLink: jest.fn().mockResolvedValue(undefined),
+      sendAccountDeletedNotice: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -563,6 +567,74 @@ describe('AuthService', () => {
       expect(prismaMock.session.deleteMany).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
       });
+    });
+  });
+
+  describe('deleteAccount', () => {
+    it('revokes sessions, deletes the account, then queues a deletion notice', async () => {
+      prismaMock.platformUser.findUnique.mockResolvedValue({
+        email: 'user@example.com',
+      });
+      prismaMock.session.findMany.mockResolvedValue([
+        { id: 'sess-1' },
+        { id: 'sess-2' },
+      ]);
+      prismaMock.platformUser.delete.mockResolvedValue({ id: 'user-1' });
+
+      await expect(service.deleteAccount('user-1')).resolves.toEqual({
+        message: 'Account deleted successfully',
+      });
+
+      expect(redisMock.del).toHaveBeenCalledWith('sess:sess-1', 'sess:sess-2');
+      expect(prismaMock.platformUser.delete).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+      });
+      expect(emailMock.sendAccountDeletedNotice).toHaveBeenCalledWith(
+        'user@example.com',
+      );
+      expect(prismaMock.platformUser.delete.mock.invocationCallOrder[0]).toBeLessThan(
+        emailMock.sendAccountDeletedNotice.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('does not delete the account when Redis session revocation fails', async () => {
+      prismaMock.platformUser.findUnique.mockResolvedValue({
+        email: 'user@example.com',
+      });
+      prismaMock.session.findMany.mockResolvedValue([{ id: 'sess-1' }]);
+      redisMock.del.mockRejectedValueOnce(new Error('Redis unavailable'));
+
+      await expect(service.deleteAccount('user-1')).rejects.toThrow(
+        'Redis unavailable',
+      );
+      expect(prismaMock.platformUser.delete).not.toHaveBeenCalled();
+      expect(emailMock.sendAccountDeletedNotice).not.toHaveBeenCalled();
+    });
+
+    it('succeeds if the confirmation email cannot be queued after deletion', async () => {
+      prismaMock.platformUser.findUnique.mockResolvedValue({
+        email: 'user@example.com',
+      });
+      prismaMock.session.findMany.mockResolvedValue([]);
+      prismaMock.platformUser.delete.mockResolvedValue({ id: 'user-1' });
+      emailMock.sendAccountDeletedNotice.mockRejectedValueOnce(
+        new Error('Queue unavailable'),
+      );
+
+      await expect(service.deleteAccount('user-1')).resolves.toEqual({
+        message: 'Account deleted successfully',
+      });
+      expect(prismaMock.platformUser.delete).toHaveBeenCalled();
+    });
+
+    it('does not delete or notify when the account does not exist', async () => {
+      prismaMock.platformUser.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteAccount('missing-user')).rejects.toThrow(
+        'Account not found',
+      );
+      expect(prismaMock.platformUser.delete).not.toHaveBeenCalled();
+      expect(emailMock.sendAccountDeletedNotice).not.toHaveBeenCalled();
     });
   });
 

@@ -6,10 +6,12 @@ import { Resend } from 'resend';
 import { EMAIL_JOBS, EMAIL_QUEUE } from './email.constants';
 import {
   SendPasswordResetEmailPayload,
+  SendAccountDeletedEmailPayload,
   SendVerificationEmailPayload,
 } from './email.interfaces';
 import {
   getPasswordResetEmailTemplate,
+  getAccountDeletedEmailTemplate,
   getVerificationEmailTemplate,
 } from '../../infra/email/templates';
 
@@ -52,6 +54,12 @@ export class EmailProcessor extends WorkerHost {
         break;
       }
 
+      case EMAIL_JOBS.ACCOUNT_DELETED: {
+        const { email } = job.data as SendAccountDeletedEmailPayload;
+        await this.handleAccountDeletedEmail(email);
+        break;
+      }
+
       default:
         this.logger.warn(`Unrecognized email job name: ${job.name}`);
         break;
@@ -77,6 +85,11 @@ export class EmailProcessor extends WorkerHost {
     const resetLink = `${appUrl}/auth/reset-password?token=${token}`;
     const { subject, html, text } = getPasswordResetEmailTemplate(resetLink);
 
+    await this.sendEmail(email, subject, html, text);
+  }
+
+  private async handleAccountDeletedEmail(email: string): Promise<void> {
+    const { subject, html, text } = getAccountDeletedEmailTemplate();
     await this.sendEmail(email, subject, html, text);
   }
 

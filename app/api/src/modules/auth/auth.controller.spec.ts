@@ -21,6 +21,7 @@ describe('AuthController', () => {
     changePassword: jest.Mock;
     logout: jest.Mock;
     logoutAll: jest.Mock;
+    deleteAccount: jest.Mock;
     getMe: jest.Mock;
     getAllSessions: jest.Mock;
     revokeSession: jest.Mock;
@@ -39,6 +40,7 @@ describe('AuthController', () => {
       changePassword: jest.fn(),
       logout: jest.fn(),
       logoutAll: jest.fn(),
+      deleteAccount: jest.fn(),
       getMe: jest.fn(),
       getAllSessions: jest.fn(),
       revokeSession: jest.fn(),
@@ -340,6 +342,35 @@ describe('AuthController', () => {
       expect(authServiceMock.logoutAll).toHaveBeenCalledWith('user-1');
       expect(mockDestroy).toHaveBeenCalled();
       expect(result).toEqual({ message: 'Logged out from all devices' });
+    });
+  });
+
+  describe('deleteAccount', () => {
+    it('deletes the authenticated account and destroys the current session', async () => {
+      authServiceMock.deleteAccount.mockResolvedValue({
+        message: 'Account deleted successfully',
+      });
+      const mockDestroy = jest.fn().mockResolvedValue(undefined);
+      const mockReq = { session: { destroy: mockDestroy } } as unknown as FastifyRequest;
+
+      const result = await controller.deleteAccount('user-1', mockReq);
+
+      expect(authServiceMock.deleteAccount).toHaveBeenCalledWith('user-1');
+      expect(mockDestroy).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ message: 'Account deleted successfully' });
+    });
+
+    it('does not destroy the session when account deletion fails', async () => {
+      authServiceMock.deleteAccount.mockRejectedValueOnce(
+        new Error('Redis unavailable'),
+      );
+      const mockDestroy = jest.fn().mockResolvedValue(undefined);
+      const mockReq = { session: { destroy: mockDestroy } } as unknown as FastifyRequest;
+
+      await expect(
+        controller.deleteAccount('user-1', mockReq),
+      ).rejects.toThrow('Redis unavailable');
+      expect(mockDestroy).not.toHaveBeenCalled();
     });
   });
 

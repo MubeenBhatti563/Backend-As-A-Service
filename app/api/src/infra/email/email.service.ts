@@ -5,6 +5,7 @@ import {
   EMAIL_JOBS,
   EMAIL_QUEUE,
   SendPasswordResetEmailPayload,
+  SendAccountDeletedEmailPayload,
   SendVerificationEmailPayload,
 } from '../../workers/email-workers';
 
@@ -55,6 +56,25 @@ export class EmailService {
     } catch (err) {
       this.logger.error(
         `Failed to enqueue password reset email for ${email}: ${(err as Error).message}`,
+        (err as Error).stack,
+      );
+      throw err;
+    }
+  }
+
+  /** Enqueue a post-deletion notice; delivery failures are handled by caller. */
+  async sendAccountDeletedNotice(email: string): Promise<void> {
+    try {
+      const job = await this.emailQueue.add(
+        EMAIL_JOBS.ACCOUNT_DELETED,
+        { email } satisfies SendAccountDeletedEmailPayload,
+      );
+      this.logger.debug(
+        `Queued account deletion email job ${job.id} for recipient ${email}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to enqueue account deletion email for ${email}: ${(err as Error).message}`,
         (err as Error).stack,
       );
       throw err;
