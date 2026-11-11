@@ -339,11 +339,14 @@ export class AuthService {
       select: { passwordHash: true },
     });
 
-    if (
-      !user ||
-      !(await this.verifyPassword(currentPassword, user.passwordHash))
-    ) {
+    if (!user) {
       throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    if (!(await this.verifyPassword(currentPassword, user.passwordHash))) {
+      // A credential mismatch is a request error, not an expired session.
+      // Returning 401 here would trigger the web client's session-expired redirect.
+      throw new BadRequestException('Current password is incorrect');
     }
 
     const newPasswordHash = await this.hashPassword(newPassword);

@@ -483,7 +483,7 @@ describe('AuthService', () => {
           'WrongPassword123!',
           newPassword,
         ),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(BadRequestException);
 
       expect(prismaMock.platformUser.update).not.toHaveBeenCalled();
       expect(prismaMock.session.findMany).not.toHaveBeenCalled();
