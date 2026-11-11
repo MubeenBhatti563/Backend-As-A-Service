@@ -106,6 +106,7 @@ export function ChangePasswordDialog({
             label="Current password"
             type="password"
             autoComplete="current-password"
+            autoFocus
             size="small"
             fullWidth
             error={!!errors.currentPassword}
@@ -117,7 +118,6 @@ export function ChangePasswordDialog({
             label="New password"
             type={showNew ? "text" : "password"}
             autoComplete="new-password"
-            autoFocus
             size="small"
             fullWidth
             error={!!errors.newPassword}
