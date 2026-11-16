@@ -30,6 +30,7 @@ import { LoginErrors, LoginValues } from "../types";
 import { SHOW_LOGO_BELOW_900 } from "..";
 import OAuthButtons from "./OAuthButtongs";
 import { useLogin } from "../hooks/use-auth";
+import { getErrorMessage } from "@/lib/get-error-message";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -223,11 +224,7 @@ export function LoginForm({
       }
       router.push(redirectTo);
     } catch (error) {
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong. Please try again.",
-      );
+      setSubmitError(getErrorMessage(error));
     } finally {
       setSubmitting(false);
     }

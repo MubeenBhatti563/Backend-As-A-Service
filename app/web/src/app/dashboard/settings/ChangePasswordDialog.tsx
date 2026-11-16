@@ -21,6 +21,7 @@ import {
   changePasswordSchema,
   ChangePasswordValues,
 } from "@/features/auth/schemas/auth.schema";
+import { getErrorMessage } from "@/lib/get-error-message";
 
 /* ── Component ─────────────────────────────────────────────────────── */
 
@@ -70,9 +71,7 @@ export function ChangePasswordDialog({
       await onSubmit(values);
       handleClose();
     } catch (err) {
-      setServerError(
-        err instanceof Error ? err.message : "Something went wrong. Try again.",
-      );
+      setServerError(getErrorMessage(err));
     }
   };
 

@@ -33,6 +33,7 @@ import {
   type ResetPasswordPayload,
 } from "../schemas/auth.schema";
 import { useResetPassword } from "../hooks/use-auth";
+import { getErrorMessage } from "@/lib/get-error-message";
 import { PasswordUpdatedPanel } from "./Passwordupdatedpanel";
 
 /* ----------------------------- content ----------------------------- */
@@ -217,12 +218,7 @@ export function ResetPasswordForm({
         await resetMutation.mutateAsync({ token, password });
       }
     } catch (error) {
-      setError("root.server", {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Something went wrong. Please try again.",
-      });
+      setError("root.server", { message: getErrorMessage(error) });
     }
   });
 

@@ -28,6 +28,7 @@ import {
 } from "../schemas/auth.schema";
 import { SHOW_LOGO_BELOW_900 } from "..";
 import { useForgotPassword } from "../hooks/use-auth";
+import { getErrorMessage } from "@/lib/get-error-message";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -81,12 +82,7 @@ export function ForgotPasswordForm({
       }
       setSentTo(values.email);
     } catch (error) {
-      setError("root.server", {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Something went wrong. Please try again.",
-      });
+      setError("root.server", { message: getErrorMessage(error) });
     }
   });
 

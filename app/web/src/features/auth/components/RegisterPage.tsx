@@ -41,6 +41,7 @@ import {
 import { SHOW_LOGO_BELOW_900 } from "..";
 import OAuthButtons from "./OAuthButtongs";
 import { useRegister } from "../hooks/use-auth";
+import { getErrorMessage } from "@/lib/get-error-message";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -222,12 +223,7 @@ export function SignupForm({
       }
       router.push(redirectTo);
     } catch (error) {
-      setError("root.server", {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Something went wrong. Please try again.",
-      });
+      setError("root.server", { message: getErrorMessage(error) });
     }
   });
 

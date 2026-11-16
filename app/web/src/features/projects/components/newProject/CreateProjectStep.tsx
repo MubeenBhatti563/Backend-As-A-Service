@@ -14,6 +14,7 @@ import {
 } from "../../schemas/create-project.schema";
 import { Field, SelectField } from "./OnboardingField";
 import { StepHeader } from "./StepHeader";
+import { getErrorMessage } from "@/lib/get-error-message";
 
 const COPY = {
   label: "Infrastructure Setup",
@@ -60,12 +61,7 @@ export function CreateProjectStep({
       await onSubmit(values);
       onSuccess();
     } catch (error) {
-      setError("root.server", {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Something went wrong. Please try again.",
-      });
+      setError("root.server", { message: getErrorMessage(error) });
     }
   });
 

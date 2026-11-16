@@ -6,6 +6,7 @@ import { Alert, Box, Button, Link as MuiLink, Typography } from "@mui/material";
 import { IconArrowRight, IconMail } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { SHOW_LOGO_BELOW_900 } from "..";
+import { getErrorMessage } from "@/lib/get-error-message";
 
 /* ----------------------------- content ----------------------------- */
 const COPY = {
@@ -57,13 +58,7 @@ export function CheckEmailPanel({
       setStatus({ type: "success", message: COPY.resent });
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (error) {
-      setStatus({
-        type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Something went wrong. Please try again.",
-      });
+      setStatus({ type: "error", message: getErrorMessage(error) });
     } finally {
       setSending(false);
     }

@@ -3,6 +3,7 @@
 import { Box, Button, Dialog, InputBase, Typography } from "@mui/material";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { getErrorMessage } from "@/lib/get-error-message";
 
 const display = "var(--font-outfit), Outfit, sans-serif";
 const mono = 'var(--font-geist-mono), "Geist Mono", monospace';
@@ -52,11 +53,7 @@ export function ConfirmDeleteDialog({
     try {
       await onConfirm();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again.",
-      );
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
