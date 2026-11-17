@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectService } from './project.service';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { getQueueToken } from '@nestjs/bullmq';
+import { DB_QUEUE } from '../../workers/db-workers/db.constants';
 import * as crypto from 'crypto';
 
 describe('ProjectService', () => {
@@ -10,6 +12,7 @@ describe('ProjectService', () => {
     project: {
       create: jest.Mock;
       findMany: jest.Mock;
+      update: jest.Mock;
     };
     apiKey: {
       createMany: jest.Mock;
@@ -19,6 +22,7 @@ describe('ProjectService', () => {
       createMany: jest.Mock;
     };
   };
+  let dbQueueMock: { add: jest.Mock };
 
   const mockTx = {
     project: {
@@ -40,6 +44,7 @@ describe('ProjectService', () => {
       project: {
         create: jest.fn(),
         findMany: jest.fn(),
+        update: jest.fn(),
       },
       apiKey: {
         createMany: jest.fn(),
@@ -50,10 +55,13 @@ describe('ProjectService', () => {
       },
     };
 
+    dbQueueMock = { add: jest.fn().mockResolvedValue({ id: 'job-1' }) };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProjectService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: getQueueToken(DB_QUEUE), useValue: dbQueueMock },
       ],
     }).compile();
 
@@ -76,11 +84,11 @@ describe('ProjectService', () => {
     };
     const userId = 'user-uuid-123';
 
-    it('should create project and API keys inside a transaction', async () => {
+    it('should create project and API keys inside a transaction, then enqueue tenant provisioning', async () => {
       const mockCreatedProject = {
         id: 'proj-123',
         name: dto.name,
-        schemaName: 'proj_abcdef123456',
+        schemaName: 'proj_abcdef123456abcdef123456',
         deploymentRegion: dto.region,
         description: dto.description,
         ownerId: userId,
@@ -131,6 +139,18 @@ describe('ProjectService', () => {
         ]),
       });
 
+      // Verify BullMQ job was enqueued
+      expect(dbQueueMock.add).toHaveBeenCalledTimes(1);
+      expect(dbQueueMock.add).toHaveBeenCalledWith(
+        'create-new-tenant',
+        expect.objectContaining({
+          projectId: mockCreatedProject.id,
+          schemaName: expect.stringMatching(/^proj_[a-f0-9]{24}$/),
+          dbRole: expect.stringMatching(/^role_proj_[a-f0-9]{12}$/),
+          dbPassword: expect.stringMatching(/^[a-f0-9]{32}$/),
+        }),
+      );
+
       // Verify result structure
       expect(result.project).toEqual(mockCreatedProject);
       expect(result.keys.anon).toMatch(/^pk_live_[a-f0-9]{64}$/);
@@ -165,6 +185,29 @@ describe('ProjectService', () => {
       await expect(service.createProject(dto, userId)).rejects.toThrow(
         'Database transaction failed',
       );
+      // Queue should not be called if the transaction failed
+      expect(dbQueueMock.add).not.toHaveBeenCalled();
+    });
+
+    it('should propagate errors if queue.add fails', async () => {
+      const mockCreatedProject = {
+        id: 'proj-999',
+        name: dto.name,
+        schemaName: 'proj_xxxxxxxxxxxxxxxxxxxx',
+        deploymentRegion: dto.region,
+        description: dto.description,
+        ownerId: userId,
+        status: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockTx.project.create.mockResolvedValue(mockCreatedProject);
+      mockTx.apiKey.createMany.mockResolvedValue({ count: 2 });
+      dbQueueMock.add.mockRejectedValue(new Error('Redis connection refused'));
+
+      await expect(service.createProject(dto, userId)).rejects.toThrow(
+        'Redis connection refused',
+      );
     });
   });
 
@@ -179,7 +222,7 @@ describe('ProjectService', () => {
           schemaName: 'proj_111111111111',
           deploymentRegion: 'us-east-1',
           ownerId: userId,
-          status: 'READY',
+          status: 'ACTIVE',
         },
         {
           id: 'proj-2',
@@ -299,4 +342,3 @@ describe('ProjectService', () => {
     });
   });
 });
-

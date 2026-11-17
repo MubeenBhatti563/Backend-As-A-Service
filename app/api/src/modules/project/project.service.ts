@@ -1,11 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { DB_JOBS, DB_QUEUE } from '../../workers/db-workers/db.constants';
+import { CreateNewTenant } from '../../workers/db-workers/db.interfaces';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class ProjectService {
-  constructor(private readonly prismaService: PrismaService) {}
+  private readonly logger = new Logger(ProjectService.name);
+
+  constructor(
+    private readonly prismaService: PrismaService,
+    @InjectQueue(DB_QUEUE) private readonly dbQueue: Queue,
+  ) {}
 
   private hashToken(rawToken: string): string {
     return crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -28,11 +37,16 @@ export class ProjectService {
     const anon = this.generateApiKey('pk');
     const service = this.generateApiKey('sk');
 
+    // Generate tenant credentials upfront so we can pass them to the BullMQ job
+    const schemaName = `proj_${this.generateCryptoToken(12)}`;
+    const dbRole = `role_proj_${this.generateCryptoToken(6)}`;
+    const dbPassword = this.generateCryptoToken(16);
+
     const project = await this.prismaService.$transaction(async (tx) => {
       const newProject = await tx.project.create({
         data: {
           name: dto.name,
-          schemaName: `proj_${this.generateCryptoToken(12)}`,
+          schemaName,
           deploymentRegion: dto.region,
           description: dto.description,
           ownerId: userId,
@@ -73,6 +87,21 @@ export class ProjectService {
 
       return newProject;
     });
+
+    // Dispatch the tenant provisioning job to the DB queue.
+    // The worker will CREATE ROLE, CREATE SCHEMA, seed default tables,
+    // and flip project status → ACTIVE.
+    const payload: CreateNewTenant = {
+      projectId: project.id,
+      schemaName,
+      dbRole,
+      dbPassword,
+    };
+    await this.dbQueue.add(DB_JOBS.createDb, payload);
+
+    this.logger.log(
+      `Enqueued tenant provisioning job for project ${project.id} (schema: ${schemaName})`,
+    );
 
     return {
       project,
