@@ -23,7 +23,7 @@ import NextLink from "next/link";
 const INCLUDES = [
   "Up to 10 projects",
   "8 GB database storage",
-  "10 GB file storage",
+  "50 GB file storage",
   "1 million API requests per month",
   "200 concurrent realtime connections",
 ];

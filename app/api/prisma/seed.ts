@@ -32,7 +32,7 @@ async function main() {
       maxRealtimeConnections: 200,
       apiRequestsMonthly: BigInt(1_000_000),
       dbStorageBytes: GB(8),
-      fileStorageBytes: GB(10),
+      fileStorageBytes: GB(50),
     },
     {
       code: "ENTERPRISE" as const,

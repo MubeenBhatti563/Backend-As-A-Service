@@ -445,7 +445,7 @@ export const PLANS: readonly Plan[] = [
     name: "Pro",
     description:
       "Optimized for growing applications, production startups, and teams.",
-    price: "$29",
+    price: "$20",
     showPeriod: true,
     features: [
       "Auto-scaling Postgres (8GB Included)",
