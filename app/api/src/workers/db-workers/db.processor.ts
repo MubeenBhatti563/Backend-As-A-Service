@@ -1,8 +1,4 @@
-import {
-  OnWorkerEvent,
-  Processor,
-  WorkerHost,
-} from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -64,6 +60,10 @@ export class DBProcessor extends WorkerHost {
       `CREATE ROLE "${dbRole}" WITH LOGIN PASSWORD '${dbPassword}';`,
     );
     this.logger.debug(`Role "${dbRole}" created`);
+
+    await this.prismaService.$executeRawUnsafe(
+      `REVOKE ALL ON SCHEMA public FROM "${dbRole}";`,
+    );
 
     // ── Step 2: CREATE SCHEMA ──────────────────────────────────────────────
     await this.prismaService.$executeRawUnsafe(
