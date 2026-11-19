@@ -5,7 +5,6 @@ import type { ProjectOverviewData } from "./types";
 import { ChartsRow } from "./components/ChartsRow";
 import { OverviewHeader } from "./components/OverviewHeader";
 import { ProjectInfoCard, ProjectInfoCompact } from "./components/ProjectInfoCard";
-import { ProjectShell } from "./components/ProjectShell";
 import { QuickStartCard } from "./components/QuickStartCard";
 import { RecentActivityCard } from "./components/RecentActivityCard";
 import { StatsRow } from "./components/StatsRow";
@@ -28,44 +27,37 @@ export function ProjectOverviewPage({
   const data = dynamicData ?? initialData;
 
   const { user: authUser } = useAuthStore();
-  const { project, projects, stats, charts, activity, health } = data;
-  const email = authUser?.email ?? data.user.email;
+  const { project, stats, charts, activity, health } = data;
+  const _email = authUser?.email ?? data.user.email; // available if needed later
 
   return (
-    <ProjectShell
-      projectId={project.id}
-      projects={projects}
-      email={email}
-      activeKey="overview"
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        [MOBILE]: { gap: 4 },
+      }}
     >
+      <OverviewHeader />
+      <ProjectInfoCard project={project} />
+      <ProjectInfoCompact project={project} />
+      <StatsRow stats={stats} />
+      <ChartsRow charts={charts} />
       <Box
         sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
+          display: "grid",
+          alignItems: "start",
+          gap: 5,
+          gridTemplateColumns: "minmax(0, 696fr) minmax(0, 420fr)",
+          [BELOW_1100]: { gridTemplateColumns: "minmax(0, 1fr)" },
           [MOBILE]: { gap: 4 },
         }}
       >
-        <OverviewHeader />
-        <ProjectInfoCard project={project} />
-        <ProjectInfoCompact project={project} />
-        <StatsRow stats={stats} />
-        <ChartsRow charts={charts} />
-        <Box
-          sx={{
-            display: "grid",
-            alignItems: "start",
-            gap: 5,
-            gridTemplateColumns: "minmax(0, 696fr) minmax(0, 420fr)",
-            [BELOW_1100]: { gridTemplateColumns: "minmax(0, 1fr)" },
-            [MOBILE]: { gap: 4 },
-          }}
-        >
-          <RecentActivityCard events={activity} />
-          <SystemHealthCard services={health} />
-        </Box>
-        <QuickStartCard projectId={project.id} />
+        <RecentActivityCard events={activity} />
+        <SystemHealthCard services={health} />
       </Box>
-    </ProjectShell>
+      <QuickStartCard projectId={project.id} />
+    </Box>
   );
 }
