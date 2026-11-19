@@ -6,6 +6,7 @@ import {
   CreateProjectInput,
   CreateProjectResponse,
   ProjectData,
+  ProjectOverviewData,
 } from "@baas/types";
 
 export type { CreateProjectResponse };
@@ -30,5 +31,19 @@ export const projectApi = {
     return (await apiClient.get(
       API_ENDPOINTS.PROJECT.ACTIVITY,
     )) as unknown as ApiResponse<ActivityLogData[]>;
+  },
+
+  getById: async (id: string): Promise<ApiResponse<ProjectData>> => {
+    return (await apiClient.get(
+      API_ENDPOINTS.PROJECT.BY_ID(id),
+    )) as unknown as ApiResponse<ProjectData>;
+  },
+
+  getOverview: async (
+    id: string,
+  ): Promise<ApiResponse<ProjectOverviewData>> => {
+    return (await apiClient.get(
+      API_ENDPOINTS.PROJECT.OVERVIEW(id),
+    )) as unknown as ApiResponse<ProjectOverviewData>;
   },
 };

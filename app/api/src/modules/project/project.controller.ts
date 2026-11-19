@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
 } from '@nestjs/common';
 import { ProjectService } from './project.service';
@@ -33,5 +34,23 @@ export class ProjectController {
   @HttpCode(HttpStatus.OK)
   async getRecentActivity(@GetUser('userId') userId: string) {
     return this.projectService.getRecentActivity(userId);
+  }
+
+  @Get(':id/overview')
+  @HttpCode(HttpStatus.OK)
+  async getProjectOverview(
+    @Param('id') projectId: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.projectService.getProjectOverview(projectId, userId);
+  }
+
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  async getProjectById(
+    @Param('id') projectId: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.projectService.getProjectById(projectId, userId);
   }
 }

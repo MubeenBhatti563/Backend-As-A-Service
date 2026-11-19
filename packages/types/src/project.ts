@@ -40,3 +40,70 @@ export interface ActivityLogData {
   metadata?: unknown;
   createdAt: string;
 }
+
+export type OverviewProjectStatus = "active" | "paused" | "pending";
+export type StatTone = "success" | "info";
+export type ActivityIconKey = "user" | "database" | "function";
+export type HealthStatus = "operational" | "degraded" | "down";
+
+export interface ProjectInfo {
+  id: string;
+  name: string;
+  identifier: string;
+  region: string;
+  regionCode: string;
+  status: OverviewProjectStatus;
+  createdAt: string;
+}
+
+export interface ProjectOption {
+  id: string;
+  name: string;
+}
+
+export interface StatMetric {
+  key: string;
+  label: string;
+  value: string;
+  change: string;
+  tone: StatTone;
+  hideOnMobile?: boolean;
+}
+
+export interface ChartPoint {
+  label: string;
+  value: number;
+}
+
+export interface ChartSeries {
+  title: string;
+  mobileTitle?: string;
+  unit: string;
+  color: "primary" | "secondary";
+  points: ChartPoint[];
+  hideOnMobile?: boolean;
+}
+
+export interface OverviewActivityEvent {
+  id: string;
+  icon: ActivityIconKey;
+  title: string;
+  detail: string;
+  time: string;
+}
+
+export interface ServiceHealth {
+  id: string;
+  name: string;
+  status: HealthStatus;
+}
+
+export interface ProjectOverviewData {
+  project: ProjectInfo;
+  projects: ProjectOption[];
+  user: { email: string };
+  stats: StatMetric[];
+  charts: ChartSeries[];
+  activity: OverviewActivityEvent[];
+  health: ServiceHealth[];
+}

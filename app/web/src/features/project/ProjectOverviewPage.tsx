@@ -1,3 +1,4 @@
+"use client";
 import { Box } from "@mui/material";
 import { BELOW_1100, MOBILE } from "./styles";
 import type { ProjectOverviewData } from "./types";
@@ -9,13 +10,42 @@ import { QuickStartCard } from "./components/QuickStartCard";
 import { RecentActivityCard } from "./components/RecentActivityCard";
 import { StatsRow } from "./components/StatsRow";
 import { SystemHealthCard } from "./components/SystemHealthCard";
+import { useProjectOverview } from "@/features/projects/hooks/use-project";
+import { useAuthStore } from "@/stores";
 
-export function ProjectOverviewPage({ data }: { data: ProjectOverviewData }) {
-  const { project, projects, user, stats, charts, activity, health } = data;
+export function ProjectOverviewPage({
+  data: initialData,
+  projectId: propProjectId,
+}: {
+  data: ProjectOverviewData;
+  projectId?: string;
+}) {
+  const currentProjectId = propProjectId ?? initialData.project.id;
+  const { data: dynamicData } = useProjectOverview(
+    currentProjectId,
+    initialData,
+  );
+  const data = dynamicData ?? initialData;
+
+  const { user: authUser } = useAuthStore();
+  const { project, projects, stats, charts, activity, health } = data;
+  const email = authUser?.email ?? data.user.email;
 
   return (
-    <ProjectShell projectId={project.id} projects={projects} email={user.email} activeKey="overview">
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 6, [MOBILE]: { gap: 4 } }}>
+    <ProjectShell
+      projectId={project.id}
+      projects={projects}
+      email={email}
+      activeKey="overview"
+    >
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          [MOBILE]: { gap: 4 },
+        }}
+      >
         <OverviewHeader />
         <ProjectInfoCard project={project} />
         <ProjectInfoCompact project={project} />

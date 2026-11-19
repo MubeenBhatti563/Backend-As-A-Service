@@ -3,6 +3,7 @@ import { Box, ButtonBase, Divider, ListItemIcon, Menu, MenuItem, Typography } fr
 import { IconChevronDown, IconLogout } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
+import { useAuthStore } from "@/stores";
 import { LOGOUT_ENDPOINT, PROJECT_ROUTES } from "../constants";
 import { MOBILE } from "../styles";
 
@@ -31,6 +32,7 @@ export function UserMenu({ email, onLogout }: UserMenuProps) {
     setLoggingOut(true);
     try {
       await logout();
+      useAuthStore.getState().clearUser();
     } finally {
       setLoggingOut(false);
       setAnchorEl(null);

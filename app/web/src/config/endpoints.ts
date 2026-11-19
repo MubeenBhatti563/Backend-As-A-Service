@@ -53,6 +53,8 @@ export const API_ENDPOINTS = {
     CREATE: "/project/create-project",
     GET_ALL: "/project/get-all-project",
     ACTIVITY: "/project/activity",
+    BY_ID: (id: string) => `/project/${id}`,
+    OVERVIEW: (id: string) => `/project/${id}/overview`,
   },
 
   PLAN: {

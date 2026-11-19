@@ -13,5 +13,5 @@ export default async function Page({ params }: PageProps) {
   const { id } = await params;
   const data = await getProjectOverview(id);
   if (!data) notFound();
-  return <ProjectOverviewPage data={data} />;
+  return <ProjectOverviewPage data={data} projectId={id} />;
 }

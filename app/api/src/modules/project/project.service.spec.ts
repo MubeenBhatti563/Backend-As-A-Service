@@ -12,10 +12,14 @@ describe('ProjectService', () => {
     project: {
       create: jest.Mock;
       findMany: jest.Mock;
+      findFirst: jest.Mock;
       update: jest.Mock;
     };
     apiKey: {
       createMany: jest.Mock;
+    };
+    projectUsage: {
+      findFirst: jest.Mock;
     };
     activityLog: {
       findMany: jest.Mock;
@@ -44,10 +48,14 @@ describe('ProjectService', () => {
       project: {
         create: jest.fn(),
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
       },
       apiKey: {
         createMany: jest.fn(),
+      },
+      projectUsage: {
+        findFirst: jest.fn(),
       },
       activityLog: {
         findMany: jest.fn(),
@@ -339,6 +347,95 @@ describe('ProjectService', () => {
       const result = await service.getRecentActivity(userId);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getProjectById', () => {
+    const projectId = 'proj-123';
+    const userId = 'user-abc';
+
+    it('should return the project when found', async () => {
+      const mockProject = {
+        id: projectId,
+        name: 'my-project',
+        ownerId: userId,
+        status: 'ACTIVE',
+      };
+      prismaMock.project.findFirst.mockResolvedValue(mockProject);
+
+      const result = await service.getProjectById(projectId, userId);
+
+      expect(prismaMock.project.findFirst).toHaveBeenCalledWith({
+        where: { id: projectId, ownerId: userId },
+      });
+      expect(result).toEqual(mockProject);
+    });
+
+    it('should throw NotFoundException if project not found', async () => {
+      prismaMock.project.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.getProjectById(projectId, userId),
+      ).rejects.toThrow('Project not found');
+    });
+  });
+
+  describe('getProjectOverview', () => {
+    const projectId = 'proj-123';
+    const userId = 'user-abc';
+    const now = new Date('2026-11-19T12:00:00.000Z');
+
+    it('should return complete overview data', async () => {
+      const mockProject = {
+        id: projectId,
+        name: 'my-project',
+        schemaName: 'proj_schema_123',
+        deploymentRegion: 'us-east-1',
+        ownerId: userId,
+        status: 'ACTIVE',
+        createdAt: now,
+        owner: { email: 'owner@example.com' },
+      };
+
+      prismaMock.project.findFirst.mockResolvedValue(mockProject);
+      prismaMock.project.findMany.mockResolvedValue([
+        { id: projectId, name: 'my-project' },
+      ]);
+      prismaMock.projectUsage.findFirst.mockResolvedValue({
+        dbBytes: 10485760n, // 10MB
+        fileBytes: 5242880n, // 5MB
+        apiRequests: 1500n,
+      });
+      prismaMock.activityLog.findMany.mockResolvedValue([
+        {
+          id: 'log-1',
+          type: 'PROJECT_CREATED',
+          description: 'Project created',
+          projectName: 'my-project',
+          createdAt: now,
+        },
+      ]);
+
+      const result = await service.getProjectOverview(projectId, userId);
+
+      expect(result.project.id).toBe(projectId);
+      expect(result.project.name).toBe('my-project');
+      expect(result.project.identifier).toBe('proj_schema_123');
+      expect(result.project.status).toBe('active');
+      expect(result.project.regionCode).toBe('US-EAST');
+      expect(result.user.email).toBe('owner@example.com');
+      expect(result.stats).toBeDefined();
+      expect(result.charts).toHaveLength(2);
+      expect(result.activity).toHaveLength(1);
+      expect(result.health).toHaveLength(4);
+    });
+
+    it('should throw NotFoundException if project not found', async () => {
+      prismaMock.project.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.getProjectOverview(projectId, userId),
+      ).rejects.toThrow('Project not found');
     });
   });
 });

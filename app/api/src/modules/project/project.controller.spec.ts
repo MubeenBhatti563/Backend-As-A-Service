@@ -8,6 +8,8 @@ describe('ProjectController', () => {
     createProject: jest.Mock;
     getAllProjects: jest.Mock;
     getRecentActivity: jest.Mock;
+    getProjectById: jest.Mock;
+    getProjectOverview: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -15,6 +17,8 @@ describe('ProjectController', () => {
       createProject: jest.fn(),
       getAllProjects: jest.fn(),
       getRecentActivity: jest.fn(),
+      getProjectById: jest.fn(),
+      getProjectOverview: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -143,6 +147,63 @@ describe('ProjectController', () => {
       await expect(controller.getRecentActivity(userId)).rejects.toThrow(
         'Activity fetch failed',
       );
+    });
+  });
+
+  describe('getProjectById', () => {
+    const projectId = 'proj-123';
+    const userId = 'user-abc';
+
+    it('should delegate to projectService.getProjectById', async () => {
+      const mockProject = {
+        id: projectId,
+        name: 'test-project',
+        ownerId: userId,
+        status: 'ACTIVE',
+      };
+      projectServiceMock.getProjectById.mockResolvedValue(mockProject);
+
+      const result = await controller.getProjectById(projectId, userId);
+
+      expect(projectServiceMock.getProjectById).toHaveBeenCalledWith(
+        projectId,
+        userId,
+      );
+      expect(result).toEqual(mockProject);
+    });
+  });
+
+  describe('getProjectOverview', () => {
+    const projectId = 'proj-123';
+    const userId = 'user-abc';
+
+    it('should delegate to projectService.getProjectOverview', async () => {
+      const mockOverview = {
+        project: {
+          id: projectId,
+          name: 'test-project',
+          identifier: 'proj_test',
+          region: 'US-East-1 (N. Virginia)',
+          regionCode: 'US-EAST',
+          status: 'active',
+          createdAt: 'Nov 19, 2026',
+        },
+        projects: [{ id: projectId, name: 'test-project' }],
+        user: { email: 'test@example.com' },
+        stats: [],
+        charts: [],
+        activity: [],
+        health: [],
+      };
+      projectServiceMock.getProjectOverview.mockResolvedValue(mockOverview);
+
+      const result = await controller.getProjectOverview(projectId, userId);
+
+      expect(projectServiceMock.getProjectOverview).toHaveBeenCalledWith(
+        projectId,
+        userId,
+      );
+      expect(result).toEqual(mockOverview);
     });
   });
 });

@@ -3,6 +3,7 @@ import {
   CreateProjectInput,
   CreateProjectResponse,
   ProjectData,
+  ProjectOverviewData,
 } from "@baas/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectApi } from "../api/project.api";
@@ -43,5 +44,37 @@ export function useRecentActivity() {
       return response.data;
     },
     staleTime: 1000 * 60 * 2,
+  });
+}
+
+export function useProjectById(projectId: string) {
+  return useQuery<ProjectData>({
+    queryKey: ["project", projectId],
+    queryFn: async () => {
+      const response = await projectApi.getById(projectId);
+      return response.data;
+    },
+    enabled: Boolean(projectId),
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+export function useProjectOverview(
+  projectId: string,
+  initialData?: ProjectOverviewData,
+) {
+  return useQuery<ProjectOverviewData>({
+    queryKey: ["project", projectId, "overview"],
+    queryFn: async () => {
+      const response = await projectApi.getOverview(projectId);
+      return response.data;
+    },
+    enabled: Boolean(projectId),
+    initialData,
+    staleTime: 1000 * 30,
+    refetchInterval: (query) => {
+      const status = query.state.data?.project.status;
+      return status === "pending" ? 3000 : false;
+    },
   });
 }
