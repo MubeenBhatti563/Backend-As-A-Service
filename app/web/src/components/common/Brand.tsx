@@ -4,13 +4,19 @@ import { mq } from "@/theme/tokens";
 import { Box, Link, Typography } from "@mui/material";
 import { IconDatabase } from "@tabler/icons-react";
 
-export function Brand({ size = "md" }: { size?: "lg" | "md" | "sm" }) {
+export function Brand({
+  size = "md",
+  href = ROUTES.home,
+}: {
+  size?: "lg" | "md" | "sm";
+  href?: string;
+}) {
   const sm = size === "sm";
   const lg = size === "lg";
 
   return (
     <Link
-      href={ROUTES.home}
+      href={href}
       underline="none"
       aria-label={`${SITE.name} home`}
       sx={{
