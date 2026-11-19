@@ -42,6 +42,7 @@ export interface ActivityLogData {
 }
 
 export type OverviewProjectStatus = "active" | "paused" | "pending";
+export type ProjectStatus = OverviewProjectStatus;
 export type StatTone = "success" | "info";
 export type ActivityIconKey = "user" | "database" | "function";
 export type HealthStatus = "operational" | "degraded" | "down";
@@ -91,6 +92,7 @@ export interface OverviewActivityEvent {
   detail: string;
   time: string;
 }
+export type ActivityEvent = OverviewActivityEvent;
 
 export interface ServiceHealth {
   id: string;
