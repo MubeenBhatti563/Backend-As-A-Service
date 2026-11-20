@@ -1,7 +1,7 @@
 "use client";
 
 import NextLink from "next/link";
-import { Box, Link, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { font } from "@/features/project/styles";
 import { projectTablesBase } from "../constants";
 import type { DatabaseStats } from "../types";
@@ -77,15 +77,24 @@ export function DatabaseHeader({ projectId, stats }: Props) {
             gap: 1.5,
           }}
         >
-          <Link
-            component={NextLink}
+          <NextLink
             href={projectTablesBase(projectId)}
-            underline="hover"
-            variant="body2"
-            sx={{ color: "text.disabled", fontSize: 13 }}
+            style={{ textDecoration: "none" }}
           >
-            Database
-          </Link>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.disabled",
+                fontSize: 13,
+                "&:hover": {
+                  textDecoration: "underline",
+                  color: "text.primary",
+                },
+              }}
+            >
+              Database
+            </Typography>
+          </NextLink>
           <Typography
             variant="body2"
             sx={{ color: "text.disabled", fontSize: 13 }}

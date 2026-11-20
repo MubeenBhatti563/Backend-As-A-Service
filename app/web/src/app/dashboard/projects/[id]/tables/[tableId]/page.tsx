@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Link,
   Typography,
 } from "@mui/material";
 import {
@@ -52,15 +51,24 @@ export default async function TableDetailPage({ params }: PageProps) {
             gap: 1.5,
           }}
         >
-          <Link
-            component={NextLink}
+          <NextLink
             href={projectTablesBase(id)}
-            underline="hover"
-            variant="body2"
-            sx={{ color: "text.disabled", fontSize: 13 }}
+            style={{ textDecoration: "none" }}
           >
-            Database
-          </Link>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.disabled",
+                fontSize: 13,
+                "&:hover": {
+                  textDecoration: "underline",
+                  color: "text.primary",
+                },
+              }}
+            >
+              Database
+            </Typography>
+          </NextLink>
           <Typography
             variant="body2"
             sx={{ color: "text.disabled", fontSize: 13 }}
@@ -68,15 +76,24 @@ export default async function TableDetailPage({ params }: PageProps) {
           >
             /
           </Typography>
-          <Link
-            component={NextLink}
+          <NextLink
             href={projectTablesBase(id)}
-            underline="hover"
-            variant="body2"
-            sx={{ color: "text.disabled", fontSize: 13 }}
+            style={{ textDecoration: "none" }}
           >
-            Tables
-          </Link>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.disabled",
+                fontSize: 13,
+                "&:hover": {
+                  textDecoration: "underline",
+                  color: "text.primary",
+                },
+              }}
+            >
+              Tables
+            </Typography>
+          </NextLink>
           <Typography
             variant="body2"
             sx={{ color: "text.disabled", fontSize: 13 }}
@@ -132,26 +149,29 @@ export default async function TableDetailPage({ params }: PageProps) {
           </Box>
 
           <Box sx={{ display: "flex", gap: 2 }}>
-            <Button
-              component={NextLink}
+            <NextLink
               href={projectTablesBase(id)}
-              variant="outlined"
-              startIcon={<IconArrowLeft size={16} />}
-              sx={{
-                height: 38,
-                borderRadius: "6px",
-                fontSize: 13,
-                borderColor: "border.default",
-                color: "text.secondary",
-                textTransform: "none",
-                "&:hover": {
-                  borderColor: "border.strong",
-                  bgcolor: "background.elevated",
-                },
-              }}
+              style={{ textDecoration: "none" }}
             >
-              Back to Tables
-            </Button>
+              <Button
+                variant="outlined"
+                startIcon={<IconArrowLeft size={16} />}
+                sx={{
+                  height: 38,
+                  borderRadius: "6px",
+                  fontSize: 13,
+                  borderColor: "border.default",
+                  color: "text.secondary",
+                  textTransform: "none",
+                  "&:hover": {
+                    borderColor: "border.strong",
+                    bgcolor: "background.elevated",
+                  },
+                }}
+              >
+                Back to Tables
+              </Button>
+            </NextLink>
             <Button
               variant="contained"
               startIcon={<IconPlus size={16} />}

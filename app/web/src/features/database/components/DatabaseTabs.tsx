@@ -1,6 +1,6 @@
 "use client";
 
-import NextLink from "next/link";
+import { useRouter } from "next/navigation";
 import { Tab, Tabs } from "@mui/material";
 import { projectDatabaseBase } from "../constants";
 import type { DatabaseTabValue } from "../types";
@@ -18,9 +18,17 @@ interface Props {
 }
 
 export function DatabaseTabs({ projectId, value }: Props) {
+  const router = useRouter();
+
   return (
     <Tabs
       value={value}
+      onChange={(_, newValue) => {
+        const target = TABS.find((t) => t.value === newValue);
+        if (target) {
+          router.push(`${projectDatabaseBase(projectId)}${target.path}`);
+        }
+      }}
       aria-label="Database sections"
       sx={{
         minHeight: 38,
@@ -33,8 +41,6 @@ export function DatabaseTabs({ projectId, value }: Props) {
       {TABS.map((tab) => (
         <Tab
           key={tab.value}
-          component={NextLink}
-          href={`${projectDatabaseBase(projectId)}${tab.path}`}
           value={tab.value}
           label={tab.label}
           disableRipple

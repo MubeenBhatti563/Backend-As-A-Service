@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Link,
   Typography,
 } from "@mui/material";
 import {
@@ -15,7 +14,7 @@ import {
 } from "@tabler/icons-react";
 import {
   getDatabaseOverview,
-  projectDatabaseBase,
+  projectTablesBase,
   SURFACE,
 } from "@/features/database";
 
@@ -49,37 +48,55 @@ export default async function TableDetailPage({ params }: PageProps) {
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 2,
+            gap: 1.5,
           }}
         >
-          <Link
-            component={NextLink}
-            href={projectDatabaseBase(id)}
-            underline="hover"
-            variant="body2"
-            sx={{ color: "text.disabled" }}
+          <NextLink
+            href={projectTablesBase(id)}
+            style={{ textDecoration: "none" }}
           >
-            Database
-          </Link>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.disabled",
+                fontSize: 13,
+                "&:hover": {
+                  textDecoration: "underline",
+                  color: "text.primary",
+                },
+              }}
+            >
+              Database
+            </Typography>
+          </NextLink>
           <Typography
             variant="body2"
-            sx={{ color: "text.disabled" }}
+            sx={{ color: "text.disabled", fontSize: 13 }}
             aria-hidden
           >
             /
           </Typography>
-          <Link
-            component={NextLink}
-            href={`${projectDatabaseBase(id)}/tables`}
-            underline="hover"
-            variant="body2"
-            sx={{ color: "text.disabled" }}
+          <NextLink
+            href={projectTablesBase(id)}
+            style={{ textDecoration: "none" }}
           >
-            Tables
-          </Link>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.disabled",
+                fontSize: 13,
+                "&:hover": {
+                  textDecoration: "underline",
+                  color: "text.primary",
+                },
+              }}
+            >
+              Tables
+            </Typography>
+          </NextLink>
           <Typography
             variant="body2"
-            sx={{ color: "text.disabled" }}
+            sx={{ color: "text.disabled", fontSize: 13 }}
             aria-hidden
           >
             /
@@ -87,7 +104,7 @@ export default async function TableDetailPage({ params }: PageProps) {
           <Typography
             variant="body2"
             aria-current="page"
-            sx={{ color: "text.primary" }}
+            sx={{ color: "text.primary", fontSize: 13, fontWeight: 500 }}
           >
             {tableName}
           </Typography>
@@ -132,32 +149,37 @@ export default async function TableDetailPage({ params }: PageProps) {
           </Box>
 
           <Box sx={{ display: "flex", gap: 2 }}>
-            <Button
-              component={NextLink}
-              href={projectDatabaseBase(id)}
-              variant="outlined"
-              startIcon={<IconArrowLeft size={16} />}
-              sx={{
-                minHeight: 37,
-                borderRadius: "6px",
-                fontSize: 13,
-                borderColor: "border.default",
-                color: "text.secondary",
-                "&:hover": {
-                  borderColor: "border.strong",
-                  bgcolor: "background.elevated",
-                },
-              }}
+            <NextLink
+              href={projectTablesBase(id)}
+              style={{ textDecoration: "none" }}
             >
-              Back to Tables
-            </Button>
+              <Button
+                variant="outlined"
+                startIcon={<IconArrowLeft size={16} />}
+                sx={{
+                  height: 38,
+                  borderRadius: "6px",
+                  fontSize: 13,
+                  borderColor: "border.default",
+                  color: "text.secondary",
+                  textTransform: "none",
+                  "&:hover": {
+                    borderColor: "border.strong",
+                    bgcolor: "background.elevated",
+                  },
+                }}
+              >
+                Back to Tables
+              </Button>
+            </NextLink>
             <Button
               variant="contained"
               startIcon={<IconPlus size={16} />}
               sx={{
-                minHeight: 37,
+                height: 38,
                 borderRadius: "6px",
                 fontSize: 13,
+                textTransform: "none",
               }}
             >
               Insert Row
@@ -172,7 +194,7 @@ export default async function TableDetailPage({ params }: PageProps) {
           border: "1px solid",
           borderColor: "border.default",
           borderRadius: "12px",
-          p: 6,
+          p: 4,
         }}
       >
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>

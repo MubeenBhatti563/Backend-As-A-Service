@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   Box,
   IconButton,
-  Link,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
+  Typography,
 } from "@mui/material";
 import { IconDatabase, IconDotsVertical } from "@tabler/icons-react";
 import { SURFACE, tableDetailHref } from "../constants";
@@ -138,24 +138,31 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                       <IconDatabase size={16} aria-hidden />
                     </Box>
 
-                    <Link
-                      component={NextLink}
+                    <NextLink
                       href={href}
                       onClick={(e) => e.stopPropagation()}
-                      variant="code"
-                      underline="none"
-                      sx={{
-                        fontSize: "0.875rem",
-                        fontWeight: 600,
-                        lineHeight: "18px",
-                        color: "text.primary",
-                        "&:hover": {
-                          color: "primary.main",
-                        },
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
                       }}
                     >
-                      {table.name}
-                    </Link>
+                      <Typography
+                        component="span"
+                        variant="code"
+                        sx={{
+                          fontSize: "0.875rem",
+                          fontWeight: 600,
+                          lineHeight: "18px",
+                          color: "text.primary",
+                          "&:hover": {
+                            color: "primary.main",
+                            textDecoration: "underline",
+                          },
+                        }}
+                      >
+                        {table.name}
+                      </Typography>
+                    </NextLink>
                   </Box>
                 </TableCell>
 
@@ -220,7 +227,6 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                     aria-label={`Actions for ${table.name}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      // menu handler hook can be wired here
                     }}
                     sx={{
                       p: 0.75,
