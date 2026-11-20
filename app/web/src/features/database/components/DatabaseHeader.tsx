@@ -1,8 +1,9 @@
 "use client";
 
 import NextLink from "next/link";
-import { Box, Divider, Link, Typography } from "@mui/material";
-import { projectDatabaseBase } from "../constants";
+import { Box, Link, Typography } from "@mui/material";
+import { font } from "@/features/project/styles";
+import { projectTablesBase } from "../constants";
 import type { DatabaseStats } from "../types";
 
 interface StatProps {
@@ -13,7 +14,14 @@ interface StatProps {
 
 function Stat({ label, value, color }: StatProps) {
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.5,
+        flexShrink: 0,
+      }}
+    >
       <Typography
         component="div"
         variant="caption"
@@ -22,6 +30,7 @@ function Stat({ label, value, color }: StatProps) {
           lineHeight: "14px",
           color: "text.disabled",
           textTransform: "uppercase",
+          letterSpacing: "0.05em",
         }}
       >
         {label}
@@ -42,14 +51,6 @@ function Stat({ label, value, color }: StatProps) {
   );
 }
 
-const StatDivider = () => (
-  <Divider
-    orientation="vertical"
-    flexItem
-    sx={{ height: 24, alignSelf: "center" }}
-  />
-);
-
 interface Props {
   projectId: string;
   stats: DatabaseStats;
@@ -60,9 +61,9 @@ export function DatabaseHeader({ projectId, stats }: Props) {
     <Box
       sx={{
         display: "flex",
-        flexDirection: { xs: "column", sm: "row" },
+        flexDirection: { xs: "column", md: "row" },
         justifyContent: "space-between",
-        alignItems: { xs: "flex-start", sm: "center" },
+        alignItems: { xs: "flex-start", md: "center" },
         gap: 3,
       }}
     >
@@ -73,21 +74,21 @@ export function DatabaseHeader({ projectId, stats }: Props) {
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 2,
+            gap: 1.5,
           }}
         >
           <Link
             component={NextLink}
-            href={projectDatabaseBase(projectId)}
+            href={projectTablesBase(projectId)}
             underline="hover"
             variant="body2"
-            sx={{ color: "text.disabled" }}
+            sx={{ color: "text.disabled", fontSize: 13 }}
           >
             Database
           </Link>
           <Typography
             variant="body2"
-            sx={{ color: "text.disabled" }}
+            sx={{ color: "text.disabled", fontSize: 13 }}
             aria-hidden
           >
             /
@@ -95,13 +96,23 @@ export function DatabaseHeader({ projectId, stats }: Props) {
           <Typography
             variant="body2"
             aria-current="page"
-            sx={{ color: "text.primary" }}
+            sx={{ color: "text.primary", fontSize: 13, fontWeight: 500 }}
           >
             Tables
           </Typography>
         </Box>
 
-        <Typography variant="h4" component="h1">
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontFamily: font.display,
+            fontSize: { xs: 24, sm: 28 },
+            fontWeight: 800,
+            lineHeight: 1.2,
+            color: "text.primary",
+          }}
+        >
           Database Engine
         </Typography>
       </Box>
@@ -110,18 +121,32 @@ export function DatabaseHeader({ projectId, stats }: Props) {
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: { xs: 2, sm: 4 },
+          gap: { xs: 2.5, sm: 3.5 },
           flexWrap: "wrap",
         }}
       >
         <Stat label="DB size" value={stats.size} color="secondary.main" />
-        <StatDivider />
+        <Box
+          sx={{
+            width: "1px",
+            height: 24,
+            bgcolor: "border.default",
+            flexShrink: 0,
+          }}
+        />
         <Stat
           label="Tables"
           value={`${stats.totalTables} total`}
           color="text.primary"
         />
-        <StatDivider />
+        <Box
+          sx={{
+            width: "1px",
+            height: 24,
+            bgcolor: "border.default",
+            flexShrink: 0,
+          }}
+        />
         <Stat
           label="Connections"
           value={`${stats.activeConnections} active`}

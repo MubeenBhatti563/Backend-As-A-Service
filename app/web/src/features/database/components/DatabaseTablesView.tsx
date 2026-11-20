@@ -21,39 +21,39 @@ export function DatabaseTablesView({ projectId, tables }: Props) {
   }, [tables, query]);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <Box
         sx={{
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
           alignItems: { xs: "stretch", sm: "center" },
-          gap: 3,
+          gap: 2,
         }}
       >
         <OutlinedInput
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter tables…"
+          size="small"
           inputProps={{ "aria-label": "Filter tables" }}
           startAdornment={
             <InputAdornment
               position="start"
-              sx={{ mr: 2, color: "text.secondary" }}
+              sx={{ color: "text.secondary", ml: 0.5, mr: 1 }}
             >
               <IconSearch size={16} />
             </InputAdornment>
           }
           sx={{
             width: { xs: "100%", sm: 320 },
-            px: 3,
+            height: 38,
             bgcolor: SURFACE,
             borderRadius: "6px",
-            "& .MuiOutlinedInput-input": {
-              p: "8px 0",
-              fontSize: 13,
-              lineHeight: "17px",
-            },
+            fontSize: 13,
+            "& fieldset": { borderColor: "border.default" },
+            "&:hover fieldset": { borderColor: "border.strong" },
+            "&.Mui-focused fieldset": { borderColor: "primary.main" },
           }}
         />
 
@@ -61,12 +61,14 @@ export function DatabaseTablesView({ projectId, tables }: Props) {
           variant="contained"
           startIcon={<IconPlus size={16} />}
           sx={{
-            minHeight: 37,
-            px: 4,
-            py: "10px",
+            height: 38,
+            px: 3,
             borderRadius: "6px",
             fontSize: 13,
-            lineHeight: "17px",
+            fontWeight: 600,
+            textTransform: "none",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           Create Table

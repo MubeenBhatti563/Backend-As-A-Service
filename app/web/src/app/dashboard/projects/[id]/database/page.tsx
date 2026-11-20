@@ -20,7 +20,7 @@ export default async function DatabasePage({ params }: PageProps) {
   if (!data) notFound();
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <DatabaseHeader projectId={id} stats={data.stats} />
       <DatabaseTabs projectId={id} value="tables" />
       <DatabaseTablesView projectId={id} tables={data.tables} />

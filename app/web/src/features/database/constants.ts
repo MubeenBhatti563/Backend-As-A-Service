@@ -8,5 +8,8 @@ export const SURFACE = "#0E131F";
 export const projectDatabaseBase = (projectId: string) =>
   `/dashboard/projects/${projectId}/database`;
 
+export const projectTablesBase = (projectId: string) =>
+  `/dashboard/projects/${projectId}/tables`;
+
 export const tableDetailHref = (projectId: string, tableName: string) =>
-  `${projectDatabaseBase(projectId)}/tables/${encodeURIComponent(tableName)}`;
+  `${projectTablesBase(projectId)}/${encodeURIComponent(tableName)}`;
