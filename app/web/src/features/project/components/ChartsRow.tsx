@@ -14,7 +14,9 @@ export function ChartsRow({ charts }: { charts: ChartSeries[] }) {
         [MOBILE]: { gap: 4 },
       }}
     >
-      {charts.map((c) => <BarChartCard key={c.title} {...c} />)}
+      {charts.map((c) => (
+        <BarChartCard key={c.title} {...c} />
+      ))}
     </Box>
   );
 }

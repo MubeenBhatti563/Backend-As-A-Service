@@ -4,13 +4,15 @@ import { BELOW_1100, MOBILE } from "./styles";
 import type { ProjectOverviewData } from "./types";
 import { ChartsRow } from "./components/ChartsRow";
 import { OverviewHeader } from "./components/OverviewHeader";
-import { ProjectInfoCard, ProjectInfoCompact } from "./components/ProjectInfoCard";
+import {
+  ProjectInfoCard,
+  ProjectInfoCompact,
+} from "./components/ProjectInfoCard";
 import { QuickStartCard } from "./components/QuickStartCard";
 import { RecentActivityCard } from "./components/RecentActivityCard";
 import { StatsRow } from "./components/StatsRow";
 import { SystemHealthCard } from "./components/SystemHealthCard";
 import { useProjectOverview } from "@/features/projects/hooks/use-project";
-import { useAuthStore } from "@/stores";
 
 export function ProjectOverviewPage({
   data: initialData,
@@ -26,9 +28,7 @@ export function ProjectOverviewPage({
   );
   const data = dynamicData ?? initialData;
 
-  const { user: authUser } = useAuthStore();
   const { project, stats, charts, activity, health } = data;
-  const _email = authUser?.email ?? data.user.email; // available if needed later
 
   return (
     <Box

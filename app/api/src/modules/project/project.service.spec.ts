@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ForbiddenException } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -14,6 +15,13 @@ describe('ProjectService', () => {
       findMany: jest.Mock;
       findFirst: jest.Mock;
       update: jest.Mock;
+      count: jest.Mock;
+    };
+    subscription: {
+      findUnique: jest.Mock;
+    };
+    plan: {
+      findUniqueOrThrow: jest.Mock;
     };
     apiKey: {
       createMany: jest.Mock;
@@ -50,6 +58,18 @@ describe('ProjectService', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      subscription: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      plan: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'plan-hobby',
+          code: 'HOBBY',
+          name: 'Hobby',
+          maxProjects: 2,
+        }),
       },
       apiKey: {
         createMany: jest.fn(),
@@ -216,6 +236,80 @@ describe('ProjectService', () => {
       await expect(service.createProject(dto, userId)).rejects.toThrow(
         'Redis connection refused',
       );
+    });
+
+    it('should throw ForbiddenException when HOBBY limit (2) is reached', async () => {
+      prismaMock.project.count.mockResolvedValue(2);
+
+      await expect(service.createProject(dto, userId)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(service.createProject(dto, userId)).rejects.toThrow(
+        'Your Hobby plan allows up to 2 project(s). Upgrade your plan to create more.',
+      );
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should allow project creation when under HOBBY limit', async () => {
+      prismaMock.project.count.mockResolvedValue(1);
+      const mockCreatedProject = {
+        id: 'proj-123',
+        name: dto.name,
+        schemaName: 'proj_abcdef123456abcdef123456',
+        deploymentRegion: dto.region,
+        description: dto.description,
+        ownerId: userId,
+        status: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockTx.project.create.mockResolvedValue(mockCreatedProject);
+      mockTx.apiKey.createMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.createProject(dto, userId);
+      expect(result.project).toEqual(mockCreatedProject);
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw ForbiddenException when PRO limit (10) is reached', async () => {
+      prismaMock.subscription.findUnique.mockResolvedValue({
+        plan: { code: 'PRO', name: 'Pro', maxProjects: 10 },
+      });
+      prismaMock.project.count.mockResolvedValue(10);
+
+      await expect(service.createProject(dto, userId)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(service.createProject(dto, userId)).rejects.toThrow(
+        'Your Pro plan allows up to 10 project(s). Upgrade your plan to create more.',
+      );
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should allow unlimited projects on ENTERPRISE plan', async () => {
+      prismaMock.subscription.findUnique.mockResolvedValue({
+        plan: { code: 'ENTERPRISE', name: 'Enterprise', maxProjects: null },
+      });
+      prismaMock.project.count.mockResolvedValue(100);
+
+      const mockCreatedProject = {
+        id: 'proj-enterprise-1',
+        name: dto.name,
+        schemaName: 'proj_enterprise123456789012',
+        deploymentRegion: dto.region,
+        description: dto.description,
+        ownerId: userId,
+        status: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockTx.project.create.mockResolvedValue(mockCreatedProject);
+      mockTx.apiKey.createMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.createProject(dto, userId);
+      expect(result.project).toEqual(mockCreatedProject);
+      // count might not even be called, or if called, maxProjects is null so it doesn't throw
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
     });
   });
 

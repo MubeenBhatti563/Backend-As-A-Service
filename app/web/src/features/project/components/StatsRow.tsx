@@ -14,7 +14,9 @@ export function StatsRow({ stats }: { stats: StatMetric[] }) {
         [MOBILE]: { gridTemplateColumns: "minmax(0, 1fr)", gap: "10px" },
       }}
     >
-      {stats.map(({ key, ...metric }) => <StatCard key={key} {...metric} />)}
+      {stats.map(({ key, ...metric }) => (
+        <StatCard key={key} {...metric} />
+      ))}
     </Box>
   );
 }

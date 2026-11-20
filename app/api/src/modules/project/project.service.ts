@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -34,6 +39,28 @@ export class ProjectService {
   }
 
   async createProject(dto: CreateProjectDto, userId: string) {
+    // 1. Resolve active plan (falls back to HOBBY for unsubscribed users)
+    const subscription = await this.prismaService.subscription.findUnique({
+      where: { userId },
+      include: { plan: true },
+    });
+    const hobbyPlan = await this.prismaService.plan.findUniqueOrThrow({
+      where: { code: 'HOBBY' },
+    });
+    const activePlan = subscription?.plan ?? hobbyPlan;
+
+    // 2. Enforce maxProjects limit (null = unlimited for ENTERPRISE)
+    if (activePlan.maxProjects !== null) {
+      const projectCount = await this.prismaService.project.count({
+        where: { ownerId: userId },
+      });
+      if (projectCount >= activePlan.maxProjects) {
+        throw new ForbiddenException(
+          `Your ${activePlan.name} plan allows up to ${activePlan.maxProjects} project(s). Upgrade your plan to create more.`,
+        );
+      }
+    }
+
     const anon = this.generateApiKey('pk');
     const service = this.generateApiKey('sk');
 

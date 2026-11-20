@@ -1,6 +1,6 @@
 // Shared style fragments for the project dashboard. theme.spacing = 4px, so sx spacing units are px / 4.
 export const font = {
-  display: 'var(--font-outfit), Outfit, sans-serif',
+  display: "var(--font-outfit), Outfit, sans-serif",
   mono: 'var(--font-geist-mono), "Geist Mono", monospace',
 } as const;
 

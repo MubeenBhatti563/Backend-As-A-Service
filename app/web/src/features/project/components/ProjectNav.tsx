@@ -19,8 +19,16 @@ import NextLink from "next/link";
 import { PROJECT_ROUTES } from "../constants";
 
 export type ProjectNavKey =
-  | "overview" | "database" | "auth" | "storage" | "realtime" | "functions" | "ai"
-  | "logs" | "usage" | "settings";
+  | "overview"
+  | "database"
+  | "auth"
+  | "storage"
+  | "realtime"
+  | "functions"
+  | "ai"
+  | "logs"
+  | "usage"
+  | "settings";
 
 interface NavEntry {
   key: ProjectNavKey;
@@ -44,7 +52,19 @@ const SECONDARY: NavEntry[] = [
   { key: "settings", label: "Settings", icon: IconSettings },
 ];
 
-function NavItem({ href, icon: IconCmp, label, active, onClick }: { href: string; icon: Icon; label: string; active?: boolean; onClick?: () => void }) {
+function NavItem({
+  href,
+  icon: IconCmp,
+  label,
+  active,
+  onClick,
+}: {
+  href: string;
+  icon: Icon;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
     <Box
       component={NextLink}
@@ -61,11 +81,23 @@ function NavItem({ href, icon: IconCmp, label, active, onClick }: { href: string
         textDecoration: "none",
         color: active ? "common.white" : "text.secondary",
         bgcolor: active ? "primary.main" : "transparent",
-        "&:hover": { bgcolor: active ? "primary.main" : "background.elevated", color: "text.primary" },
+        "&:hover": {
+          bgcolor: active ? "primary.main" : "background.elevated",
+          color: "text.primary",
+        },
       }}
     >
       <IconCmp size={16} aria-hidden />
-      <Typography component="span" sx={{ flexGrow: 1, color: "inherit", fontSize: 13, fontWeight: active ? 600 : 500, lineHeight: "17px" }}>
+      <Typography
+        component="span"
+        sx={{
+          flexGrow: 1,
+          color: "inherit",
+          fontSize: 13,
+          fontWeight: active ? 600 : 500,
+          lineHeight: "17px",
+        }}
+      >
         {label}
       </Typography>
     </Box>
@@ -80,24 +112,66 @@ interface ProjectNavProps {
 }
 
 /** The sidebar's content. Used by the desktop sidebar and the mobile drawer. */
-export function ProjectNav({ projectId, activeKey = "overview", onNavigate }: ProjectNavProps) {
+export function ProjectNav({
+  projectId,
+  activeKey = "overview",
+  onNavigate,
+}: ProjectNavProps) {
   const routes = PROJECT_ROUTES.forProject(projectId);
   const item = (e: NavEntry) => (
-    <NavItem key={e.key} href={routes[e.key]} icon={e.icon} label={e.label} active={e.key === activeKey} onClick={onNavigate} />
+    <NavItem
+      key={e.key}
+      href={routes[e.key]}
+      icon={e.icon}
+      label={e.label}
+      active={e.key === activeKey}
+      onClick={onNavigate}
+    />
   );
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flexGrow: 1, minHeight: 0, gap: 6 }}>
-      <Box component="nav" aria-label="Project" sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        flexGrow: 1,
+        minHeight: 0,
+        gap: 6,
+      }}
+    >
+      <Box
+        component="nav"
+        aria-label="Project"
+        sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+      >
         {MAIN.map(item)}
-        <Box role="separator" sx={{ my: 2, height: "1px", bgcolor: "border.default" }} />
+        <Box
+          role="separator"
+          sx={{ my: 2, height: "1px", bgcolor: "border.default" }}
+        />
         {SECONDARY.map(item)}
       </Box>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <NavItem href={PROJECT_ROUTES.docs} icon={IconBook} label="Documentation" onClick={onNavigate} />
-        <NavItem href={PROJECT_ROUTES.support} icon={IconHelpCircle} label="Help & Support" onClick={onNavigate} />
-        <NavItem href={PROJECT_ROUTES.profile} icon={IconUser} label="My Profile" onClick={onNavigate} />
+        <NavItem
+          href={PROJECT_ROUTES.docs}
+          icon={IconBook}
+          label="Documentation"
+          onClick={onNavigate}
+        />
+        <NavItem
+          href={PROJECT_ROUTES.support}
+          icon={IconHelpCircle}
+          label="Help & Support"
+          onClick={onNavigate}
+        />
+        <NavItem
+          href={PROJECT_ROUTES.profile}
+          icon={IconUser}
+          label="My Profile"
+          onClick={onNavigate}
+        />
       </Box>
     </Box>
   );

@@ -15,10 +15,33 @@ export function OverviewHeader({
   badge = "DevStack BaaS v2",
 }: OverviewHeaderProps) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, [MOBILE]: { display: "none" } }}>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 4,
+        [MOBILE]: { display: "none" },
+      }}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <Typography variant="h4" component="h1" sx={{ fontFamily: font.display, fontSize: 28, fontWeight: 800, lineHeight: "35px" }}>{title}</Typography>
-        <Typography sx={{ color: "text.secondary", fontSize: 14, lineHeight: "18px" }}>{description}</Typography>
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontFamily: font.display,
+            fontSize: 28,
+            fontWeight: 800,
+            lineHeight: "35px",
+          }}
+        >
+          {title}
+        </Typography>
+        <Typography
+          sx={{ color: "text.secondary", fontSize: 14, lineHeight: "18px" }}
+        >
+          {description}
+        </Typography>
       </Box>
       <Box
         component="span"

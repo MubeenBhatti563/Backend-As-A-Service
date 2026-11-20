@@ -8,7 +8,13 @@ const TONES: Record<StatTone, { bg: "success" | "primary"; color: string }> = {
   info: { bg: "primary", color: "secondary.main" },
 };
 
-export function StatCard({ label, value, change, tone, hideOnMobile }: Omit<StatMetric, "key">) {
+export function StatCard({
+  label,
+  value,
+  change,
+  tone,
+  hideOnMobile,
+}: Omit<StatMetric, "key">) {
   const t = TONES[tone];
   return (
     <Box
@@ -19,14 +25,41 @@ export function StatCard({ label, value, change, tone, hideOnMobile }: Omit<Stat
         gap: 3,
         p: "19px",
         minWidth: 0,
-        [MOBILE]: { gap: 2, p: "15px", ...(hideOnMobile && { display: "none" }) },
+        [MOBILE]: {
+          gap: 2,
+          p: "15px",
+          ...(hideOnMobile && { display: "none" }),
+        },
       }}
     >
-      <Typography sx={{ color: "text.secondary", fontSize: 12, fontWeight: 600, lineHeight: "16px", textTransform: "uppercase" }}>{label}</Typography>
-      <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 2 }}>
+      <Typography
+        sx={{
+          color: "text.secondary",
+          fontSize: 12,
+          fontWeight: 600,
+          lineHeight: "16px",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 2,
+        }}
+      >
         <Typography
           component="span"
-          sx={{ fontFamily: font.display, fontSize: 28, fontWeight: 800, lineHeight: "35px", [MOBILE]: { fontSize: 22, lineHeight: "28px" } }}
+          sx={{
+            fontFamily: font.display,
+            fontSize: 28,
+            fontWeight: 800,
+            lineHeight: "35px",
+            [MOBILE]: { fontSize: 22, lineHeight: "28px" },
+          }}
         >
           {value}
         </Typography>
