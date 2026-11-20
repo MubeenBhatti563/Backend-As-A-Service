@@ -47,6 +47,7 @@ export function ProjectLayoutShell({
 
 const SEGMENT_TO_KEY: Record<string, ProjectNavKey> = {
   database: "database",
+  tables: "database",
   auth: "auth",
   storage: "storage",
   realtime: "realtime",
