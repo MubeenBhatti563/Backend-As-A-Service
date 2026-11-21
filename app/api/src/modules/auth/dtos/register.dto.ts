@@ -1,5 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+import { strongPasswordSchema } from '../../../common/validators/password.validator';
 
 const RegisterSchema = z.object({
   fullName: z
@@ -15,11 +16,7 @@ const RegisterSchema = z.object({
     .min(1, 'Email is required')
     .email('Enter a valid email address'),
 
-  password: z
-    .string()
-    .min(1, 'Password is required')
-    .min(8, 'Password must be at least 8 characters')
-    .max(128, 'Password is too long'),
+  password: strongPasswordSchema,
 });
 
 export class RegisterDto extends createZodDto(RegisterSchema) {}

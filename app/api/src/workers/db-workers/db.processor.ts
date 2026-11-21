@@ -1,9 +1,20 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { DB_JOBS, DB_QUEUE } from './db.constants';
 import { CreateNewTenant } from './db.interfaces';
+
+const IDENTIFIER_REGEX = /^[a-z0-9_]+$/i;
+
+export function assertValidIdentifier(identifier: string, fieldName: string = 'identifier'): void {
+  if (!identifier || typeof identifier !== 'string' || !IDENTIFIER_REGEX.test(identifier)) {
+    throw new Error(
+      `Invalid SQL ${fieldName}: "${identifier}". Identifiers must match allowlist pattern ${IDENTIFIER_REGEX.toString()}.`,
+    );
+  }
+}
 
 @Processor(DB_QUEUE)
 export class DBProcessor extends WorkerHost {
@@ -20,8 +31,10 @@ export class DBProcessor extends WorkerHost {
 
     switch (job.name) {
       case DB_JOBS.createDb: {
-        const { projectId, schemaName, dbRole, dbPassword } =
+        const { projectId, schemaName, dbRole } =
           job.data as CreateNewTenant;
+        // Secure server-side credential generation (never passed through BullMQ payload)
+        const dbPassword = crypto.randomBytes(24).toString('hex');
         await this.createNewTenant(projectId, schemaName, dbRole, dbPassword);
         break;
       }
@@ -34,30 +47,38 @@ export class DBProcessor extends WorkerHost {
 
   /**
    * Provisions a new PostgreSQL tenant:
-   *   1. CREATE ROLE with LOGIN
-   *   2. CREATE SCHEMA owned by that role
-   *   3. GRANT all privileges on the schema to the role
-   *   4. Set the role's default search_path
-   *   5. Seed default tables (users, profiles, storage_objects)
-   *   6. Mark the project ACTIVE in Prisma
+   *   1. Validate identifier allowlist to prevent SQL injection
+   *   2. CREATE ROLE with LOGIN and server-side generated password
+   *   3. CREATE SCHEMA owned by that role
+   *   4. GRANT all privileges on the schema to the role
+   *   5. Set the role's default search_path
+   *   6. Seed default tables (users, profiles, storage_objects)
+   *   7. Mark the project ACTIVE in Prisma
    *
    * NOTE: CREATE ROLE and CREATE SCHEMA are DDL statements that cannot run
    * inside a Prisma interactive transaction. We execute them sequentially and
    * rely on BullMQ's retry + exponential-backoff to handle partial failures.
    */
-  private async createNewTenant(
+  async createNewTenant(
     projectId: string,
     schemaName: string,
     dbRole: string,
-    dbPassword: string,
+    dbPassword?: string,
   ): Promise<void> {
+    // ── Input Validation / SQL Injection Prevention ────────────────────────
+    assertValidIdentifier(schemaName, 'schemaName');
+    assertValidIdentifier(dbRole, 'dbRole');
+
+    const password = dbPassword ?? crypto.randomBytes(24).toString('hex');
+    assertValidIdentifier(password, 'dbPassword');
+
     this.logger.log(
       `Provisioning tenant — project: ${projectId}, schema: "${schemaName}", role: "${dbRole}"`,
     );
 
     // ── Step 1: CREATE ROLE ────────────────────────────────────────────────
     await this.prismaService.$executeRawUnsafe(
-      `CREATE ROLE "${dbRole}" WITH LOGIN PASSWORD '${dbPassword}';`,
+      `CREATE ROLE "${dbRole}" WITH LOGIN PASSWORD '${password}';`,
     );
     this.logger.debug(`Role "${dbRole}" created`);
 
@@ -111,6 +132,8 @@ export class DBProcessor extends WorkerHost {
     schemaName: string,
     dbRole: string,
   ): Promise<void> {
+    assertValidIdentifier(schemaName, 'schemaName');
+    assertValidIdentifier(dbRole, 'dbRole');
     // ── users ──────────────────────────────────────────────────────────────
     // Core auth table. Consumers call /auth/register to populate this.
     await this.prismaService.$executeRawUnsafe(`

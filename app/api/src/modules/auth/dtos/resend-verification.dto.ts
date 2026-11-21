@@ -1,5 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+import { strongPasswordSchema } from '../../../common/validators/password.validator';
 
 const resendVerificationSchema = z.object({
   email: z
@@ -15,18 +16,7 @@ const verifyEmailSchema = z.object({
 });
 
 const resetPasswordSchema = z.object({
-  password: z
-    .string()
-    .min(1, 'Password is required')
-    .min(8, 'Password must be at least 8 characters')
-    .max(128, 'Password is too long')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one digit')
-    .regex(
-      /[@$!%*?&_\-#^~()+={}[\]:;"'<>,./\\|]/,
-      'Password must contain at least one special character',
-    ),
-
+  password: strongPasswordSchema,
   token: z.string().min(32, { message: 'Token is not valid!' }),
 });
 

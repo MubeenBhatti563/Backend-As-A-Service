@@ -175,7 +175,6 @@ describe('ProjectService', () => {
           projectId: mockCreatedProject.id,
           schemaName: expect.stringMatching(/^proj_[a-f0-9]{24}$/),
           dbRole: expect.stringMatching(/^role_proj_[a-f0-9]{12}$/),
-          dbPassword: expect.stringMatching(/^[a-f0-9]{32}$/),
         }),
       );
 

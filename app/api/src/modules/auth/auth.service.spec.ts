@@ -7,7 +7,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { TokenType } from '@prisma/client';
@@ -246,7 +245,8 @@ describe('AuthService', () => {
   });
 
   describe('resendVerificationEmail', () => {
-    it('should resend verification link for unverified user', async () => {
+    it('should resend verification link for unverified user and return generic response', async () => {
+      redisMock.get.mockResolvedValue(null);
       prismaMock.platformUser.findUnique.mockResolvedValue({
         id: 'user-1',
         isVerified: false,
@@ -256,7 +256,8 @@ describe('AuthService', () => {
       const result = await service.resendVerificationEmail('User@example.com ');
 
       expect(result).toEqual({
-        message: 'Verification email sent successfully',
+        message:
+          'If an account exists with this email, a verification link has been sent.',
       });
       expect(prismaMock.platformUser.findUnique).toHaveBeenCalledWith({
         where: { email: 'user@example.com' },
@@ -266,25 +267,53 @@ describe('AuthService', () => {
         'user@example.com',
         expect.any(String),
       );
+      expect(redisMock.set).toHaveBeenCalledWith(
+        'throttle:resend-verification:user@example.com',
+        '1',
+        120,
+      );
     });
 
-    it('should throw NotFoundException if user is not found', async () => {
+    it('should return identical response if user is not found (anti-enumeration)', async () => {
+      redisMock.get.mockResolvedValue(null);
       prismaMock.platformUser.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.resendVerificationEmail('unknown@example.com'),
-      ).rejects.toThrow(NotFoundException);
+      const result = await service.resendVerificationEmail('unknown@example.com');
+
+      expect(result).toEqual({
+        message:
+          'If an account exists with this email, a verification link has been sent.',
+      });
+      expect(emailMock.sendVerificationLink).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException if user is already verified', async () => {
+    it('should return identical response if user is already verified (anti-enumeration)', async () => {
+      redisMock.get.mockResolvedValue(null);
       prismaMock.platformUser.findUnique.mockResolvedValue({
         id: 'user-1',
         isVerified: true,
       });
 
+      const result = await service.resendVerificationEmail('verified@example.com');
+
+      expect(result).toEqual({
+        message:
+          'If an account exists with this email, a verification link has been sent.',
+      });
+      expect(emailMock.sendVerificationLink).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if per-account throttle is active', async () => {
+      redisMock.get.mockResolvedValue('1');
+
       await expect(
-        service.resendVerificationEmail('user@example.com'),
-      ).rejects.toThrow(BadRequestException);
+        service.resendVerificationEmail('throttled@example.com'),
+      ).rejects.toThrow(
+        'You can only request one email verification every 2 minutes.',
+      );
+      expect(prismaMock.platformUser.findUnique).not.toHaveBeenCalled();
     });
   });
 

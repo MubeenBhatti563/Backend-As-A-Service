@@ -191,7 +191,8 @@ describe('AuthController', () => {
   describe('resendVerification', () => {
     it('should call authService.resendVerificationEmail', async () => {
       authServiceMock.resendVerificationEmail.mockResolvedValue({
-        message: 'Verification email sent successfully',
+        message:
+          'If an account exists with this email, a verification link has been sent.',
       });
 
       const result = await controller.resendVerification({
@@ -201,7 +202,9 @@ describe('AuthController', () => {
       expect(authServiceMock.resendVerificationEmail).toHaveBeenCalledWith(
         'user@example.com',
       );
-      expect(result.message).toBe('Verification email sent successfully');
+      expect(result.message).toBe(
+        'If an account exists with this email, a verification link has been sent.',
+      );
     });
   });
 

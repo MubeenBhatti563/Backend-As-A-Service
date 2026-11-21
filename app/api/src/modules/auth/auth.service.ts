@@ -61,17 +61,29 @@ export class AuthService {
 
   async resendVerificationEmail(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
+
+    // Per-account throttling via Redis (1 request per 120 seconds per email)
+    const throttleKey = `throttle:resend-verification:${normalizedEmail}`;
+    const isThrottled = await this.redisService.get(throttleKey);
+    if (isThrottled) {
+      throw new BadRequestException(
+        'You can only request one email verification every 2 minutes.',
+      );
+    }
+    await this.redisService.set(throttleKey, '1', 120);
+
+    const genericResponse = {
+      message:
+        'If an account exists with this email, a verification link has been sent.',
+    };
+
     const user = await this.prismaService.platformUser.findUnique({
       where: { email: normalizedEmail },
       select: { id: true, isVerified: true },
     });
 
-    if (!user) {
-      throw new NotFoundException('User with this email does not exist');
-    }
-
-    if (user.isVerified) {
-      throw new BadRequestException('Email is already verified');
+    if (!user || user.isVerified) {
+      return genericResponse;
     }
 
     const rawToken = this.generateCryptoToken();
@@ -94,7 +106,7 @@ export class AuthService {
 
     await this.emailService.sendVerificationLink(normalizedEmail, rawToken);
 
-    return { message: 'Verification email sent successfully' };
+    return genericResponse;
   }
 
   async register(dto: RegisterDto) {

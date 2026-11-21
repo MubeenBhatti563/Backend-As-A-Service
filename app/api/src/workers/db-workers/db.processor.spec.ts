@@ -17,7 +17,6 @@ describe('DBProcessor', () => {
     projectId: 'proj-uuid-123',
     schemaName: 'proj_test_1234567890ab',
     dbRole: 'role_proj_abcdef123456',
-    dbPassword: 'secure_password_test_123',
   };
 
   beforeEach(async () => {
@@ -193,6 +192,81 @@ describe('DBProcessor', () => {
 
       expect(prismaMock.$executeRawUnsafe).not.toHaveBeenCalled();
       expect(prismaMock.project.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('SQL Injection defense & identifier allowlist', () => {
+    it('should reject malicious schemaName injection payloads and execute NO SQL', async () => {
+      const injectionPayloads = [
+        '"; DROP TABLE users; --',
+        'proj_test"; DROP TABLE "users"; --',
+        'proj_test; SELECT 1;',
+        'proj-test-hyphen',
+        'schema name with spaces',
+        'schema$injection',
+        "schema' OR 1=1 --",
+      ];
+
+      for (const maliciousSchema of injectionPayloads) {
+        const job = {
+          id: 'job_injection_test',
+          name: DB_JOBS.createDb,
+          attemptsMade: 0,
+          data: {
+            ...sampleTenantPayload,
+            schemaName: maliciousSchema,
+          },
+        } as unknown as Job;
+
+        await expect(processor.process(job)).rejects.toThrow(
+          /Invalid SQL schemaName/,
+        );
+      }
+
+      expect(prismaMock.$executeRawUnsafe).not.toHaveBeenCalled();
+      expect(prismaMock.project.update).not.toHaveBeenCalled();
+    });
+
+    it('should reject malicious dbRole injection payloads and execute NO SQL', async () => {
+      const injectionPayloads = [
+        '"; DROP ROLE superuser; --',
+        "role'; ALTER USER postgres WITH SUPERUSER; --",
+        'role name with spaces',
+        'role-with-dashes',
+        'role.with.dots',
+      ];
+
+      for (const maliciousRole of injectionPayloads) {
+        const job = {
+          id: 'job_injection_role_test',
+          name: DB_JOBS.createDb,
+          attemptsMade: 0,
+          data: {
+            ...sampleTenantPayload,
+            dbRole: maliciousRole,
+          },
+        } as unknown as Job;
+
+        await expect(processor.process(job)).rejects.toThrow(
+          /Invalid SQL dbRole/,
+        );
+      }
+
+      expect(prismaMock.$executeRawUnsafe).not.toHaveBeenCalled();
+      expect(prismaMock.project.update).not.toHaveBeenCalled();
+    });
+
+    it('should reject malicious dbPassword if passed', async () => {
+      await expect(
+        processor.createNewTenant(
+          'proj-1',
+          'valid_schema',
+          'valid_role',
+          "bad'password; DROP TABLE users; --",
+        ),
+      ).rejects.toThrow(/Invalid SQL dbPassword/);
+
+      expect(prismaMock.$executeRawUnsafe).not.toHaveBeenCalled();
     });
   });
 

@@ -35,6 +35,30 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const redisService = app.get(RedisService);
 
+  // Validate SESSION_SECRET and fail fast if missing or weak in production
+  const sessionSecret = configService.get<string>('SESSION_SECRET');
+  if (!sessionSecret || sessionSecret.trim() === '') {
+    throw new Error(
+      'SESSION_SECRET is missing. Set a cryptographically secure string in your environment.',
+    );
+  }
+  if (process.env.NODE_ENV === 'production' && sessionSecret.length < 32) {
+    throw new Error(
+      'SESSION_SECRET must be at least 32 characters in production for cryptographic safety.',
+    );
+  }
+
+  // Cookie configuration driven by environment variables for cross-origin deployment
+  const cookieSameSite = (
+    configService.get<string>('COOKIE_SAME_SITE') ??
+    (process.env.NODE_ENV === 'production' ? 'none' : 'lax')
+  ).toLowerCase() as 'lax' | 'strict' | 'none';
+
+  const cookieSecure =
+    configService.get<string>('COOKIE_SECURE') !== undefined
+      ? configService.get<string>('COOKIE_SECURE') === 'true'
+      : process.env.NODE_ENV === 'production' || cookieSameSite === 'none';
+
   // Swagger/OpenApi for API docs
   const config = new DocumentBuilder()
     .setTitle('AI-Featured Backend-as-a-Service (BaaS) Platform.')
@@ -52,15 +76,15 @@ async function bootstrap() {
 
   // 2. Fastify Session with RedisStore adapter
   await app.register(fastifySession, {
-    secret: configService.getOrThrow<string>('SESSION_SECRET'),
+    secret: sessionSecret,
     cookieName: 'sessionId',
     store: new RedisSessionStore(redisService),
     saveUninitialized: false,
     rolling: false,
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure: cookieSecure,
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: cookieSameSite,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   });

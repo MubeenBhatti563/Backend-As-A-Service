@@ -67,7 +67,6 @@ export class ProjectService {
     // Generate tenant credentials upfront so we can pass them to the BullMQ job
     const schemaName = `proj_${this.generateCryptoToken(12)}`;
     const dbRole = `role_proj_${this.generateCryptoToken(6)}`;
-    const dbPassword = this.generateCryptoToken(16);
 
     const project = await this.prismaService.$transaction(async (tx) => {
       const newProject = await tx.project.create({
@@ -122,7 +121,6 @@ export class ProjectService {
       projectId: project.id,
       schemaName,
       dbRole,
-      dbPassword,
     };
     await this.dbQueue.add(DB_JOBS.createDb, payload);
 
