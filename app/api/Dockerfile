@@ -1,5 +1,5 @@
 # ---------- Stage 1: Builder ----------
-FROM node:24.18.0-alpine AS builder
+FROM node:26.13.1-alpine AS builder
 
 WORKDIR /workspace
 
@@ -26,7 +26,7 @@ RUN pnpm --filter @baas/types build && pnpm --filter @baas/crypto-utils build &&
 RUN pnpm --filter api deploy --prod --legacy /prod/api
 
 # ---------- Stage 2: Runner ----------
-FROM node:24.18.0-alpine AS runner
+FROM node:26.13.1-alpine AS runner
 
 WORKDIR /app
 
