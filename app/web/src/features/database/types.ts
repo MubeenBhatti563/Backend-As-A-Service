@@ -4,4 +4,9 @@ export type {
   DatabaseStats,
   DatabaseOverview,
   DatabaseTabValue,
+  TableTabValue,
+  CellKind,
+  GridColumn,
+  GridRow,
+  TableDetail,
 } from "@baas/types";

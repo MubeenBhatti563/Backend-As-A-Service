@@ -13,3 +13,9 @@ export const projectTablesBase = (projectId: string) =>
 
 export const tableDetailHref = (projectId: string, tableName: string) =>
   `${projectTablesBase(projectId)}/${encodeURIComponent(tableName)}`;
+
+export const tableSectionHref = (
+  projectId: string,
+  tableName: string,
+  section: "" | "structure" | "relationships" | "indexes",
+) => `${tableDetailHref(projectId, tableName)}${section ? `/${section}` : ""}`;
