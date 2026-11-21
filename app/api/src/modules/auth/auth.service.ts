@@ -14,13 +14,23 @@ import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
 import { SessionDeviceType } from './types/auth.types';
 import { RedisService } from '../../infra/redis/redis.service';
-import { SESSION_PREFIX } from '../../infra/redis/redis-session.store';
 import { EmailService } from '../../infra/email/email.service';
 import { TokenType } from '@prisma/client';
+import {
+  DEFAULT_SESSION_TTL_MS,
+  REMEMBER_ME_TTL_MS,
+  SESSION_PREFIX,
+  SESSION_TTL_MS,
+  SHORT_SESSION_TTL_MS,
+} from './constants/session.constants';
 
-export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-export const REMEMBER_ME_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-export const SHORT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+export {
+  DEFAULT_SESSION_TTL_MS,
+  REMEMBER_ME_TTL_MS,
+  SESSION_PREFIX,
+  SESSION_TTL_MS,
+  SHORT_SESSION_TTL_MS,
+};
 
 // Pre-computed argon2id hash to mitigate timing attacks / user enumeration on invalid email
 const DUMMY_ARGON2_HASH =
@@ -90,19 +100,27 @@ export class AuthService {
     const hashToken = this.hashToken(rawToken);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await this.prismaService.$transaction([
-      this.prismaService.verificationToken.deleteMany({
+    try {
+      await this.prismaService.$transaction([
+        this.prismaService.verificationToken.deleteMany({
+          where: { userId: user.id, type: TokenType.EMAIL_VERIFICATION },
+        }),
+        this.prismaService.verificationToken.create({
+          data: {
+            hashToken,
+            expiresAt,
+            type: TokenType.EMAIL_VERIFICATION,
+            userId: user.id,
+          },
+        }),
+      ]);
+    } catch {
+      // Gracefully handle unique constraint conflict on concurrent generation
+      await this.prismaService.verificationToken.updateMany({
         where: { userId: user.id, type: TokenType.EMAIL_VERIFICATION },
-      }),
-      this.prismaService.verificationToken.create({
-        data: {
-          hashToken,
-          expiresAt,
-          type: TokenType.EMAIL_VERIFICATION,
-          userId: user.id,
-        },
-      }),
-    ]);
+        data: { hashToken, expiresAt },
+      });
+    }
 
     await this.emailService.sendVerificationLink(normalizedEmail, rawToken);
 
@@ -152,14 +170,24 @@ export class AuthService {
           },
         });
 
-        await tx.verificationToken.create({
-          data: {
-            expiresAt,
-            hashToken,
-            type: TokenType.EMAIL_VERIFICATION,
-            userId: createdUser.id,
-          },
-        });
+        try {
+          await tx.verificationToken.create({
+            data: {
+              expiresAt,
+              hashToken,
+              type: TokenType.EMAIL_VERIFICATION,
+              userId: createdUser.id,
+            },
+          });
+        } catch {
+          await tx.verificationToken.updateMany({
+            where: {
+              userId: createdUser.id,
+              type: TokenType.EMAIL_VERIFICATION,
+            },
+            data: { hashToken, expiresAt },
+          });
+        }
 
         return createdUser;
       });
@@ -310,12 +338,6 @@ export class AuthService {
       select: { id: true },
     });
 
-    if (activeSessions.length > 0) {
-      await this.redisService.del(
-        ...activeSessions.map((session) => `${SESSION_PREFIX}${session.id}`),
-      );
-    }
-
     await this.prismaService.$transaction([
       this.prismaService.platformUser.update({
         where: { id: tokenRecord.userId },
@@ -333,6 +355,13 @@ export class AuthService {
         where: { userId: tokenRecord.userId },
       }),
     ]);
+
+    // Atomic cache invalidation: Invalidate Redis sessions ONLY after DB transaction successfully commits
+    if (activeSessions.length > 0) {
+      await this.redisService.del(
+        ...activeSessions.map((session) => `${SESSION_PREFIX}${session.id}`),
+      );
+    }
 
     return {
       message:
@@ -367,12 +396,6 @@ export class AuthService {
       select: { id: true },
     });
 
-    if (otherSessions.length > 0) {
-      await this.redisService.del(
-        ...otherSessions.map((session) => `${SESSION_PREFIX}${session.id}`),
-      );
-    }
-
     await this.prismaService.$transaction([
       this.prismaService.platformUser.update({
         where: { id: userId },
@@ -385,6 +408,13 @@ export class AuthService {
         where: { userId, type: TokenType.PASSWORD_RESET },
       }),
     ]);
+
+    // Atomic cache invalidation: Invalidate Redis sessions ONLY after DB transaction successfully commits
+    if (otherSessions.length > 0) {
+      await this.redisService.del(
+        ...otherSessions.map((session) => `${SESSION_PREFIX}${session.id}`),
+      );
+    }
 
     return {
       message:
@@ -410,22 +440,30 @@ export class AuthService {
     const hashToken = this.hashToken(rawToken);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-    await this.prismaService.$transaction([
-      this.prismaService.verificationToken.deleteMany({
-        where: {
-          userId: user.id,
-          type: TokenType.PASSWORD_RESET,
-        },
-      }),
-      this.prismaService.verificationToken.create({
-        data: {
-          userId: user.id,
-          hashToken,
-          type: TokenType.PASSWORD_RESET,
-          expiresAt,
-        },
-      }),
-    ]);
+    try {
+      await this.prismaService.$transaction([
+        this.prismaService.verificationToken.deleteMany({
+          where: {
+            userId: user.id,
+            type: TokenType.PASSWORD_RESET,
+          },
+        }),
+        this.prismaService.verificationToken.create({
+          data: {
+            userId: user.id,
+            hashToken,
+            type: TokenType.PASSWORD_RESET,
+            expiresAt,
+          },
+        }),
+      ]);
+    } catch {
+      // Gracefully handle unique constraint conflict on concurrent generation
+      await this.prismaService.verificationToken.updateMany({
+        where: { userId: user.id, type: TokenType.PASSWORD_RESET },
+        data: { hashToken, expiresAt },
+      });
+    }
 
     await this.emailService.sendPasswordResetLink(user.email, rawToken);
 
@@ -463,17 +501,6 @@ export class AuthService {
       orderBy: { lastActiveAt: 'desc' },
     });
 
-    if (currentSessionId) {
-      const current = sessions.find((s) => s.id === currentSessionId);
-      if (current) {
-        await this.prismaService.session.update({
-          where: { id: currentSessionId },
-          data: { lastActiveAt: now },
-        });
-        current.lastActiveAt = now;
-      }
-    }
-
     return sessions.map((session) => ({
       id: session.id,
       userId: session.userId,
@@ -486,6 +513,13 @@ export class AuthService {
       expiresAt: session.expiresAt.toISOString(),
       isCurrent: session.id === currentSessionId,
     }));
+  }
+
+  async touchSession(userId: string, sessionId: string): Promise<void> {
+    await this.prismaService.session.updateMany({
+      where: { id: sessionId, userId },
+      data: { lastActiveAt: new Date() },
+    });
   }
 
   async revokeSession(userId: string, sessionId: string) {

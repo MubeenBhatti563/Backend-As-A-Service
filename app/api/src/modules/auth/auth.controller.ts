@@ -220,6 +220,19 @@ export class AuthController {
     return this.authService.getAllSessions(userId, req.session?.sessionStoreId);
   }
 
+  @Post('heartbeat')
+  @HttpCode(HttpStatus.OK)
+  async heartbeat(
+    @GetUser('userId') userId: string,
+    @Req() req: FastifyRequest,
+  ) {
+    const currentSessionId = req.session?.sessionStoreId;
+    if (currentSessionId) {
+      await this.authService.touchSession(userId, currentSessionId);
+    }
+    return { ok: true };
+  }
+
   @Post('revoke-session/:sessionId')
   @HttpCode(HttpStatus.OK)
   async revokeSession(

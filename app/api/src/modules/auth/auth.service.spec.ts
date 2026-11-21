@@ -25,6 +25,7 @@ describe('AuthService', () => {
       findUnique: jest.Mock;
       create: jest.Mock;
       deleteMany: jest.Mock;
+      updateMany: jest.Mock;
     };
     session: {
       create: jest.Mock;
@@ -33,6 +34,7 @@ describe('AuthService', () => {
       findFirst: jest.Mock;
       delete: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
     $transaction: jest.Mock;
   };
@@ -59,6 +61,7 @@ describe('AuthService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
         deleteMany: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       session: {
         create: jest.fn(),
@@ -67,6 +70,7 @@ describe('AuthService', () => {
         findFirst: jest.fn(),
         delete: jest.fn(),
         update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       $transaction: jest.fn(),
     };
@@ -419,6 +423,26 @@ describe('AuthService', () => {
       expect(redisMock.del).toHaveBeenCalledWith('sess:sess-1', 'sess:sess-2');
     });
 
+    it('does not invalidate Redis sessions if database transaction fails', async () => {
+      const rawToken = 'b'.repeat(64);
+      prismaMock.verificationToken.findUnique.mockResolvedValue({
+        id: 'token-1',
+        userId: 'user-1',
+        type: TokenType.PASSWORD_RESET,
+        expiresAt: new Date(Date.now() + 100000),
+      });
+      prismaMock.session.findMany.mockResolvedValue([
+        { id: 'sess-1' },
+      ]);
+      prismaMock.$transaction.mockRejectedValue(new Error('DB transaction failed'));
+
+      await expect(
+        service.resetPassword(rawToken, 'NewStrongPassword123!'),
+      ).rejects.toThrow('DB transaction failed');
+
+      expect(redisMock.del).not.toHaveBeenCalled();
+    });
+
     it('should throw BadRequestException if token is missing', async () => {
       await expect(service.resetPassword('', 'newPass')).rejects.toThrow(
         BadRequestException,
@@ -762,11 +786,16 @@ describe('AuthService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].isCurrent).toBe(true);
       expect(result[1].isCurrent).toBe(false);
-      expect(prismaMock.session.update).toHaveBeenCalledWith({
-        where: { id: 'sess-current' },
+      expect(prismaMock.session.update).not.toHaveBeenCalled();
+      expect(result[0].lastActiveAt).toEqual(now.toISOString());
+    });
+
+    it('touchSession should update lastActiveAt', async () => {
+      await service.touchSession(userId, 'sess-current');
+      expect(prismaMock.session.updateMany).toHaveBeenCalledWith({
+        where: { id: 'sess-current', userId },
         data: { lastActiveAt: expect.any(Date) },
       });
-      expect(result[0].lastActiveAt).not.toEqual(now.toISOString());
     });
 
     it('does not fabricate a session record when the current session is missing', async () => {

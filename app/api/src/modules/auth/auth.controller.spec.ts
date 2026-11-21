@@ -24,6 +24,7 @@ describe('AuthController', () => {
     deleteAccount: jest.Mock;
     getMe: jest.Mock;
     getAllSessions: jest.Mock;
+    touchSession: jest.Mock;
     revokeSession: jest.Mock;
     revokeOtherSessions: jest.Mock;
   };
@@ -43,6 +44,7 @@ describe('AuthController', () => {
       deleteAccount: jest.fn(),
       getMe: jest.fn(),
       getAllSessions: jest.fn(),
+      touchSession: jest.fn(),
       revokeSession: jest.fn(),
       revokeOtherSessions: jest.fn(),
     };
@@ -467,6 +469,34 @@ describe('AuthController', () => {
       await expect(
         controller.revokeOtherSessions('user-1', mockReq),
       ).rejects.toThrow('No active session found');
+    });
+  });
+
+  describe('heartbeat', () => {
+    it('should touch session when current sessionStoreId exists', async () => {
+      authServiceMock.touchSession.mockResolvedValue(undefined);
+      const mockReq = {
+        session: { sessionStoreId: 'sess-current' },
+      } as unknown as FastifyRequest;
+
+      const result = await controller.heartbeat('user-1', mockReq);
+
+      expect(authServiceMock.touchSession).toHaveBeenCalledWith(
+        'user-1',
+        'sess-current',
+      );
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('should succeed without calling touchSession if no sessionStoreId', async () => {
+      const mockReq = {
+        session: {},
+      } as unknown as FastifyRequest;
+
+      const result = await controller.heartbeat('user-1', mockReq);
+
+      expect(authServiceMock.touchSession).not.toHaveBeenCalled();
+      expect(result).toEqual({ ok: true });
     });
   });
 });

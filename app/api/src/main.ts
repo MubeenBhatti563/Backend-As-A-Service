@@ -7,6 +7,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from './infra/redis/redis.service';
 import { RedisSessionStore } from './infra/redis/redis-session.store';
+import { DEFAULT_SESSION_TTL_MS } from './modules/auth/constants/session.constants';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
 
@@ -85,7 +86,7 @@ async function bootstrap() {
       secure: cookieSecure,
       httpOnly: true,
       sameSite: cookieSameSite,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: DEFAULT_SESSION_TTL_MS,
     },
   });
 

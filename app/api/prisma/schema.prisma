@@ -98,8 +98,9 @@ model VerificationToken {
 
   user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, type])
   @@index([userId])
-  @@index([userId, type])
+  @@index([hashToken, type])
   @@map("verification_tokens")
 }
 

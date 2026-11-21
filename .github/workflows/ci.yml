@@ -11,8 +11,35 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: baas_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baas_db?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      SESSION_SECRET: ci_session_secret_at_least_32_characters_long_for_security
 
     steps:
       - name: Check out repository
@@ -37,6 +64,11 @@ jobs:
 
       - name: Build shared types
         run: pnpm --filter @baas/types build
+
+      - name: Deploy Prisma Migrations
+        run: pnpm --dir app/api exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baas_db?schema=public
 
       - name: Test API
         run: pnpm test

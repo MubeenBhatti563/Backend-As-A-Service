@@ -1,10 +1,14 @@
 import { SessionStore } from '@fastify/session';
 import { RedisService } from './redis.service';
+import {
+  DEFAULT_SESSION_TTL_SECONDS,
+  SESSION_PREFIX,
+} from '../../modules/auth/constants/session.constants';
 
 type StoredSession = Parameters<SessionStore['set']>[1];
 
-export const SESSION_PREFIX = 'sess:';
-const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
+export { SESSION_PREFIX };
+const DEFAULT_TTL_SECONDS = DEFAULT_SESSION_TTL_SECONDS;
 const COMPARE_AND_SET_SCRIPT = `
 local stored = redis.call('GET', KEYS[1])
 if not stored then
