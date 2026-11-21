@@ -1,23 +1,29 @@
 version: 2
 updates:
+  # In a pnpm monorepo with a single root pnpm-lock.yaml, all npm dependencies
+  # must be managed from the root directory ("/") so Dependabot updates the
+  # workspace lockfile atomically and avoids ERR_PNPM_OUTDATED_LOCKFILE in CI.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
     groups:
+      next:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      nestjs:
+        patterns:
+          - "@nestjs/*"
       dependencies:
         patterns:
           - "*"
-
-  - package-ecosystem: "npm"
-    directory: "/app/api"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "npm"
-    directory: "/app/web"
-    schedule:
-      interval: "weekly"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -31,10 +37,5 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/app/web"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/"
     schedule:
       interval: "weekly"
