@@ -1,5 +1,5 @@
 # ---------- Stage 1: Builder ----------
-FROM node:24.18.0-alpine AS builder
+FROM node:26.13.1-alpine AS builder
 
 WORKDIR /workspace
 
@@ -24,7 +24,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @baas/types build && pnpm --filter web build
 
 # ---------- Stage 2: Production ----------
-FROM node:24.18.0-alpine AS prod-deps
+FROM node:26.13.1-alpine AS prod-deps
 
 WORKDIR /workspace
 
