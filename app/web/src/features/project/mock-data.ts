@@ -31,7 +31,17 @@ export async function getProjectOverview(
     // Graceful fallback to initial mock data if SSR fetch fails or offline
   }
 
-  // Fallback initial sample data that matches the design
+  const enableMocks =
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+
+  if (!enableMocks) {
+    throw new Error(
+      `Failed to load project overview data for project ${id}. Mock fallback is disabled in production.`,
+    );
+  }
+
+  // Fallback initial sample data that matches the design (only in dev/mock environments)
   return {
     project: {
       id,

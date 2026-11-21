@@ -23,6 +23,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@baas/crypto-utils": "workspace:*",
     "@baas/types": "workspace:*",
     "@fastify/cookie": "^11.1.3",
     "@fastify/session": "^11.1.5",

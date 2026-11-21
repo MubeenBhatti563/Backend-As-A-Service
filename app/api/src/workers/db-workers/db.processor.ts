@@ -1,7 +1,7 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import * as crypto from 'crypto';
+import { generateSecurePassword } from '@baas/crypto-utils';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { DB_JOBS, DB_QUEUE } from './db.constants';
 import { CreateNewTenant } from './db.interfaces';
@@ -34,7 +34,7 @@ export class DBProcessor extends WorkerHost {
         const { projectId, schemaName, dbRole } =
           job.data as CreateNewTenant;
         // Secure server-side credential generation (never passed through BullMQ payload)
-        const dbPassword = crypto.randomBytes(24).toString('hex');
+        const dbPassword = generateSecurePassword(24);
         await this.createNewTenant(projectId, schemaName, dbRole, dbPassword);
         break;
       }
@@ -69,7 +69,7 @@ export class DBProcessor extends WorkerHost {
     assertValidIdentifier(schemaName, 'schemaName');
     assertValidIdentifier(dbRole, 'dbRole');
 
-    const password = dbPassword ?? crypto.randomBytes(24).toString('hex');
+    const password = dbPassword ?? generateSecurePassword(24);
     assertValidIdentifier(password, 'dbPassword');
 
     this.logger.log(

@@ -67,7 +67,7 @@ export interface StatMetric {
   label: string;
   value: string;
   change: string;
-  tone: StatTone;
+  tone?: StatTone;
   hideOnMobile?: boolean;
 }
 

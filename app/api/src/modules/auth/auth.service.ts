@@ -5,11 +5,11 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import * as argon2 from 'argon2';
-import * as crypto from 'crypto';
 import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
 import { SessionDeviceType } from './types/auth.types';
@@ -23,6 +23,8 @@ import {
   SESSION_TTL_MS,
   SHORT_SESSION_TTL_MS,
 } from './constants/session.constants';
+import { generateCryptoToken, hashToken } from '@baas/crypto-utils';
+import { TokenService } from './services/token.service';
 
 export {
   DEFAULT_SESSION_TTL_MS,
@@ -39,19 +41,23 @@ const DUMMY_ARGON2_HASH =
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  public readonly tokenService: TokenService;
 
   constructor(
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
-  ) {}
+    @Optional() tokenService?: TokenService,
+  ) {
+    this.tokenService = tokenService ?? new TokenService(prismaService);
+  }
 
   private hashToken(rawToken: string): string {
-    return crypto.createHash('sha256').update(rawToken).digest('hex');
+    return hashToken(rawToken);
   }
 
   private generateCryptoToken(byteLength: number = 32): string {
-    return crypto.randomBytes(byteLength).toString('hex');
+    return generateCryptoToken(byteLength);
   }
 
   private async hashPassword(password: string): Promise<string> {

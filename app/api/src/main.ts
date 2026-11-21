@@ -62,11 +62,38 @@ async function bootstrap() {
 
   // Swagger/OpenApi for API docs
   const config = new DocumentBuilder()
-    .setTitle('AI-Featured Backend-as-a-Service (BaaS) Platform.')
+    .setTitle('AI-Featured Backend-as-a-Service (BaaS) Platform')
     .setDescription(
-      'AI-powered Backend-as-a-Service platform providing authentication, database management, REST APIs, realtime communication, storage, server-side functions, and intelligent backend generation.',
+      'AI-powered Backend-as-a-Service platform providing authentication, database management, REST APIs, realtime communication, storage, server-side functions, and intelligent backend generation.\n\n' +
+        '### Canonical Auth Strategy\n' +
+        '- **Web/Dashboard Session Auth (Canonical)**: Stateful, HTTP-only secure cookie (`sessionId`) signed via Fastify Session, persisted in Redis with PostgreSQL metadata tracking. Created via `POST /api/v1/auth/login`.\n' +
+        '- **API & Service Operations**: Bearer token (JWT) or API key (`x-api-key`) passed in headers for programmatic tenant and database interaction.',
     )
     .setVersion('1.0.0')
+    .addCookieAuth('sessionId', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'sessionId',
+      description: 'Session cookie managed by @fastify/session and stored in Redis',
+    })
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Bearer token for programmatic API access',
+      },
+      'bearer-jwt',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-api-key',
+        description: 'Project API key for SDK client and tenant operations',
+      },
+      'api-key',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

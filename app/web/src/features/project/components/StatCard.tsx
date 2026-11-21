@@ -12,10 +12,10 @@ export function StatCard({
   label,
   value,
   change,
-  tone,
-  hideOnMobile,
+  tone = "success",
+  hideOnMobile = false,
 }: Omit<StatMetric, "key">) {
-  const t = TONES[tone];
+  const t = TONES[tone ?? "success"];
   return (
     <Box
       sx={{
