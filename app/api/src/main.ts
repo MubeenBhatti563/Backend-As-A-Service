@@ -8,8 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import { RedisService } from './infra/redis/redis.service';
 import { RedisSessionStore } from './infra/redis/redis-session.store';
 import { DEFAULT_SESSION_TTL_MS } from './modules/auth/constants/session.constants';
+import { registerBigIntSerialization } from './common/utils/bigint-serializer.util';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
+
+// Enable global BigInt JSON serialization
+registerBigIntSerialization();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(

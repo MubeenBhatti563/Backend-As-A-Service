@@ -1,5 +1,5 @@
 # ---------- Stage 1: Builder ----------
-FROM node:24.18-alpine AS builder
+FROM node:24.18.0-alpine AS builder
 
 WORKDIR /workspace
 
@@ -20,13 +20,13 @@ COPY . .
 RUN pnpm --filter api exec prisma generate
 
 # The API imports declarations from the shared workspace package.
-RUN pnpm --filter @baas/types build && pnpm --filter api build
+RUN pnpm --filter @baas/types build && pnpm --filter @baas/crypto-utils build && pnpm --filter api build
 
 # Prune devDependencies to leave only production node_modules
 RUN pnpm --filter api deploy --prod --legacy /prod/api
 
 # ---------- Stage 2: Runner ----------
-FROM node:24.18-alpine AS runner
+FROM node:24.18.0-alpine AS runner
 
 WORKDIR /app
 

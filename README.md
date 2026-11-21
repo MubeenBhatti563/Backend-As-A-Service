@@ -70,16 +70,30 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=change-me
 
-# Auth
-JWT_SECRET=...
-JWT_REFRESH_SECRET=...
+# Session & Cookies (SESSION_SECRET must be >= 32 characters)
+SESSION_SECRET=your-at-least-32-characters-secure-random-session-secret
+COOKIE_SAME_SITE=lax
+COOKIE_SECURE=false
 
-# Misc
-CORS_ORIGINS=http://localhost:4000
-RESEND_API_KEY=...
+# Auth Tokens
+JWT_ACCESS_TOKEN_SECRET=...
+JWT_REFRESH_TOKEN_SECRET=...
+JWT_ACCESS_TOKEN_EXPIRES_IN=15m
+JWT_REFRESH_TOKEN_EXPIRES_IN=7d
+
+# Email & Service URLs
+CORS_ORIGINS=http://localhost:4000,http://127.0.0.1:4000
+FRONTEND_URL=http://localhost:4000
+RESEND_EMAIL_KEY=...
 ```
 
-And `app/web/.env` with `NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1`.
+See `.env.example` in the root repository and `app/api/.env.example` for comprehensive documentation.
+
+And `app/web/.env` with:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
+NEXT_PUBLIC_ENABLE_MOCKS=false
+```
 
 ### 3. Start infrastructure
 
