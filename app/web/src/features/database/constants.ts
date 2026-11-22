@@ -9,7 +9,7 @@ export const projectDatabaseBase = (projectId: string) =>
   `/dashboard/projects/${projectId}/database`;
 
 export const projectTablesBase = (projectId: string) =>
-  `/dashboard/projects/${projectId}/tables`;
+  `/dashboard/projects/${projectId}/database/tables`;
 
 export const tableDetailHref = (projectId: string, tableName: string) =>
   `${projectTablesBase(projectId)}/${encodeURIComponent(tableName)}`;

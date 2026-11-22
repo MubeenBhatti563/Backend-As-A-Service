@@ -88,13 +88,36 @@ export function DataGrid({
         border: "1px solid",
         borderColor: "border.default",
         borderRadius: "12px",
-        overflow: "hidden",
+        overflowX: "auto",
+        overflowY: "hidden",
+        overscrollBehaviorX: "contain",
+        scrollbarWidth: "thin",
+        "&::-webkit-scrollbar": { height: 8 },
+        "&::-webkit-scrollbar-thumb": {
+          bgcolor: "border.strong",
+          borderRadius: 8,
+        },
       }}
     >
-      <Table sx={{ tableLayout: "fixed" }} aria-label="Table rows">
+      <Table
+        sx={{ width: "max-content", minWidth: "100%", tableLayout: "auto" }}
+        aria-label="Table rows"
+      >
         <TableHead>
           <TableRow sx={{ bgcolor: "background.elevated" }}>
-            <TableCell sx={{ width: 52, py: 3, pl: 5, pr: 0 }}>
+            <TableCell
+              sx={{
+                width: 52,
+                minWidth: 52,
+                py: { xs: 2, sm: 3 },
+                pl: { xs: 2, sm: 3 },
+                pr: 1,
+                position: "sticky",
+                left: 0,
+                zIndex: 2,
+                bgcolor: "background.elevated",
+              }}
+            >
               <Checkbox
                 size="small"
                 sx={checkboxSx}
@@ -109,13 +132,14 @@ export function DataGrid({
                 key={col.key}
                 sx={{
                   width: KIND_WIDTH[col.kind],
-                  py: 3,
+                  py: { xs: 2, sm: 3 },
                   px: 0,
-                  pr: i === lastCol ? 5 : 0,
+                  pr: i === lastCol ? { xs: 2, sm: 4 } : 2,
                   color: "text.disabled",
                   fontSize: 11,
                   lineHeight: "14px",
                   fontWeight: 600,
+                  whiteSpace: "nowrap",
                 }}
               >
                 {col.label}
@@ -144,7 +168,17 @@ export function DataGrid({
               selected={selected.has(row.id)}
               sx={{ "&:last-child td": { borderBottom: 0 } }}
             >
-              <TableCell sx={{ py: 3, pl: 5, pr: 0 }}>
+              <TableCell
+                sx={{
+                  py: { xs: 2, sm: 3 },
+                  pl: { xs: 2, sm: 3 },
+                  pr: 1,
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 1,
+                  bgcolor: selected.has(row.id) ? "action.selected" : SURFACE,
+                }}
+              >
                 <Checkbox
                   size="small"
                   sx={checkboxSx}
@@ -158,16 +192,19 @@ export function DataGrid({
                 <TableCell
                   key={col.key}
                   sx={{
-                    py: 3,
+                    py: { xs: 2, sm: 3 },
                     px: 0,
-                    pr: i === lastCol ? 5 : 0,
+                    pr: i === lastCol ? { xs: 2, sm: 4 } : 2,
                     lineHeight: "17px",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    maxWidth: col.kind === "uuid" ? 220 : 260,
                   }}
                 >
-                  {renderCell(col.kind, row[col.key] ?? "")}
+                  <Box component="span" title={row[col.key] ?? ""}>
+                    {renderCell(col.kind, row[col.key] ?? "")}
+                  </Box>
                 </TableCell>
               ))}
             </TableRow>

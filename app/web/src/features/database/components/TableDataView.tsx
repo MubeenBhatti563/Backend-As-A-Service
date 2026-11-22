@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Box, Button, InputAdornment, OutlinedInput } from "@mui/material";
+import { Box, Button, InputAdornment, OutlinedInput, Snackbar, Alert } from "@mui/material";
 import {
   IconAdjustmentsHorizontal,
   IconArrowsSort,
@@ -13,6 +13,8 @@ import { SURFACE } from "../constants";
 import type { TableDetail } from "../types";
 import { DataGrid } from "./DataGrid";
 import { PaginationFooter } from "./PaginationFooter";
+import { fetchTablePage } from "../table.client-api";
+import { AddRowDialog } from "./AddRowDialog";
 
 const toolbarButtonSx = {
   minHeight: 33,
@@ -27,8 +29,25 @@ const toolbarButtonSx = {
   "& .MuiButton-startIcon": { mr: "6px", ml: 0 },
 } as const;
 
-export function TableDataView({ detail }: { detail: TableDetail }) {
-  const { columns, rows, pagination } = detail;
+export function TableDataView({ detail, projectId }: { detail: TableDetail; projectId: string }) {
+  const [currentDetail, setCurrentDetail] = useState(detail);
+  const [addOpen, setAddOpen] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const changePage = async (page: number) => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      setCurrentDetail(await fetchTablePage(projectId, detail.table.name, page, detail.pagination.pageSize));
+    } catch {
+      setLoadError("Could not load this page of rows. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const tableDetail = currentDetail;
+  const { columns, rows, pagination } = tableDetail;
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
@@ -99,7 +118,8 @@ export function TableDataView({ detail }: { detail: TableDetail }) {
               </InputAdornment>
             }
             sx={{
-              width: 240,
+              width: { xs: "100%", sm: 240 },
+              maxWidth: { xs: "100%", sm: 260 },
               px: 3,
               bgcolor: SURFACE,
               borderRadius: "6px",
@@ -146,6 +166,7 @@ export function TableDataView({ detail }: { detail: TableDetail }) {
           <Button
             variant="contained"
             startIcon={<IconPlus size={16} />}
+            onClick={() => setAddOpen(true)}
             sx={{
               ...toolbarButtonSx,
               px: "14px",
@@ -160,7 +181,7 @@ export function TableDataView({ detail }: { detail: TableDetail }) {
       </Box>
 
       {/* Grid + Pagination */}
-      <Box>
+      <Box sx={{ opacity: loading ? 0.6 : 1, minWidth: 0 }}>
         <DataGrid
           columns={columns}
           rows={filtered}
@@ -174,8 +195,31 @@ export function TableDataView({ detail }: { detail: TableDetail }) {
           total={pagination.totalRows}
           page={pagination.page}
           pageCount={pageCount}
+          onPageChange={changePage}
         />
       </Box>
+      <Snackbar open={Boolean(loadError)} autoHideDuration={5000} onClose={() => setLoadError("")}>
+        <Alert severity="error" onClose={() => setLoadError("")}>{loadError}</Alert>
+      </Snackbar>
+      <Snackbar open={Boolean(successMessage)} autoHideDuration={3500} onClose={() => setSuccessMessage("")}>
+        <Alert severity="success" onClose={() => setSuccessMessage("")}>{successMessage}</Alert>
+      </Snackbar>
+      <AddRowDialog
+        open={addOpen}
+        projectId={projectId}
+        tableName={detail.table.name}
+        columns={columns}
+        onClose={() => setAddOpen(false)}
+        onInserted={() => {
+          setSuccessMessage("Row added.");
+          void fetchTablePage(projectId, detail.table.name, 1, pagination.pageSize)
+            .then((refreshed) => {
+              setCurrentDetail(refreshed);
+              setSelected(new Set());
+            })
+            .catch(() => setLoadError("The row was added, but the table could not be refreshed. Reload to see the latest data."));
+        }}
+      />
     </Box>
   );
 }

@@ -1,6 +1,6 @@
 export * from "./types";
 export * from "./constants";
-export * from "./mock-data";
+export * from "./api";
 export * from "./components/DatabaseHeader";
 export * from "./components/DatabaseTabs";
 export * from "./components/DatabaseTablesView";
@@ -14,3 +14,5 @@ export * from "./components/TableDetailTabs";
 export * from "./components/DataGrid";
 export * from "./components/PaginationFooter";
 export * from "./components/TableDataView";
+export * from "./components/sql-editor/SqlEditorView";
+export * from "./components/sql-editor/SqlEditorHeader";

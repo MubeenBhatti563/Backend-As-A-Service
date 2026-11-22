@@ -4,7 +4,8 @@ export interface DatabaseTable {
   name: string;
   rows: number;
   size: string;
-  lastModified: string;
+  sizeBytes: string;
+  lastMaintained: string | null;
   rls: RlsStatus;
 }
 
@@ -41,6 +42,11 @@ export interface GridColumn {
   key: string;
   label: string;
   kind: CellKind;
+  writable?: boolean;
+  nullable?: boolean;
+  hasDefault?: boolean;
+  dataType?: string;
+  foreignKey?: { tableName: string; columnName: string };
 }
 
 export type GridRow = { id: string } & Record<string, string>;

@@ -9,6 +9,7 @@ interface Props {
   total: number;
   page: number;
   pageCount: number;
+  onPageChange: (page: number) => void;
 }
 
 const base = {
@@ -20,9 +21,9 @@ const base = {
   lineHeight: "16px",
 } as const;
 
-export function PaginationFooter({ from, to, total, page, pageCount }: Props) {
-  // Figma shows pages 1-3; swap for a windowed range once pagination is wired.
-  const pages = Array.from({ length: Math.min(pageCount, 3) }, (_, i) => i + 1);
+export function PaginationFooter({ from, to, total, page, pageCount, onPageChange }: Props) {
+  const start = Math.max(1, Math.min(page - 1, pageCount - 2));
+  const pages = Array.from({ length: Math.min(pageCount, 3) }, (_, i) => start + i);
 
   return (
     <Box
@@ -30,9 +31,10 @@ export function PaginationFooter({ from, to, total, page, pageCount }: Props) {
       aria-label="Pagination"
       sx={{
         display: "flex",
-        flexDirection: "row",
+        flexDirection: { xs: "column", sm: "row" },
         justifyContent: "space-between",
-        alignItems: "center",
+        alignItems: { xs: "stretch", sm: "center" },
+        gap: 2,
         pt: 3,
       }}
     >
@@ -40,9 +42,11 @@ export function PaginationFooter({ from, to, total, page, pageCount }: Props) {
         Showing {from}-{to} of {total.toLocaleString("en-US")} rows
       </Typography>
 
-      <Box sx={{ display: "flex", flexDirection: "row", gap: 2 }}>
+      <Box sx={{ display: "flex", flexDirection: "row", gap: { xs: 1, sm: 2 }, justifyContent: { xs: "space-between", sm: "flex-end" } }}>
         <Button
           variant="outlined"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
           sx={{ ...base, px: "10px", bgcolor: SURFACE, color: "text.primary", fontWeight: 400 }}
         >
           Previous
@@ -53,10 +57,12 @@ export function PaginationFooter({ from, to, total, page, pageCount }: Props) {
           return (
             <Button
               key={p}
+              onClick={() => onPageChange(p)}
               aria-current={active ? "page" : undefined}
               sx={{
                 ...base,
                 px: 3,
+                display: { xs: "none", sm: "inline-flex" },
                 fontWeight: active ? 600 : 400,
                 color: active ? "common.white" : "text.secondary",
                 bgcolor: active ? "primary.main" : SURFACE,
@@ -70,6 +76,8 @@ export function PaginationFooter({ from, to, total, page, pageCount }: Props) {
 
         <Button
           variant="outlined"
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(page + 1)}
           sx={{ ...base, px: "10px", bgcolor: SURFACE, color: "text.primary", fontWeight: 400 }}
         >
           Next

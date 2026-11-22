@@ -46,9 +46,11 @@ export function TableDetailHeader({ projectId, table }: Props) {
     <Box
       sx={{
         display: "flex",
-        flexDirection: "row",
+        flexDirection: { xs: "column", lg: "row" },
         justifyContent: "space-between",
-        alignItems: "center",
+        alignItems: { xs: "stretch", lg: "center" },
+        gap: { xs: 3, lg: 2 },
+        minWidth: 0,
       }}
     >
       {/* Left: breadcrumb + title */}
@@ -56,7 +58,7 @@ export function TableDetailHeader({ projectId, table }: Props) {
         <Box
           component="nav"
           aria-label="Breadcrumb"
-          sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1.5 }}
+            sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1.5, minWidth: 0, flexWrap: "wrap" }}
         >
           <NextLink href={base} style={{ textDecoration: "none" }}>
             <Typography
@@ -95,8 +97,8 @@ export function TableDetailHeader({ projectId, table }: Props) {
           </Typography>
         </Box>
 
-        <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3 }}>
-          <Typography variant="h4" component="h1">
+        <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: { xs: 1.5, sm: 3 }, minWidth: 0, flexWrap: "wrap" }}>
+          <Typography variant="h4" component="h1" sx={{ fontSize: { xs: 24, sm: 32 }, overflowWrap: "anywhere" }}>
             {table.name}
           </Typography>
           <RlsPill status={table.rls} />
@@ -104,7 +106,7 @@ export function TableDetailHeader({ projectId, table }: Props) {
       </Box>
 
       {/* Right: stats */}
-      <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4 }}>
+      <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: { xs: 2, sm: 4 }, flexWrap: "wrap" }}>
         <HeaderStat
           label="Rows"
           value={table.rows.toLocaleString("en-US")}

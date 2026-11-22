@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Box, Button, InputAdornment, OutlinedInput } from "@mui/material";
+import { useRouter } from "next/navigation";
+import { Alert, Box, Button, InputAdornment, OutlinedInput, Snackbar } from "@mui/material";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
 import { SURFACE } from "../constants";
 import type { DatabaseTable } from "../types";
 import { TablesGrid } from "./TablesGrid";
+import { CreateTableDialog } from "./CreateTableDialog";
 
 interface Props {
   projectId: string;
@@ -13,7 +15,10 @@ interface Props {
 }
 
 export function DatabaseTablesView({ projectId, tables }: Props) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -60,6 +65,7 @@ export function DatabaseTablesView({ projectId, tables }: Props) {
         <Button
           variant="contained"
           startIcon={<IconPlus size={16} />}
+          onClick={() => setCreateOpen(true)}
           sx={{
             height: 38,
             px: 3,
@@ -76,6 +82,18 @@ export function DatabaseTablesView({ projectId, tables }: Props) {
       </Box>
 
       <TablesGrid projectId={projectId} tables={filtered} query={query} />
+      <CreateTableDialog
+        open={createOpen}
+        projectId={projectId}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => {
+          setSuccessMessage("Table created.");
+          router.refresh();
+        }}
+      />
+      <Snackbar open={Boolean(successMessage)} autoHideDuration={3500} onClose={() => setSuccessMessage("")}>
+        <Alert severity="success" onClose={() => setSuccessMessage("")}>{successMessage}</Alert>
+      </Snackbar>
     </Box>
   );
 }

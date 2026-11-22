@@ -1,7 +1,39 @@
-import React from "react";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { Box } from "@mui/material";
+import {
+  DatabaseTabs,
+  SqlEditorHeader,
+  SqlEditorView,
+  getDatabaseOverview,
+} from "@/features/database";
+import type { SqlEditorData } from "@/features/database/components/sql-editor/types";
 
-const SqlEditorPage = () => {
-  return <div>SqlEditorPage</div>;
-};
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-export default SqlEditorPage;
+export const metadata: Metadata = { title: "SQL Editor" };
+
+export default async function SqlEditorPage({ params }: PageProps) {
+  const { id } = await params;
+  const database = await getDatabaseOverview(id);
+  if (!database) notFound();
+
+  // The API does not expose SQL execution/history yet. Keep the reference UI,
+  // but don't show fabricated results or history as if they came from the DB.
+  const editorData: SqlEditorData = {
+    schema: "public",
+    initialQuery: "SELECT *\nFROM profiles\nLIMIT 100;",
+    history: [],
+    result: null,
+  };
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+      <SqlEditorHeader projectId={id} />
+      <DatabaseTabs projectId={id} value="sql-editor" />
+      <SqlEditorView data={editorData} />
+    </Box>
+  );
+}

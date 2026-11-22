@@ -32,7 +32,7 @@ const getBaseUrl = (): string => {
   if (envUrl) {
     return envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
   }
-  return 'http://localhost:3000/api/v1';
+  return 'http://127.0.0.1:3000/api/v1';
 };
 
 /**

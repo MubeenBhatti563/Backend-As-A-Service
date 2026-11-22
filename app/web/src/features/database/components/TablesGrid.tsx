@@ -10,6 +10,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { IconDatabase, IconDotsVertical } from "@tabler/icons-react";
@@ -20,8 +21,8 @@ import { RlsBadge } from "./RlsBadge";
 const COLUMNS = [
   { label: "Table name", width: undefined },
   { label: "Rows", width: 130 },
-  { label: "Size", width: 130 },
-  { label: "Last modified", width: 170 },
+  { label: "Total size", width: 150 },
+  { label: "Last maintained", width: 180 },
   { label: "RLS status", width: 130 },
   { label: "", width: 56 },
 ] as const;
@@ -41,6 +42,15 @@ interface Props {
 
 export function TablesGrid({ projectId, tables, query }: Props) {
   const router = useRouter();
+  const formatDate = (value: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return {
+      date: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(date),
+      time: new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(date),
+    };
+  };
 
   return (
     <Box
@@ -50,11 +60,18 @@ export function TablesGrid({ projectId, tables, query }: Props) {
         borderColor: "border.default",
         borderRadius: "12px",
         overflowX: "auto",
+        overscrollBehaviorX: "contain",
+        scrollbarWidth: "thin",
+        "&::-webkit-scrollbar": { height: 8 },
+        "&::-webkit-scrollbar-thumb": {
+          bgcolor: "border.strong",
+          borderRadius: 8,
+        },
         width: "100%",
       }}
     >
       <Table
-        sx={{ minWidth: 800, tableLayout: "fixed", width: "100%" }}
+        sx={{ minWidth: { xs: 720, md: 800 }, tableLayout: "fixed", width: "100%" }}
         aria-label="Database tables"
       >
         <TableHead>
@@ -66,6 +83,7 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                   width: col.width,
                   py: 2.5,
                   ...cellPadding(i),
+                  whiteSpace: "nowrap",
                   color: "text.disabled",
                   fontSize: 11,
                   lineHeight: "14px",
@@ -97,6 +115,7 @@ export function TablesGrid({ projectId, tables, query }: Props) {
 
           {tables.map((table) => {
             const href = tableDetailHref(projectId, table.name);
+            const maintained = formatDate(table.lastMaintained);
 
             return (
               <TableRow
@@ -124,6 +143,7 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                       alignItems: "center",
                       gap: 2,
                       minWidth: 0,
+                      overflow: "hidden",
                     }}
                   >
                     <Box
@@ -154,6 +174,7 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                           fontWeight: 600,
                           lineHeight: "18px",
                           color: "text.primary",
+                          whiteSpace: "nowrap",
                           "&:hover": {
                             color: "primary.main",
                             textDecoration: "underline",
@@ -189,7 +210,11 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                     borderColor: "border.default",
                   }}
                 >
-                  {table.size}
+                  <Tooltip title={`${BigInt(table.sizeBytes).toLocaleString("en-US")} bytes`} describeChild>
+                    <Box component="span" sx={{ cursor: "help", borderBottom: "1px dotted", borderColor: "border.strong" }}>
+                      {table.size}
+                    </Box>
+                  </Tooltip>
                 </TableCell>
 
                 <TableCell
@@ -201,7 +226,20 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                     borderColor: "border.default",
                   }}
                 >
-                  {table.lastModified}
+                  {maintained ? (
+                    <Tooltip title={`${maintained.date} ${maintained.time} UTC`} describeChild>
+                      <Box component="span" sx={{ display: "inline-flex", flexDirection: "column", gap: 0.25, cursor: "help" }}>
+                        <Typography component="span" variant="body2" sx={{ fontSize: 12, lineHeight: 1.3, color: "text.primary" }}>
+                          {maintained.date}
+                        </Typography>
+                        <Typography component="span" variant="caption" sx={{ fontSize: 11, lineHeight: 1.3, color: "text.disabled" }}>
+                          {maintained.time} UTC
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  ) : (
+                    <Typography variant="body2" sx={{ fontSize: 12, color: "text.disabled" }}>No maintenance recorded</Typography>
+                  )}
                 </TableCell>
 
                 <TableCell

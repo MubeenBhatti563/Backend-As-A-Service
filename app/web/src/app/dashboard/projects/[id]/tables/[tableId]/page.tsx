@@ -30,7 +30,7 @@ export default async function TableDetailPage({ params }: PageProps) {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <TableDetailHeader projectId={id} table={detail.table} />
       <TableDetailTabs projectId={id} tableName={detail.table.name} value="data" />
-      <TableDataView detail={detail} />
+      <TableDataView projectId={id} detail={detail} />
     </Box>
   );
 }
