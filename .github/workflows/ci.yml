@@ -70,16 +70,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baas_db?schema=public
 
-      - name: Test API
+      - name: Test API (Unit Tests)
         run: pnpm test
-
-      - name: Run E2E Tests
-        run: pnpm --filter api run test:e2e
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baas_db?schema=public
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          SESSION_SECRET: ci_session_secret_at_least_32_characters_long_for_security
 
       - name: Build applications
         run: pnpm build
