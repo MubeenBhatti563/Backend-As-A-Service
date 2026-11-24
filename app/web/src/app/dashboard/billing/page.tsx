@@ -1,16 +1,14 @@
 "use client";
 
 import { AccountShell } from "@/features/projects/components/projects/AccountShell";
-import { ACCOUNT_ROUTES } from "@/config/routes";
 import { useAuthStore } from "@/stores";
 import Loading from "@/app/loading";
 import { useAllProjects } from "@/features/projects/hooks/use-project";
-import { useMyPlan } from "@/features/projects/hooks/use-plan";
+import { useAllPlans, useMyPlan } from "@/features/projects/hooks/use-plan";
 import { UsagePanel } from "@/features/projects/components/projects/UsagePanel";
-import { MOCK_USAGE } from "../projects/mock-data";
 import type { UsageMetric } from "@/types/projectPage";
 import type { MyPlanResponse } from "@baas/types";
-import { Box, Button, Chip, Divider, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Divider, Typography } from "@mui/material";
 import {
   IconArrowRight,
   IconBolt,
@@ -18,21 +16,9 @@ import {
   IconCreditCard,
   IconReceipt,
 } from "@tabler/icons-react";
-import NextLink from "next/link";
 
-const INCLUDES = [
-  "Up to 10 projects",
-  "8 GB database storage",
-  "50 GB file storage",
-  "1 million API requests per month",
-  "200 concurrent realtime connections",
-];
-
-function toUsageMetrics(
-  myPlan: MyPlanResponse | undefined,
-  fallback: UsageMetric[],
-): UsageMetric[] {
-  if (!myPlan) return fallback;
+function toUsageMetrics(myPlan: MyPlanResponse | undefined): UsageMetric[] {
+  if (!myPlan) return [];
   const { usage, plan } = myPlan;
   const toGB = (bytes: string) =>
     Number((Number(bytes) / 1_000_000_000).toFixed(2));
@@ -75,11 +61,21 @@ function toUsageMetrics(
   ];
 }
 
+const formatApiRequestLimit = (limit: string | null | undefined) =>
+  limit == null
+    ? "Custom"
+    : new Intl.NumberFormat("en-US", {
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(Number(limit));
+
 export default function BillingPage() {
   const { user } = useAuthStore();
   const { data: projects } = useAllProjects();
   const { data: myPlan } = useMyPlan();
-  const usage = toUsageMetrics(myPlan, MOCK_USAGE);
+  const { data: plans } = useAllPlans();
+  const usage = toUsageMetrics(myPlan);
+  const proPlan = plans?.plans.find((plan) => plan.code === "PRO");
 
   if (!user) return <Loading />;
 
@@ -113,6 +109,7 @@ export default function BillingPage() {
         resetNote="API quota renews monthly"
         showLink={false}
       />
+      {!myPlan && <Alert severity="info">Plan and usage data is loading or unavailable from the API.</Alert>}
 
       <Box
         sx={{
@@ -159,11 +156,11 @@ export default function BillingPage() {
                 component="h2"
                 sx={{ mt: 1, fontSize: 23, fontWeight: 700 }}
               >
-                Hobby
+                {myPlan?.plan.name ?? "Unavailable"}
               </Typography>
             </Box>
             <Chip
-              label="Free"
+              label={myPlan?.plan.code ?? "Unavailable"}
               size="small"
               sx={{
                 bgcolor: "background.elevated",
@@ -255,7 +252,7 @@ export default function BillingPage() {
                 component="span"
                 sx={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1.5px" }}
               >
-                $20
+                {proPlan ? new Intl.NumberFormat(undefined, { style: "currency", currency: proPlan.currency }).format((proPlan.priceCents ?? 0) / 100) : "Unavailable"}
               </Typography>
               <Typography
                 component="span"
@@ -279,7 +276,13 @@ export default function BillingPage() {
                 gap: 2.5,
               }}
             >
-              {INCLUDES.map((item) => (
+              {(proPlan ? [
+                proPlan.maxProjects == null ? "Unlimited projects" : `Up to ${proPlan.maxProjects} projects`,
+                `${proPlan.dbStorageBytes ? (Number(proPlan.dbStorageBytes) / 1_000_000_000).toFixed(0) : "Custom"} GB database storage`,
+                `${proPlan.fileStorageBytes ? (Number(proPlan.fileStorageBytes) / 1_000_000_000).toFixed(0) : "Custom"} GB file storage`,
+                `${formatApiRequestLimit(proPlan.apiRequestsMonthly)} API requests per month`,
+                `${proPlan.maxRealtimeConnections ?? "Custom"} concurrent realtime connections`,
+              ] : []).map((item) => (
                 <Box
                   component="li"
                   key={item}
@@ -293,14 +296,13 @@ export default function BillingPage() {
               ))}
             </Box>
             <Button
-              component={NextLink}
-              href={ACCOUNT_ROUTES.upgrade}
               variant="contained"
               fullWidth
+              disabled
               endIcon={<IconArrowRight size={15} />}
               sx={{ mt: 5, height: 42, gap: 1, fontSize: 13 }}
             >
-              Explore Pro upgrade
+              {proPlan ? "Billing actions unavailable" : "Plan unavailable"}
             </Button>
             <Typography
               sx={{

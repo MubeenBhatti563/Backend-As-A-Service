@@ -11,7 +11,7 @@ const FEATURES = [
   ["Projects", "2", "10"],
   ["Database storage", "500 MB", "8 GB"],
   ["File storage", "1 GB", "50 GB"],
-  ["API requests", "50,000 / month", "1 million / month"],
+  ["API requests", "50,000 / month", "1M / month"],
   ["Realtime connections", "10", "200 concurrent"],
 ];
 

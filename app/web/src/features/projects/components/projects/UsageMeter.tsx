@@ -19,11 +19,18 @@ const ICONS: Record<UsageIconKey, Icon> = {
 
 // fixed locale so server and client render the same text
 const num = (n: number) => n.toLocaleString("en-US");
+const compact = (n: number) =>
+  new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(n);
 const withUnit = (n: number, unit?: string) =>
   unit ? `${num(n)} ${unit}` : num(n);
 
 export function UsageMeter({ metric }: { metric: UsageMetric }) {
   const { label, icon, used, limit, unit, basis } = metric;
+  const formatValue = (value: number) =>
+    metric.key === "api" && value >= 1_000_000 ? compact(value) : withUnit(value, unit);
   const MetricIcon = ICONS[icon];
   const percent =
     limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
@@ -69,7 +76,7 @@ export function UsageMeter({ metric }: { metric: UsageMetric }) {
             lineHeight: "22px",
           }}
         >
-          {withUnit(used, unit)}
+          {formatValue(used)}
         </Typography>
         <Typography
           component="span"
@@ -80,7 +87,7 @@ export function UsageMeter({ metric }: { metric: UsageMetric }) {
             lineHeight: "14px",
           }}
         >
-          used / {withUnit(limit, unit)}
+          used / {formatValue(limit)}
         </Typography>
       </Box>
 
@@ -110,7 +117,7 @@ export function UsageMeter({ metric }: { metric: UsageMetric }) {
       <Typography
         sx={{ color: "text.secondary", fontSize: 11, lineHeight: "14px" }}
       >
-        {withUnit(Math.max(limit - used, 0), unit)} remaining
+        {formatValue(Math.max(limit - used, 0))} remaining
       </Typography>
       {basis && (
         <Typography
