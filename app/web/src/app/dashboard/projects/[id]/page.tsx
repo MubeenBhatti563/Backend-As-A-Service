@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProjectOverview } from "@/features/project/mock-data";
+import { getProjectOverview } from "@/features/project/api.server";
 import { ProjectOverviewPage } from "@/features/project/ProjectOverviewPage";
 
 interface PageProps {

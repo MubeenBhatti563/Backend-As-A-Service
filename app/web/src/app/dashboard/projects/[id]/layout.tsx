@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { getProjectOverview } from "@/features/project/mock-data";
+import { getProjectOverview } from "@/features/project/api.server";
 import { ProjectLayoutShell } from "@/features/project/components/ProjectLayoutShell";
 
 interface LayoutProps {

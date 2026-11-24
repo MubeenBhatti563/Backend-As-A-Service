@@ -1,8 +1,6 @@
 "use client";
 import { Box, Skeleton, Typography, Alert, Button } from "@mui/material";
-import { MOCK_ACTIVITY, MOCK_USAGE, MOCK_USER } from "./mock-data";
 import {
-  AccountUser,
   ActivityEvent,
   Project,
   UsageMetric,
@@ -95,19 +93,27 @@ function toProject(p: ProjectData): Project {
     description: p.description ?? "",
     region: p.deploymentRegion,
     status: statusMap[p.status] ?? "paused",
-    dbSize: "—",
-    fileSize: "—",
+    dbSize: formatBytes(BigInt(p.dbBytes ?? "0")),
+    fileSize: formatBytes(BigInt(p.fileBytes ?? "0")),
     lastActivity,
     updatedAt,
   };
 }
 
+function formatBytes(bytes: bigint): string {
+  if (bytes < BigInt(1024)) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = Number(bytes);
+  let unit = -1;
+  do { value /= 1024; unit += 1; } while (value >= 1024 && unit < units.length - 1);
+  return `${value.toFixed(2)} ${units[unit]}`;
+}
+
 /** Map API MyPlanResponse usage + plan limits → UsageMetric[] */
 function toUsageMetrics(
   myPlan: MyPlanResponse | undefined,
-  fallback: UsageMetric[],
 ): UsageMetric[] {
-  if (!myPlan) return fallback;
+  if (!myPlan) return [];
   const { usage, plan } = myPlan;
   const toGB = (bytes: string) =>
     Number((Number(bytes) / 1_000_000_000).toFixed(2));
@@ -178,19 +184,7 @@ function ProjectsSkeleton() {
   );
 }
 
-interface AccountOverviewPageProps {
-  userMock?: AccountUser;
-  usage?: UsageMetric[];
-  activity?: ActivityEvent[];
-  usageResetNote?: string;
-}
-
-function AccountOverviewPage({
-  userMock = MOCK_USER,
-  usage = MOCK_USAGE,
-  activity = MOCK_ACTIVITY,
-  usageResetNote = "API quota resets Dec 1, 2026 (UTC)",
-}: AccountOverviewPageProps) {
+function AccountOverviewPage() {
   const { user } = useAuthStore();
   const { data: rawProjects, isLoading, isError, refetch } = useAllProjects();
   const { data: myPlan } = useMyPlan();
@@ -202,15 +196,13 @@ function AccountOverviewPage({
 
   const projects: Project[] = (rawProjects ?? []).map(toProject);
 
-  const planName = myPlan?.plan.name ?? userMock.plan;
+  const planName = myPlan?.plan.name ?? "Plan unavailable";
   const planTier =
     myPlan?.plan.priceCents === 0
       ? "Free"
-      : (myPlan?.plan.name ?? userMock.tier);
-  const displayUsage = toUsageMetrics(myPlan, usage);
-  const displayActivities: ActivityEvent[] = rawActivities
-    ? rawActivities.map(toActivityEvent)
-    : activity;
+      : (myPlan?.plan.name ?? "Unavailable");
+  const displayUsage = toUsageMetrics(myPlan);
+  const displayActivities: ActivityEvent[] = (rawActivities ?? []).map(toActivityEvent);
 
   return (
     <AccountShell user={user} projectCount={projects.length}>
@@ -311,7 +303,7 @@ function AccountOverviewPage({
           <UsagePanel
             metrics={displayUsage}
             projectCount={projects.length}
-            resetNote={usageResetNote}
+            resetNote={myPlan ? "Current billing period" : "Usage data unavailable"}
           />
           <PlanCard plan={planName} tier={planTier} />
         </Box>
