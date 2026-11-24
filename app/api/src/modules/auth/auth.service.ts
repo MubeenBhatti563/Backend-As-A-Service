@@ -496,6 +496,29 @@ export class AuthService {
     return user;
   }
 
+  async updateProfile(userId: string, fullName: string) {
+    return this.prismaService.platformUser.update({
+      where: { id: userId },
+      data: { fullName },
+      select: { id: true, fullName: true, email: true, isVerified: true, createdAt: true, updatedAt: true },
+    });
+  }
+
+  async updatePreferences(userId: string, preferences: { emailAlerts: boolean; securityAlerts: boolean }) {
+    return this.prismaService.platformUser.update({
+      where: { id: userId },
+      data: preferences,
+      select: { emailAlerts: true, securityAlerts: true },
+    });
+  }
+
+  async getPreferences(userId: string) {
+    return this.prismaService.platformUser.findUniqueOrThrow({
+      where: { id: userId },
+      select: { emailAlerts: true, securityAlerts: true },
+    });
+  }
+
   async getAllSessions(userId: string, currentSessionId?: string) {
     const now = new Date();
 

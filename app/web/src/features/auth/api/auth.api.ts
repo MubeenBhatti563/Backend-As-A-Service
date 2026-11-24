@@ -16,6 +16,14 @@ import type {
 const { AUTH } = API_ENDPOINTS;
 
 export const authApi = {
+  updateProfile: async (payload: { fullName: string }): Promise<ApiResponse<SafeUser>> =>
+    (await apiClient.put(AUTH.PROFILE, payload)) as unknown as ApiResponse<SafeUser>,
+
+  getPreferences: async (): Promise<ApiResponse<{ emailAlerts: boolean; securityAlerts: boolean }>> =>
+    (await apiClient.get(AUTH.PREFERENCES)) as unknown as ApiResponse<{ emailAlerts: boolean; securityAlerts: boolean }>,
+
+  updatePreferences: async (payload: { emailAlerts: boolean; securityAlerts: boolean }): Promise<ApiResponse<{ emailAlerts: boolean; securityAlerts: boolean }>> =>
+    (await apiClient.put(AUTH.PREFERENCES, payload)) as unknown as ApiResponse<{ emailAlerts: boolean; securityAlerts: boolean }>,
   /**
    * Register a new user account
    */

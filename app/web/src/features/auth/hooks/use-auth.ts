@@ -17,7 +17,23 @@ export const AUTH_KEYS = {
   all: ["auth"] as const,
   currentUser: () => [...AUTH_KEYS.all, "currentUser"] as const,
   sessions: () => [...AUTH_KEYS.all, "sessions"] as const,
+  preferences: () => [...AUTH_KEYS.all, "preferences"] as const,
 };
+
+export function useAccountPreferences() {
+  return useQuery({ queryKey: AUTH_KEYS.preferences(), queryFn: async () => (await authApi.getPreferences()).data, staleTime: 60_000 });
+}
+
+export function useUpdateAccountPreferences() {
+  const client = useQueryClient();
+  return useMutation({ mutationFn: async (value: { emailAlerts: boolean; securityAlerts: boolean }) => (await authApi.updatePreferences(value)).data, onSuccess: (data) => client.setQueryData(AUTH_KEYS.preferences(), data) });
+}
+
+export function useUpdateProfile() {
+  const client = useQueryClient();
+  const setUser = useAuthStore((state) => state.setUser);
+  return useMutation({ mutationFn: async (fullName: string) => (await authApi.updateProfile({ fullName })).data, onSuccess: (user) => { setUser(user); client.setQueryData(AUTH_KEYS.currentUser(), user); } });
+}
 
 /**
  * Hook to retrieve current logged in user session.

@@ -43,9 +43,13 @@ import {
   useRevokeOtherSessions,
   useRevokeSession,
   useDeleteAccount,
+  useAccountPreferences,
+  useUpdateAccountPreferences,
+  useUpdateProfile,
 } from "@/features/auth";
 import { PasswordItem } from "./PasswordItem";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { updateProfileSchema } from "@/features/auth/schemas/auth.schema";
 
 export default function AccountSettingsPage() {
   const { user } = useAuthStore();
@@ -62,23 +66,52 @@ export default function AccountSettingsPage() {
   const router = useRouter();
 
   const [copiedId, setCopiedId] = useState(false);
-  const [fullName, setFullName] = useState(user?.fullName || "Admin");
-  const [email] = useState(user?.email || "admin@devstack.com");
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [securityAlerts, setSecurityAlerts] = useState(true);
+  const [profileDraft, setProfileDraft] = useState<{ userId: string; fullName: string } | null>(null);
+  const fullName = profileDraft && profileDraft.userId === user?.id ? profileDraft.fullName : (user?.fullName ?? "");
+  const [profileError, setProfileError] = useState("");
+  const [profileMessage, setProfileMessage] = useState("");
+  const preferences = useAccountPreferences();
+  const updatePreferences = useUpdateAccountPreferences();
+  const updateProfile = useUpdateProfile();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   if (!user) return <Loading />;
 
-  const planName = myPlan?.plan.name ?? "Hobby";
+  const planName = myPlan?.plan.name ?? "Unavailable";
   const planTier =
-    myPlan?.plan.priceCents === 0 ? "Free" : (myPlan?.plan.name ?? "Free");
+    myPlan?.plan.priceCents === 0 ? "Free" : (myPlan?.plan.name ?? "Unavailable");
+  const saveProfile = async () => {
+    const validation = updateProfileSchema.safeParse({ fullName });
+    if (!validation.success) {
+      setProfileError(validation.error.issues[0]?.message ?? "Enter a valid name.");
+      setProfileMessage("");
+      return;
+    }
+    setProfileError("");
+    setProfileMessage("");
+    try {
+      const updated = await updateProfile.mutateAsync(validation.data.fullName);
+      setProfileDraft({ userId: updated.id, fullName: updated.fullName });
+      setProfileMessage("Profile saved.");
+    } catch {
+      setProfileMessage("Could not save your profile. Please retry.");
+    }
+  };
+  const savePreferences = (key: "emailAlerts" | "securityAlerts", value: boolean) => {
+    if (!preferences.data) return;
+    void updatePreferences.mutate({ ...preferences.data, [key]: value });
+  };
 
-  const handleCopyId = () => {
-    if (user?.id) {
-      navigator.clipboard.writeText(user.id);
+  const handleCopyId = async () => {
+    if (user?.id && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(user.id);
+      } catch {
+        setCopiedId(false);
+        return;
+      }
       setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
+      window.setTimeout(() => setCopiedId(false), 2000);
     }
   };
 
@@ -88,7 +121,7 @@ export default function AccountSettingsPage() {
         day: "numeric",
         year: "numeric",
       })
-    : "November 2026";
+    : "Unavailable";
 
   return (
     <AccountShell
@@ -213,7 +246,14 @@ export default function AccountSettingsPage() {
               <TextField
                 size="small"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setProfileDraft({ userId: user.id, fullName: e.target.value });
+                  setProfileError("");
+                  setProfileMessage("");
+                }}
+                error={Boolean(profileError)}
+                helperText={profileError || "This name appears across your account."}
+                slotProps={{ htmlInput: { maxLength: 80, autoComplete: "name" } }}
                 placeholder="Enter your name"
                 sx={{
                   "& .MuiOutlinedInput-root": {
@@ -262,7 +302,7 @@ export default function AccountSettingsPage() {
               <TextField
                 size="small"
                 disabled
-                value={email}
+                value={user.email}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     bgcolor: "background.elevated",
@@ -325,6 +365,8 @@ export default function AccountSettingsPage() {
             <Button
               variant="contained"
               size="small"
+              disabled={updateProfile.isPending || fullName.trim() === user.fullName}
+              onClick={() => void saveProfile()}
               sx={{
                 height: 34,
                 px: 3,
@@ -336,6 +378,7 @@ export default function AccountSettingsPage() {
               Save changes
             </Button>
           </Box>
+          {profileMessage && <Alert severity={profileMessage === "Profile saved." ? "success" : "error"} role="status">{profileMessage}</Alert>}
         </Box>
 
         {/* ── 2. Security & Authentication ────────────────────────────── */}
@@ -654,8 +697,9 @@ export default function AccountSettingsPage() {
             </Box>
             <Switch
               size="small"
-              checked={emailAlerts}
-              onChange={(e) => setEmailAlerts(e.target.checked)}
+              checked={preferences.data?.emailAlerts ?? false}
+              disabled={preferences.isLoading || !preferences.data || updatePreferences.isPending}
+              onChange={(e) => savePreferences("emailAlerts", e.target.checked)}
               color="secondary"
             />
           </Box>
@@ -682,11 +726,14 @@ export default function AccountSettingsPage() {
             </Box>
             <Switch
               size="small"
-              checked={securityAlerts}
-              onChange={(e) => setSecurityAlerts(e.target.checked)}
+              checked={preferences.data?.securityAlerts ?? false}
+              disabled={preferences.isLoading || !preferences.data || updatePreferences.isPending}
+              onChange={(e) => savePreferences("securityAlerts", e.target.checked)}
               color="secondary"
             />
           </Box>
+          {preferences.isError && <Alert severity="error">Could not load notification preferences.</Alert>}
+          {updatePreferences.isError && <Alert severity="error">Could not save notification preferences.</Alert>}
         </Box>
 
         {/* ── 5. Danger Zone ──────────────────────────────────────────── */}

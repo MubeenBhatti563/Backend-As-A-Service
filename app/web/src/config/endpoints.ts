@@ -17,6 +17,8 @@ export const API_ENDPOINTS = {
     LOGOUT_ALL: "/auth/logout-all",
     DELETE_ACCOUNT: "/auth/delete-account",
     ME: "/auth/me",
+    PROFILE: "/auth/profile",
+    PREFERENCES: "/auth/preferences",
     VERIFY_EMAIL: "/auth/verify-email",
     RESEND_VERIFICATION: "/auth/resend-verification",
     FORGOT_PASSWORD: "/auth/forgot-password",

@@ -23,6 +23,9 @@ describe('AuthController', () => {
     logoutAll: jest.Mock;
     deleteAccount: jest.Mock;
     getMe: jest.Mock;
+    updateProfile: jest.Mock;
+    getPreferences: jest.Mock;
+    updatePreferences: jest.Mock;
     getAllSessions: jest.Mock;
     touchSession: jest.Mock;
     revokeSession: jest.Mock;
@@ -43,6 +46,9 @@ describe('AuthController', () => {
       logoutAll: jest.fn(),
       deleteAccount: jest.fn(),
       getMe: jest.fn(),
+      updateProfile: jest.fn(),
+      getPreferences: jest.fn(),
+      updatePreferences: jest.fn(),
       getAllSessions: jest.fn(),
       touchSession: jest.fn(),
       revokeSession: jest.fn(),
@@ -68,6 +74,24 @@ describe('AuthController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('updates only the authenticated user profile through the service', async () => {
+    const dto = { fullName: 'Ada Lovelace' };
+    const updated = { id: 'u1', fullName: dto.fullName };
+    authServiceMock.updateProfile.mockResolvedValue(updated);
+    await expect(controller.updateProfile('u1', dto as never)).resolves.toBe(updated);
+    expect(authServiceMock.updateProfile).toHaveBeenCalledWith('u1', dto.fullName);
+  });
+
+  it('reads and updates authenticated user notification preferences', async () => {
+    const preferences = { emailAlerts: false, securityAlerts: true };
+    authServiceMock.getPreferences.mockResolvedValue(preferences);
+    authServiceMock.updatePreferences.mockResolvedValue(preferences);
+    await expect(controller.getPreferences('u1')).resolves.toBe(preferences);
+    await expect(controller.updatePreferences('u1', preferences as never)).resolves.toBe(preferences);
+    expect(authServiceMock.getPreferences).toHaveBeenCalledWith('u1');
+    expect(authServiceMock.updatePreferences).toHaveBeenCalledWith('u1', preferences);
   });
 
   describe('registerUser', () => {

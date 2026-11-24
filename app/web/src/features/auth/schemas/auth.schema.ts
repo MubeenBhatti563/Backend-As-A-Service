@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+export const updateProfileSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Enter at least 2 characters")
+    .max(80, "Name must be 80 characters or fewer"),
+});
+
+export type UpdateProfileValues = z.infer<typeof updateProfileSchema>;
+
 export const signupSchema = z
   .object({
     fullName: z

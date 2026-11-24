@@ -17,6 +17,7 @@ describe('AuthService', () => {
   let prismaMock: {
     platformUser: {
       findUnique: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
       delete: jest.Mock;
@@ -53,6 +54,7 @@ describe('AuthService', () => {
     prismaMock = {
       platformUser: {
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
@@ -105,6 +107,26 @@ describe('AuthService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('updates authenticated profile name and returns selected safe fields', async () => {
+    const user = { id: 'u1', fullName: 'Ada Lovelace', email: 'ada@example.test' };
+    prismaMock.platformUser.update.mockResolvedValue(user);
+    await expect(service.updateProfile('u1', 'Ada Lovelace')).resolves.toBe(user);
+    expect(prismaMock.platformUser.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'u1' }, data: { fullName: 'Ada Lovelace' },
+      select: expect.not.objectContaining({ passwordHash: true }),
+    }));
+  });
+
+  it('reads and persists authenticated notification preferences', async () => {
+    const preferences = { emailAlerts: false, securityAlerts: true };
+    prismaMock.platformUser.findUniqueOrThrow.mockResolvedValue(preferences);
+    prismaMock.platformUser.update.mockResolvedValue(preferences);
+    await expect(service.getPreferences('u1')).resolves.toEqual(preferences);
+    await expect(service.updatePreferences('u1', preferences)).resolves.toEqual(preferences);
+    expect(prismaMock.platformUser.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'u1' }, select: { emailAlerts: true, securityAlerts: true } });
+    expect(prismaMock.platformUser.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u1' }, data: preferences }));
   });
 
   describe('register', () => {

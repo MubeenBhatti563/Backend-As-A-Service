@@ -9,6 +9,7 @@ import {
   InternalServerErrorException,
   Param,
   Post,
+  Put,
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -33,6 +34,7 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ThrottlerMessage } from './decorators/throttler.decorator';
 import { ResponseMessage } from '../../common';
 import { ChangePasswordDto } from './dtos/change-password.dto';
+import { UpdatePreferencesDto, UpdateProfileDto } from './dtos/update-account-settings.dto';
 
 declare module 'fastify' {
   interface Session {
@@ -209,6 +211,21 @@ export class AuthController {
   @Get('me')
   async me(@GetUser('userId') userId: string) {
     return this.authService.getMe(userId);
+  }
+
+  @Put('profile')
+  async updateProfile(@GetUser('userId') userId: string, @Body() dto: UpdateProfileDto) {
+    return this.authService.updateProfile(userId, dto.fullName);
+  }
+
+  @Get('preferences')
+  async getPreferences(@GetUser('userId') userId: string) {
+    return this.authService.getPreferences(userId);
+  }
+
+  @Put('preferences')
+  async updatePreferences(@GetUser('userId') userId: string, @Body() dto: UpdatePreferencesDto) {
+    return this.authService.updatePreferences(userId, dto);
   }
 
   @Get('get-sessions')
