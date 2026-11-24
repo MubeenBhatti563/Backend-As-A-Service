@@ -35,8 +35,8 @@ export function BarChartCard({
         },
       }}
     >
+      <Box component="figcaption" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
       <Typography
-        component="figcaption"
         sx={{
           ...cardTitleSx,
           [MOBILE]: {
@@ -62,10 +62,11 @@ export function BarChartCard({
           </Box>
         )}
       </Typography>
+      </Box>
 
       <Box
         role="img"
-        aria-label={summary}
+          aria-label={summary}
         sx={{
           display: "flex",
           flexDirection: "column",

@@ -41,6 +41,7 @@ model Project {
 
   apiKeys       ApiKey[]
   projectUsages ProjectUsage[]
+  dailyUsages   ProjectUsageDaily[]
   activityLogs  ActivityLog[]
 
   @@index([ownerId])
@@ -167,6 +168,20 @@ model ProjectUsage {
   @@unique([projectId, periodStart])
   @@index([periodStart])
   @@map("project_usage")
+}
+
+model ProjectUsageDaily {
+  id          String   @id @default(uuid())
+  projectId   String   @map("project_id")
+  day         DateTime @db.Date
+  apiRequests BigInt   @default(0) @map("api_requests")
+  dbBytes     BigInt   @default(0) @map("db_bytes")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, day])
+  @@index([projectId, day])
+  @@map("project_usage_daily")
 }
 
 // "Recent activity" feed. projectName is a snapshot so entries survive project deletion.

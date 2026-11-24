@@ -29,6 +29,7 @@ describe('ProjectService', () => {
     projectUsage: {
       findFirst: jest.Mock;
     };
+    projectUsageDaily: { findMany: jest.Mock };
     activityLog: {
       findMany: jest.Mock;
       createMany: jest.Mock;
@@ -77,6 +78,7 @@ describe('ProjectService', () => {
       projectUsage: {
         findFirst: jest.fn(),
       },
+      projectUsageDaily: { findMany: jest.fn().mockResolvedValue([]) },
       activityLog: {
         findMany: jest.fn(),
         createMany: jest.fn(),
@@ -342,8 +344,10 @@ describe('ProjectService', () => {
       expect(prismaMock.project.findMany).toHaveBeenCalledTimes(1);
       expect(prismaMock.project.findMany).toHaveBeenCalledWith({
         where: { ownerId: userId },
+        include: { projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 } },
+        orderBy: { updatedAt: 'desc' },
       });
-      expect(result).toEqual(mockProjects);
+      expect(result).toEqual(mockProjects.map((project) => ({ ...project, dbBytes: '0', fileBytes: '0' })));
     });
 
     it('should return an empty array if user has no projects', async () => {
@@ -353,6 +357,8 @@ describe('ProjectService', () => {
 
       expect(prismaMock.project.findMany).toHaveBeenCalledWith({
         where: { ownerId: userId },
+        include: { projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 } },
+        orderBy: { updatedAt: 'desc' },
       });
       expect(result).toEqual([]);
     });
@@ -508,6 +514,10 @@ describe('ProjectService', () => {
           createdAt: now,
         },
       ]);
+      prismaMock.projectUsageDaily.findMany.mockResolvedValue([
+        { day: new Date('2026-11-19T00:00:00Z'), apiRequests: 5n, dbBytes: 100n },
+        { day: new Date('2026-11-20T00:00:00Z'), apiRequests: 7n, dbBytes: 120n },
+      ]);
 
       const result = await service.getProjectOverview(projectId, userId);
 
@@ -519,8 +529,9 @@ describe('ProjectService', () => {
       expect(result.user.email).toBe('owner@example.com');
       expect(result.stats).toBeDefined();
       expect(result.charts).toHaveLength(2);
+      expect(prismaMock.projectUsageDaily.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ projectId }) }));
       expect(result.activity).toHaveLength(1);
-      expect(result.health).toHaveLength(4);
+      expect(result.health).toEqual([]);
     });
 
     it('should throw NotFoundException if project not found', async () => {

@@ -14,6 +14,9 @@ export interface ProjectData {
   deploymentRegion: string;
   status: "ACTIVE" | "PAUSED" | "PENDING";
   ownerId: string;
+  /** Latest recorded project usage; decimal strings preserve byte precision. */
+  dbBytes?: string;
+  fileBytes?: string;
 }
 
 export interface CreateProjectResponse {

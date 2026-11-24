@@ -139,7 +139,16 @@ export class ProjectService {
   }
 
   async getAllProjects(userId: string) {
-    return this.prismaService.project.findMany({ where: { ownerId: userId } });
+    const projects = await this.prismaService.project.findMany({
+      where: { ownerId: userId },
+      include: { projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 } },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return projects.map(({ projectUsages, ...project }) => ({
+      ...project,
+      dbBytes: projectUsages?.[0]?.dbBytes.toString() ?? '0',
+      fileBytes: projectUsages?.[0]?.fileBytes.toString() ?? '0',
+    }));
   }
 
   async getRecentActivity(userId: string) {
@@ -238,12 +247,19 @@ export class ProjectService {
       take: 10,
     });
 
+    const dailyUsage = await this.prismaService.projectUsageDaily.findMany({
+      where: { projectId, day: { gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6)) } },
+      orderBy: { day: 'asc' },
+      select: { day: true, apiRequests: true, dbBytes: true },
+    });
+
     return presentProjectOverview({
       project,
       projects: allProjects,
       userEmail: project.owner.email,
       usage,
       activityLogs,
+      dailyUsage,
       now,
     });
   }

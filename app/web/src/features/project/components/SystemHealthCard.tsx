@@ -41,7 +41,7 @@ export function SystemHealthCard({ services }: { services: ServiceHealth[] }) {
           listStyle: "none",
         }}
       >
-        {services.map((s) => {
+        {services.length === 0 ? <Typography sx={{ color: "text.secondary", fontSize: 12 }}>Service health telemetry is not available.</Typography> : services.map((s) => {
           const st = STATUS[s.status];
           return (
             <Box

@@ -21,6 +21,7 @@ export interface ProjectOverviewPresenterParams {
     projectName?: string | null;
     createdAt: Date;
   }>;
+  dailyUsage: Array<{ day: Date; apiRequests: bigint; dbBytes: bigint }>;
   now?: Date;
 }
 
@@ -53,6 +54,7 @@ export function presentProjectOverview({
   userEmail,
   usage,
   activityLogs,
+  dailyUsage,
   now = new Date(),
 }: ProjectOverviewPresenterParams) {
   const regionInfo = REGION_LABELS[project.deploymentRegion] ?? {
@@ -66,69 +68,62 @@ export function presentProjectOverview({
     year: 'numeric',
   });
 
-  const dbSizeFormatted = usage ? formatBytes(usage.dbBytes) : '0 MB';
-  const storageFormatted = usage ? formatBytes(usage.fileBytes) : '0 MB';
+  const dbSizeFormatted = usage ? formatBytes(usage.dbBytes) : '0 B';
+  const storageFormatted = usage ? formatBytes(usage.fileBytes) : '0 B';
   const apiRequestsCount = usage ? Number(usage.apiRequests) : 0;
 
   // Clean domain metrics with UI-only fields (tone, hideOnMobile) stripped
   const stats = [
     {
       key: 'api',
-      label: 'API Requests (Today)',
+      label: 'API Requests (Current Period)',
       value: apiRequestsCount.toLocaleString(),
-      change: '+0.0%',
+      change: 'Current period',
     },
     {
       key: 'db',
       label: 'Database Size',
       value: dbSizeFormatted,
-      change: '0% limit',
+      change: 'Current period',
     },
     {
       key: 'storage',
       label: 'Storage Usage',
       value: storageFormatted,
-      change: '0% limit',
-    },
-    {
-      key: 'users',
-      label: 'Active Users',
-      value: '0',
-      change: '+0.0%',
+      change: 'Current period',
     },
   ];
 
-  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const currentDayIdx = (now.getDay() + 6) % 7; // Monday = 0
-  const pointsApi = weekDays.map((label, idx) => ({
-    label,
-    value:
-      idx <= currentDayIdx
-        ? Math.round(apiRequestsCount / (currentDayIdx + 1))
-        : 0,
-  }));
-  const pointsDb = weekDays.map((label, idx) => ({
-    label,
-    value:
-      idx <= currentDayIdx
-        ? Math.round(Number(usage?.dbBytes ?? 0n) / (1024 * 1024))
-        : 0,
-  }));
-
-  // Clean chart series with UI-only fields (hideOnMobile) stripped
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(now);
+    day.setUTCHours(0, 0, 0, 0);
+    day.setUTCDate(day.getUTCDate() - (6 - index));
+    return day;
+  });
+  const byDay = new Map(dailyUsage.map((usageRow) => [usageRow.day.toISOString().slice(0, 10), usageRow]));
+  let lastDbBytes = 0;
+  const requestsPoints = days.map((day) => {
+    const row = byDay.get(day.toISOString().slice(0, 10));
+    return { label: day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }), value: Number(row?.apiRequests ?? 0n) };
+  });
+  const dbPoints = days.map((day) => {
+    const row = byDay.get(day.toISOString().slice(0, 10));
+    if (row) lastDbBytes = Number(row.dbBytes);
+    return { label: day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }), value: lastDbBytes / (1024 * 1024) };
+  });
   const charts = [
     {
       title: 'API Requests Over Time',
       mobileTitle: 'API Requests over time',
       unit: 'requests',
       color: 'primary' as const,
-      points: pointsApi,
+      points: requestsPoints,
     },
     {
       title: 'Database Usage (MB)',
       unit: 'MB',
       color: 'secondary' as const,
-      points: pointsDb,
+      points: dbPoints,
     },
   ];
 
@@ -144,30 +139,9 @@ export function presentProjectOverview({
     time: timeAgo(log.createdAt, now),
   }));
 
-  if (activity.length === 0) {
-    activity.push({
-      id: `created-${project.id}`,
-      icon: 'database',
-      title: 'Project provisioned',
-      detail: `schema: ${project.schemaName}`,
-      time: timeAgo(project.createdAt, now),
-    });
-  }
-
-  const isProvisioned = project.status === 'ACTIVE';
-
-  const health = [
-    { id: 'gw', name: 'API Gateway', status: 'operational' as const },
-    {
-      id: 'db',
-      name: 'Database Service',
-      status: isProvisioned
-        ? ('operational' as const)
-        : ('degraded' as const),
-    },
-    { id: 'fn', name: 'Functions Runtime', status: 'operational' as const },
-    { id: 'auth', name: 'Auth Service', status: 'operational' as const },
-  ];
+  // The API has no health probe records. Never infer component health from a
+  // project's lifecycle status; the UI renders an explicit unavailable state.
+  const health: [] = [];
 
   return {
     project: {

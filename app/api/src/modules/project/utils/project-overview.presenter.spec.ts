@@ -62,12 +62,18 @@ describe('ProjectOverviewPresenter', () => {
             createdAt: fixedNow,
           },
         ],
+        dailyUsage: [
+          { day: new Date('2026-11-21T00:00:00Z'), apiRequests: 37n, dbBytes: 25n * 1024n * 1024n },
+        ],
         now: fixedNow,
       });
 
       expect(result.project.regionCode).toBe('US-EAST');
       expect(result.project.status).toBe('active');
       expect(result.stats).toBeDefined();
+      expect(result.charts[0].points).toHaveLength(7);
+      expect(result.charts[0].points[6]).toEqual({ label: 'Sat', value: 37 });
+      expect(result.charts[0]).not.toHaveProperty('preview');
 
       // Verify that UI-only fields (tone, hideOnMobile) are stripped from API response DTOs
       for (const stat of result.stats) {
@@ -80,7 +86,7 @@ describe('ProjectOverviewPresenter', () => {
       }
 
       expect(result.activity).toHaveLength(1);
-      expect(result.health).toHaveLength(4);
+      expect(result.health).toEqual([]);
     });
   });
 });

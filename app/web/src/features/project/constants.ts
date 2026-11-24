@@ -21,11 +21,11 @@ export const PROJECT_ROUTES = {
       usage: `${base}/usage`,
       settings: `${base}/settings`,
       // quick-start shortcuts
-      createTable: `${base}/database/new`,
+      createTable: `${base}/database`,
       addUser: `${base}/auth/users/new`,
       uploadFile: `${base}/storage/upload`,
       createFunction: `${base}/functions/new`,
-      sqlEditor: `${base}/database/sql`,
+      sqlEditor: `${base}/database/sql-editor`,
       generateWithAi: `${base}/ai`,
     } as const;
   },
