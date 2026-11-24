@@ -4,6 +4,7 @@ export * from "./api";
 export * from "./components/DatabaseHeader";
 export * from "./components/DatabaseTabs";
 export * from "./components/DatabaseTablesView";
+export * from "./components/DatabaseIndexesView";
 export * from "./components/TablesGrid";
 export * from "./components/RlsBadge";
 export * from "./components/HeaderStat";

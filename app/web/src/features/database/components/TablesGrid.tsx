@@ -210,7 +210,7 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                     borderColor: "border.default",
                   }}
                 >
-                  <Tooltip title={`${BigInt(table.sizeBytes).toLocaleString("en-US")} bytes`} describeChild>
+                  <Tooltip title={`Total physical size: ${BigInt(table.sizeBytes).toLocaleString("en-US")} bytes (includes table data, indexes and TOAST)`} describeChild>
                     <Box component="span" sx={{ cursor: "help", borderBottom: "1px dotted", borderColor: "border.strong" }}>
                       {table.size}
                     </Box>

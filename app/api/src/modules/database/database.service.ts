@@ -94,12 +94,17 @@ export class DatabaseService {
       Array<{
         name: string;
         bytes: bigint | number;
+        dataBytes: bigint | number;
+        indexBytes: bigint | number;
         rls: boolean;
         modified: Date | null;
       }>
     >(
       `SELECT c.relname AS name,
-        pg_total_relation_size(c.oid) AS bytes, c.relrowsecurity AS rls,
+        pg_total_relation_size(c.oid) AS bytes,
+        pg_relation_size(c.oid) AS "dataBytes",
+        pg_indexes_size(c.oid) AS "indexBytes",
+        c.relrowsecurity AS rls,
         (SELECT MAX(GREATEST(s.last_vacuum, s.last_autovacuum, s.last_analyze, s.last_autoanalyze))
           FROM pg_stat_user_tables s WHERE s.schemaname = n.nspname AND s.relname = c.relname) AS modified
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -144,10 +149,88 @@ export class DatabaseService {
         rows: Number(rowCounts.get(table.name) ?? 0n),
         size: prettyBytes(Number(table.bytes)),
         sizeBytes: String(table.bytes),
+        dataSizeBytes: String(table.dataBytes),
+        indexSizeBytes: String(table.indexBytes),
         lastMaintained: table.modified
           ? new Date(table.modified).toISOString()
           : null,
         rls: table.rls ? 'active' : 'disabled',
+      })),
+    };
+  }
+
+  async getIndexes(projectId: string, userId: string) {
+    const project = await this.getProject(projectId, userId);
+    const [indexes, databaseStatsRows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<
+        Array<{
+          name: string;
+          tableName: string;
+          method: string;
+          columns: string[];
+          isUnique: boolean;
+          isPrimary: boolean;
+          isValid: boolean;
+          definition: string;
+          sizeBytes: bigint | number;
+        }>
+      >(
+        `SELECT index_class.relname AS name,
+          table_class.relname AS "tableName",
+          access_method.amname AS method,
+          COALESCE((
+            SELECT array_agg(pg_get_indexdef(index_meta.indexrelid, keys.position, true) ORDER BY keys.position)
+            FROM generate_series(1, index_meta.indnatts) AS keys(position)
+          ), ARRAY[]::text[]) AS columns,
+          index_meta.indisunique AS "isUnique",
+          index_meta.indisprimary AS "isPrimary",
+          index_meta.indisvalid AS "isValid",
+          pg_get_indexdef(index_meta.indexrelid) AS definition,
+          pg_relation_size(index_meta.indexrelid)::bigint AS "sizeBytes"
+         FROM pg_index index_meta
+         JOIN pg_class index_class ON index_class.oid = index_meta.indexrelid
+         JOIN pg_class table_class ON table_class.oid = index_meta.indrelid
+         JOIN pg_namespace table_namespace ON table_namespace.oid = table_class.relnamespace
+         JOIN pg_am access_method ON access_method.oid = index_class.relam
+         WHERE table_namespace.nspname = $1 AND table_class.relkind IN ('r', 'p')
+         ORDER BY table_class.relname, index_class.relname`,
+        project.schemaName,
+      ),
+      this.prisma.$queryRawUnsafe<
+        Array<{
+          size: string;
+          totalTables: bigint | number;
+          activeConnections: bigint | number;
+        }>
+      >(
+        `SELECT pg_size_pretty(COALESCE(SUM(pg_total_relation_size(c.oid)), 0)::bigint) AS size,
+          COUNT(c.oid)::bigint AS "totalTables",
+          (SELECT COUNT(*)::bigint FROM pg_stat_activity WHERE datname = current_database()) AS "activeConnections"
+         FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = $1 AND c.relkind IN ('r', 'p')`,
+        project.schemaName,
+      ),
+    ]);
+    const totalSizeBytes = indexes.reduce(
+      (total, index) => total + BigInt(index.sizeBytes),
+      0n,
+    );
+
+    return {
+      stats: {
+        totalIndexes: indexes.length,
+        uniqueIndexes: indexes.filter((index) => index.isUnique).length,
+        totalSizeBytes: totalSizeBytes.toString(),
+      },
+      databaseStats: {
+        size: databaseStatsRows[0]?.size ?? '0 B',
+        totalTables: Number(databaseStatsRows[0]?.totalTables ?? 0),
+        activeConnections: Number(databaseStatsRows[0]?.activeConnections ?? 0),
+      },
+      indexes: indexes.map((index) => ({
+        ...index,
+        sizeBytes: String(index.sizeBytes),
       })),
     };
   }
@@ -216,7 +299,6 @@ export class DatabaseService {
       throw new NotFoundException('Table not found');
     const schema = quote(project.schemaName);
     const table = quote(tableName);
-    const estimatedRows = Number(columnsMeta[0]?.estimatedRows ?? 0);
     const visibleColumns = columnsMeta.filter(
       (column) => !isSensitiveColumn(column.name),
     );
@@ -275,10 +357,10 @@ export class DatabaseService {
       }
       return row;
     });
-    const totalRows = Math.max(
-      estimatedRows,
-      (page - 1) * pageSize + rows.length,
+    const countRows = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+      `SELECT COUNT(*)::bigint AS count FROM ${schema}.${table}`,
     );
+    const totalRows = Number(countRows[0]?.count ?? 0n);
     const tableStats = await this.prisma.$queryRawUnsafe<
       Array<{ bytes: bigint | number; rls: boolean }>
     >(

@@ -3,6 +3,8 @@ export type {
   DatabaseTable,
   DatabaseStats,
   DatabaseOverview,
+  DatabaseIndex,
+  DatabaseIndexesResponse,
   DatabaseTabValue,
   TableTabValue,
   CellKind,

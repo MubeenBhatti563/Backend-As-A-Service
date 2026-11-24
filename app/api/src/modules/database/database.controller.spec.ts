@@ -6,6 +6,7 @@ describe('DatabaseController', () => {
   let controller: DatabaseController;
   const databaseService = {
     getOverview: jest.fn(),
+    getIndexes: jest.fn(),
     getTable: jest.fn(),
     createTable: jest.fn(),
     insertRow: jest.fn(),
@@ -28,6 +29,19 @@ describe('DatabaseController', () => {
       overview,
     );
     expect(databaseService.getOverview).toHaveBeenCalledWith(
+      'project-1',
+      'user-1',
+    );
+  });
+
+  it('delegates index requests with project and authenticated caller identity', async () => {
+    const indexes = { stats: { totalIndexes: 1 }, indexes: [] };
+    databaseService.getIndexes.mockResolvedValue(indexes);
+
+    await expect(
+      controller.getIndexes('project-1', 'user-1'),
+    ).resolves.toBe(indexes);
+    expect(databaseService.getIndexes).toHaveBeenCalledWith(
       'project-1',
       'user-1',
     );

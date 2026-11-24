@@ -39,6 +39,75 @@ describe('DatabaseService', () => {
     expect(prisma.$queryRawUnsafe).not.toHaveBeenCalled();
   });
 
+  it('returns project index metadata and exact allocated byte totals', async () => {
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([
+        {
+          name: 'profiles_pkey',
+          tableName: 'profiles',
+          method: 'btree',
+          columns: ['id'],
+          isUnique: true,
+          isPrimary: true,
+          isValid: true,
+          definition: 'CREATE UNIQUE INDEX profiles_pkey ON tenant_abc.profiles USING btree (id)',
+          sizeBytes: 8192n,
+        },
+        {
+          name: 'profiles_email_idx',
+          tableName: 'profiles',
+          method: 'btree',
+          columns: ['email'],
+          isUnique: true,
+          isPrimary: false,
+          isValid: true,
+          definition: 'CREATE UNIQUE INDEX profiles_email_idx ON tenant_abc.profiles USING btree (email)',
+          sizeBytes: 4096n,
+        },
+      ])
+      .mockResolvedValueOnce([
+        { size: '24 kB', totalTables: 1n, activeConnections: 4n },
+      ]);
+
+    const result = await service.getIndexes('project-1', 'user-1');
+
+    expect(result.stats).toEqual({
+      totalIndexes: 2,
+      uniqueIndexes: 2,
+      totalSizeBytes: '12288',
+    });
+    expect(result.databaseStats).toEqual({
+      size: '24 kB',
+      totalTables: 1,
+      activeConnections: 4,
+    });
+    expect(result.indexes[0]).toMatchObject({
+      name: 'profiles_pkey',
+      tableName: 'profiles',
+      columns: ['id'],
+      sizeBytes: '8192',
+    });
+    expect(prisma.$queryRawUnsafe).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('WHERE table_namespace.nspname = $1'),
+      'tenant_abc',
+    );
+    expect(prisma.$queryRawUnsafe).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('WHERE n.nspname = $1'),
+      'tenant_abc',
+    );
+  });
+
+  it('does not read index catalogs when the caller does not own the project', async () => {
+    prisma.project.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.getIndexes('project-1', 'other-user'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
   it('rejects unsafe tenant schema names before interpolating SQL identifiers', async () => {
     prisma.project.findFirst.mockResolvedValue({
       id: 'project-1',

@@ -5,6 +5,8 @@ export interface DatabaseTable {
   rows: number;
   size: string;
   sizeBytes: string;
+  dataSizeBytes?: string;
+  indexSizeBytes?: string;
   lastMaintained: string | null;
   rls: RlsStatus;
 }
@@ -18,6 +20,28 @@ export interface DatabaseStats {
 export interface DatabaseOverview {
   stats: DatabaseStats;
   tables: DatabaseTable[];
+}
+
+export interface DatabaseIndex {
+  name: string;
+  tableName: string;
+  method: string;
+  columns: string[];
+  isUnique: boolean;
+  isPrimary: boolean;
+  isValid: boolean;
+  definition: string;
+  sizeBytes: string;
+}
+
+export interface DatabaseIndexesResponse {
+  stats: {
+    totalIndexes: number;
+    uniqueIndexes: number;
+    totalSizeBytes: string;
+  };
+  databaseStats: DatabaseStats;
+  indexes: DatabaseIndex[];
 }
 
 export type DatabaseTabValue =

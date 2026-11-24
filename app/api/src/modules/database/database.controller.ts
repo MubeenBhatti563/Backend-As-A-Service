@@ -15,6 +15,14 @@ export class DatabaseController {
     return this.databaseService.getOverview(projectId, userId);
   }
 
+  @Get('indexes')
+  getIndexes(
+    @Param('projectId') projectId: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.getIndexes(projectId, userId);
+  }
+
   @Get('tables/:tableName')
   getTable(
     @Param('projectId') projectId: string,

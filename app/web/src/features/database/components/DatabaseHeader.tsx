@@ -54,9 +54,11 @@ function Stat({ label, value, color }: StatProps) {
 interface Props {
   projectId: string;
   stats: DatabaseStats;
+  currentSection?: string;
+  title?: string;
 }
 
-export function DatabaseHeader({ projectId, stats }: Props) {
+export function DatabaseHeader({ projectId, stats, currentSection = "Tables", title = "Database Engine" }: Props) {
   return (
     <Box
       sx={{
@@ -107,7 +109,7 @@ export function DatabaseHeader({ projectId, stats }: Props) {
             aria-current="page"
             sx={{ color: "text.primary", fontSize: 13, fontWeight: 500 }}
           >
-            Tables
+            {currentSection}
           </Typography>
         </Box>
 
@@ -122,7 +124,7 @@ export function DatabaseHeader({ projectId, stats }: Props) {
             color: "text.primary",
           }}
         >
-          Database Engine
+          {title}
         </Typography>
       </Box>
 

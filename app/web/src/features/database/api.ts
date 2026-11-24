@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import type { DatabaseOverview, TableDetail } from './types';
+import type { DatabaseIndexesResponse, DatabaseOverview, TableDetail } from './types';
 
 const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3000/api/v1').replace(/\/$/, '');
 
@@ -22,6 +22,10 @@ async function getData<T>(path: string): Promise<T | null> {
 
 export function getDatabaseOverview(projectId: string): Promise<DatabaseOverview | null> {
   return getData<DatabaseOverview>(`/project/${encodeURIComponent(projectId)}/database`);
+}
+
+export function getDatabaseIndexes(projectId: string): Promise<DatabaseIndexesResponse | null> {
+  return getData<DatabaseIndexesResponse>(`/project/${encodeURIComponent(projectId)}/database/indexes`);
 }
 
 export function getTableDetail(projectId: string, tableName: string): Promise<TableDetail | null> {

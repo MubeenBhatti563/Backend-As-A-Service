@@ -113,7 +113,7 @@ export function TableDetailHeader({ projectId, table }: Props) {
           color="text.primary"
         />
         <HeaderStatDivider />
-        <HeaderStat label="Data size" value={table.size} color="secondary.main" />
+        <HeaderStat label="Total size" value={table.size} color="secondary.main" />
       </Box>
     </Box>
   );
