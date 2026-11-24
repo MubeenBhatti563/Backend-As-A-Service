@@ -124,6 +124,15 @@ describe('AllExceptionsFilter', () => {
   });
 
   describe('Prisma error handling', () => {
+    it('reports missing database schema objects as service unavailable, not client error', () => {
+      filter.catch({ code: 'P2021' }, mockHost);
+      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+      expect(mockResponse.send).toHaveBeenCalledWith(expect.objectContaining({
+        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+        message: 'The database schema is missing required migrations. Apply pending migrations and retry.',
+      }));
+    });
+
     it('should format P2002 unique constraint violation as 409 Conflict', () => {
       const prismaError = {
         code: 'P2002',

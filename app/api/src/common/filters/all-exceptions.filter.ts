@@ -82,6 +82,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // Prisma Client Known Request Error handling
       const prismaError = exception as any;
       switch (prismaError.code) {
+        case 'P2021':
+        case 'P2022': {
+          statusCode = HttpStatus.SERVICE_UNAVAILABLE;
+          error = 'Database Schema Unavailable';
+          message = 'The database schema is missing required migrations. Apply pending migrations and retry.';
+          break;
+        }
         case 'P2002': {
           statusCode = HttpStatus.CONFLICT;
           error = 'Conflict';
@@ -106,7 +113,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           break;
         }
         default: {
-          statusCode = HttpStatus.BAD_REQUEST;
+          statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
           error = 'Database Error';
           message = isProduction
             ? 'A database error occurred'
