@@ -23,6 +23,14 @@ export class DatabaseController {
     return this.databaseService.getIndexes(projectId, userId);
   }
 
+  @Get('relationships')
+  getRelationships(
+    @Param('projectId') projectId: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.getRelationships(projectId, userId);
+  }
+
   @Get('tables/:tableName')
   getTable(
     @Param('projectId') projectId: string,

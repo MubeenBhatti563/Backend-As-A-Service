@@ -5,6 +5,7 @@ import {
   DatabaseTabs,
   RelationshipsView,
   getDatabaseOverview,
+  getDatabaseRelationships,
   getRelationshipsData,
 } from "@/features/database";
 
@@ -16,10 +17,12 @@ export const metadata: Metadata = { title: "Database Relationships" };
 
 export default async function RelationshipsPage({ params }: PageProps) {
   const { id } = await params;
-  const [data, overview] = await Promise.all([
-    getRelationshipsData(id),
-    getDatabaseOverview(id),
+  const [realRelationships, overview] = await Promise.all([
+    getDatabaseRelationships(id).catch(() => null),
+    getDatabaseOverview(id).catch(() => null),
   ]);
+
+  const data = realRelationships ?? (await getRelationshipsData(id));
 
   const stats = overview?.stats ?? {
     size: "0 B",

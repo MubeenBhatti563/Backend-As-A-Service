@@ -99,6 +99,87 @@ describe('DatabaseService', () => {
     );
   });
 
+  it('returns project tables, columns, and foreign key relationships with topological layout positions', async () => {
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([
+        {
+          tableName: 'users',
+          columnName: 'id',
+          type: 'uuid',
+          isPrimary: true,
+          isForeignKey: false,
+        },
+        {
+          tableName: 'users',
+          columnName: 'name',
+          type: 'character varying(255)',
+          isPrimary: false,
+          isForeignKey: false,
+        },
+        {
+          tableName: 'posts',
+          columnName: 'id',
+          type: 'uuid',
+          isPrimary: true,
+          isForeignKey: false,
+        },
+        {
+          tableName: 'posts',
+          columnName: 'user_id',
+          type: 'uuid',
+          isPrimary: false,
+          isForeignKey: true,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          constraintName: 'posts_user_id_fkey',
+          childTable: 'posts',
+          childColumn: 'user_id',
+          parentTable: 'users',
+          parentColumn: 'id',
+          isUnique: false,
+        },
+      ]);
+
+    const result = await service.getRelationships('project-1', 'user-1');
+
+    expect(result.tables).toHaveLength(2);
+    const usersTable = result.tables.find((t) => t.id === 'users');
+    const postsTable = result.tables.find((t) => t.id === 'posts');
+
+    expect(usersTable).toBeDefined();
+    expect(usersTable?.columns).toEqual([
+      { name: 'id', type: 'uuid', key: 'pk' },
+      { name: 'name', type: 'varchar' },
+    ]);
+    expect(postsTable).toBeDefined();
+    expect(postsTable?.columns).toEqual([
+      { name: 'id', type: 'uuid', key: 'pk' },
+      { name: 'user_id', type: 'uuid', key: 'fk' },
+    ]);
+    // users is parent, posts is child -> users x should be <= posts x
+    expect(usersTable!.x).toBeLessThan(postsTable!.x);
+
+    expect(result.relations).toHaveLength(1);
+    expect(result.relations[0]).toEqual({
+      id: 'posts-user_id-users-id',
+      from: { table: 'users', column: 'id' },
+      to: { table: 'posts', column: 'user_id' },
+      cardinality: '1:N',
+      tone: 'secondary',
+    });
+  });
+
+  it('does not read relationships when the caller does not own the project', async () => {
+    prisma.project.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.getRelationships('project-1', 'other-user'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
   it('does not read index catalogs when the caller does not own the project', async () => {
     prisma.project.findFirst.mockResolvedValue(null);
 

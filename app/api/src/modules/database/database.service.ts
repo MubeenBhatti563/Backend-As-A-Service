@@ -4,6 +4,13 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import type {
+  ErColumn,
+  ErRelation,
+  ErTable,
+  RelationTone,
+  RelationshipsData,
+} from '@baas/types';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import type { CreateTableDto, InsertRowDto } from './dto/create-table.dto';
 
@@ -56,6 +63,18 @@ function prettyBytes(bytes: number): string {
     unit += 1;
   } while (value >= 1024 && unit < units.length - 1);
   return `${Number(value.toFixed(2))} ${units[unit]}`;
+}
+
+function formatColumnType(rawType: string): string {
+  const lower = rawType.toLowerCase();
+  if (lower.startsWith('character varying') || lower.startsWith('varchar')) return 'varchar';
+  if (lower.startsWith('timestamp with time zone') || lower.startsWith('timestamptz')) return 'timestamptz';
+  if (lower.startsWith('timestamp without time zone')) return 'timestamp';
+  if (lower === 'integer' || lower === 'int4') return 'integer';
+  if (lower === 'bigint' || lower === 'int8') return 'bigint';
+  if (lower === 'smallint' || lower === 'int2') return 'smallint';
+  if (lower.startsWith('numeric')) return 'numeric';
+  return lower.replace(/\(\d+(?:,\s*\d+)?\)/g, '').trim();
 }
 
 function cellKind(type: string, name: string) {
@@ -218,6 +237,190 @@ export class DatabaseService {
         sizeBytes: String(index.sizeBytes),
       })),
     };
+  }
+
+  async getRelationships(
+    projectId: string,
+    userId: string,
+  ): Promise<RelationshipsData> {
+    const project = await this.getProject(projectId, userId);
+
+    const [columnsRaw, relationsRaw] = await Promise.all([
+      this.prisma.$queryRawUnsafe<
+        Array<{
+          tableName: string;
+          columnName: string;
+          type: string;
+          isPrimary: boolean;
+          isForeignKey: boolean;
+        }>
+      >(
+        `SELECT
+          c.relname AS "tableName",
+          a.attname AS "columnName",
+          format_type(a.atttypid, a.atttypmod) AS type,
+          EXISTS (
+            SELECT 1 FROM pg_index i
+            WHERE i.indrelid = c.oid AND i.indisprimary AND a.attnum = ANY(i.indkey)
+          ) AS "isPrimary",
+          EXISTS (
+            SELECT 1 FROM pg_constraint fk_con
+            WHERE fk_con.conrelid = c.oid AND fk_con.contype = 'f' AND a.attnum = ANY(fk_con.conkey)
+          ) AS "isForeignKey"
+         FROM pg_attribute a
+         JOIN pg_class c ON c.oid = a.attrelid
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = $1
+           AND c.relkind IN ('r', 'p')
+           AND a.attnum > 0
+           AND NOT a.attisdropped
+         ORDER BY c.relname, a.attnum`,
+        project.schemaName,
+      ),
+      this.prisma.$queryRawUnsafe<
+        Array<{
+          constraintName: string;
+          childTable: string;
+          childColumn: string;
+          parentTable: string;
+          parentColumn: string;
+          isUnique: boolean;
+        }>
+      >(
+        `SELECT
+          con.conname AS "constraintName",
+          src.relname AS "childTable",
+          src_attr.attname AS "childColumn",
+          ref.relname AS "parentTable",
+          ref_attr.attname AS "parentColumn",
+          EXISTS (
+            SELECT 1 FROM pg_constraint u
+            WHERE u.conrelid = src.oid
+              AND u.contype IN ('p', 'u')
+              AND u.conkey = ARRAY[src_attr.attnum]::smallint[]
+          ) AS "isUnique"
+         FROM pg_constraint con
+         JOIN pg_class src ON src.oid = con.conrelid
+         JOIN pg_namespace src_ns ON src_ns.oid = src.relnamespace
+         JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS key_pair(local_attnum, ref_attnum, position) ON TRUE
+         JOIN pg_attribute src_attr ON src_attr.attrelid = src.oid AND src_attr.attnum = key_pair.local_attnum
+         JOIN pg_class ref ON ref.oid = con.confrelid
+         JOIN pg_namespace ref_ns ON ref_ns.oid = ref.relnamespace
+         JOIN pg_attribute ref_attr ON ref_attr.attrelid = ref.oid AND ref_attr.attnum = key_pair.ref_attnum
+         WHERE con.contype = 'f'
+           AND src_ns.nspname = $1
+           AND ref_ns.nspname = $1
+         ORDER BY con.conname, key_pair.position`,
+        project.schemaName,
+      ),
+    ]);
+
+    const tableColumnsMap = new Map<string, ErColumn[]>();
+    for (const col of columnsRaw) {
+      let list = tableColumnsMap.get(col.tableName);
+      if (!list) {
+        list = [];
+        tableColumnsMap.set(col.tableName, list);
+      }
+      let key: 'pk' | 'fk' | undefined;
+      if (col.isPrimary) key = 'pk';
+      else if (col.isForeignKey) key = 'fk';
+
+      list.push({
+        name: col.columnName,
+        type: formatColumnType(col.type),
+        ...(key ? { key } : {}),
+      });
+    }
+
+    const tableNames = Array.from(tableColumnsMap.keys());
+
+    const dependencies = new Map<string, Set<string>>();
+    for (const name of tableNames) {
+      dependencies.set(name, new Set());
+    }
+    for (const r of relationsRaw) {
+      if (r.childTable !== r.parentTable) {
+        dependencies.get(r.childTable)?.add(r.parentTable);
+      }
+    }
+
+    const ranks = new Map<string, number>();
+    const getRank = (tableName: string, visited = new Set<string>()): number => {
+      if (ranks.has(tableName)) return ranks.get(tableName)!;
+      if (visited.has(tableName)) return 0;
+      visited.add(tableName);
+      const deps = dependencies.get(tableName);
+      if (!deps || deps.size === 0) {
+        ranks.set(tableName, 0);
+        return 0;
+      }
+      let maxRank = 0;
+      for (const parent of deps) {
+        maxRank = Math.max(maxRank, getRank(parent, new Set(visited)) + 1);
+      }
+      ranks.set(tableName, maxRank);
+      return maxRank;
+    };
+
+    for (const name of tableNames) {
+      getRank(name);
+    }
+
+    const layers = new Map<number, string[]>();
+    for (const name of tableNames) {
+      const rank = ranks.get(name) ?? 0;
+      if (!layers.has(rank)) layers.set(rank, []);
+      layers.get(rank)!.push(name);
+    }
+
+    const sortedRanks = Array.from(layers.keys()).sort((a, b) => a - b);
+    const positions = new Map<string, { x: number; y: number }>();
+
+    if (sortedRanks.length <= 1) {
+      tableNames.forEach((tName, idx) => {
+        const col = idx % 3;
+        const row = Math.floor(idx / 3);
+        positions.set(tName, {
+          x: 40 + col * 320,
+          y: 60 + row * 260,
+        });
+      });
+    } else {
+      for (let colIdx = 0; colIdx < sortedRanks.length; colIdx++) {
+        const rank = sortedRanks[colIdx];
+        const tablesInLayer = layers.get(rank)!;
+        tablesInLayer.forEach((tName, rowIdx) => {
+          positions.set(tName, {
+            x: 40 + colIdx * 340,
+            y: 60 + rowIdx * 260,
+          });
+        });
+      }
+    }
+
+    const tables: ErTable[] = tableNames.map((name) => {
+      const pos = positions.get(name) ?? { x: 40, y: 60 };
+      return {
+        id: name,
+        name,
+        x: pos.x,
+        y: pos.y,
+        columns: tableColumnsMap.get(name) ?? [],
+      };
+    });
+
+    const TONES: RelationTone[] = ['secondary', 'warning', 'info'];
+
+    const relations: ErRelation[] = relationsRaw.map((r, idx) => ({
+      id: `${r.childTable}-${r.childColumn}-${r.parentTable}-${r.parentColumn}`,
+      from: { table: r.parentTable, column: r.parentColumn },
+      to: { table: r.childTable, column: r.childColumn },
+      cardinality: r.isUnique ? '1:1' : '1:N',
+      tone: TONES[idx % TONES.length],
+    }));
+
+    return { tables, relations };
   }
 
   async getTable(

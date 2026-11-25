@@ -11,4 +11,9 @@ export type {
   GridColumn,
   GridRow,
   TableDetail,
+  ErColumn,
+  ErTable,
+  RelationTone,
+  ErRelation,
+  RelationshipsData,
 } from "@baas/types";

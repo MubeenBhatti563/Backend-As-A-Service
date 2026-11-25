@@ -7,6 +7,7 @@ describe('DatabaseController', () => {
   const databaseService = {
     getOverview: jest.fn(),
     getIndexes: jest.fn(),
+    getRelationships: jest.fn(),
     getTable: jest.fn(),
     createTable: jest.fn(),
     insertRow: jest.fn(),
@@ -42,6 +43,19 @@ describe('DatabaseController', () => {
       controller.getIndexes('project-1', 'user-1'),
     ).resolves.toBe(indexes);
     expect(databaseService.getIndexes).toHaveBeenCalledWith(
+      'project-1',
+      'user-1',
+    );
+  });
+
+  it('delegates relationship requests with project and authenticated caller identity', async () => {
+    const relationships = { tables: [], relations: [] };
+    databaseService.getRelationships.mockResolvedValue(relationships);
+
+    await expect(
+      controller.getRelationships('project-1', 'user-1'),
+    ).resolves.toBe(relationships);
+    expect(databaseService.getRelationships).toHaveBeenCalledWith(
       'project-1',
       'user-1',
     );
