@@ -43,7 +43,7 @@ export class UsageTelemetryService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.flushCounters();
       stage = 'database size snapshot';
-      const snapshotLock = await client.set('usage:project:snapshot-lock', lockToken, 'EX', 3600, 'NX');
+      const snapshotLock = await client.set('usage:project:snapshot-lock', lockToken, 'EX', 300, 'NX');
       if (snapshotLock) {
         try {
           await this.snapshotDatabaseSizes();
@@ -77,12 +77,21 @@ export class UsageTelemetryService implements OnModuleInit, OnModuleDestroy {
         const [, day, projectId] = key.slice(COUNTER_PREFIX.length).split(':');
         if (!day || !projectId) continue;
         const dayDate = new Date(`${day}T00:00:00.000Z`);
+        const periodStart = new Date(Date.UTC(dayDate.getUTCFullYear(), dayDate.getUTCMonth(), 1));
+        const periodEnd = new Date(Date.UTC(dayDate.getUTCFullYear(), dayDate.getUTCMonth() + 1, 1));
         try {
-          await this.prisma.projectUsageDaily.upsert({
-            where: { projectId_day: { projectId, day: dayDate } },
-            create: { projectId, day: dayDate, apiRequests: BigInt(count) },
-            update: { apiRequests: { increment: BigInt(count) } },
-          });
+          await this.prisma.$transaction([
+            this.prisma.projectUsageDaily.upsert({
+              where: { projectId_day: { projectId, day: dayDate } },
+              create: { projectId, day: dayDate, apiRequests: BigInt(count) },
+              update: { apiRequests: { increment: BigInt(count) } },
+            }),
+            this.prisma.projectUsage.upsert({
+              where: { projectId_periodStart: { projectId, periodStart } },
+              create: { projectId, periodStart, periodEnd, apiRequests: BigInt(count) },
+              update: { apiRequests: { increment: BigInt(count) } },
+            }),
+          ]);
           await redis.eval("if redis.call('GET', KEYS[1]) == '0' then return redis.call('DEL', KEYS[1]) else return 0 end", 1, key);
         } catch (error) {
           await redis.incrby(key, count);
@@ -97,18 +106,36 @@ export class UsageTelemetryService implements OnModuleInit, OnModuleDestroy {
       where: { status: { in: ['ACTIVE', 'PENDING'] } },
       select: { id: true, schemaName: true },
     });
+    if (projects.length === 0) return;
+
+    const sizeRows = await this.prisma.$queryRawUnsafe<Array<{ schema_name: string; bytes: bigint }>>(
+      `SELECT n.nspname AS schema_name, COALESCE(SUM(pg_total_relation_size(c.oid)), 0)::bigint AS bytes
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE c.relkind IN ('r', 'p')
+       GROUP BY n.nspname`,
+    );
+    const sizeMap = new Map(sizeRows.map((r) => [r.schema_name, BigInt(r.bytes)]));
+
     const day = new Date();
     day.setUTCHours(0, 0, 0, 0);
+    const periodStart = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1));
+    const periodEnd = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 1));
+
     for (const project of projects) {
-      const result = await this.prisma.$queryRawUnsafe<Array<{ bytes: bigint }>>(
-        `SELECT COALESCE(SUM(pg_total_relation_size(c.oid)), 0)::bigint AS bytes FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relkind IN ('r', 'p')`,
-        project.schemaName,
-      );
-      await this.prisma.projectUsageDaily.upsert({
-        where: { projectId_day: { projectId: project.id, day } },
-        create: { projectId: project.id, day, dbBytes: result[0]?.bytes ?? 0n },
-        update: { dbBytes: result[0]?.bytes ?? 0n },
-      });
+      const bytes = sizeMap.get(project.schemaName) ?? 0n;
+      await this.prisma.$transaction([
+        this.prisma.projectUsageDaily.upsert({
+          where: { projectId_day: { projectId: project.id, day } },
+          create: { projectId: project.id, day, dbBytes: bytes },
+          update: { dbBytes: bytes },
+        }),
+        this.prisma.projectUsage.upsert({
+          where: { projectId_periodStart: { projectId: project.id, periodStart } },
+          create: { projectId: project.id, periodStart, periodEnd, dbBytes: bytes },
+          update: { dbBytes: bytes },
+        }),
+      ]);
     }
   }
 

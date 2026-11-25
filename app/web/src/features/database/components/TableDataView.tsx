@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, InputAdornment, OutlinedInput, Snackbar, Alert } from "@mui/material";
 import {
   IconAdjustmentsHorizontal,
@@ -35,29 +35,49 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
   const [loadError, setLoadError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const changePage = async (page: number) => {
-    setLoading(true);
-    setLoadError("");
-    try {
-      setCurrentDetail(await fetchTablePage(projectId, detail.table.name, page, detail.pagination.pageSize));
-    } catch {
-      setLoadError("Could not load this page of rows. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const tableDetail = currentDetail;
-  const { columns, rows, pagination } = tableDetail;
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      Object.values(r).some((v) => v.toLowerCase().includes(q)),
-    );
-  }, [rows, query]);
+  const loadData = useCallback(
+    async (page: number, searchQuery?: string) => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const nextDetail = await fetchTablePage(
+          projectId,
+          detail.table.name,
+          page,
+          detail.pagination.pageSize,
+          searchQuery,
+        );
+        setCurrentDetail(nextDetail);
+      } catch {
+        setLoadError("Could not load table data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [projectId, detail.table.name, detail.pagination.pageSize],
+  );
+
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      void loadData(1, query);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, loadData]);
+
+  const changePage = (page: number) => {
+    void loadData(page, query);
+  };
+
+  const tableDetail = currentDetail;
+  const { columns, rows, pagination } = tableDetail;
 
   const toggleRow = (id: string) =>
     setSelected((prev) => {
@@ -69,12 +89,12 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
 
   const toggleAll = () =>
     setSelected((prev) =>
-      filtered.every((r) => prev.has(r.id))
+      rows.every((r) => prev.has(r.id))
         ? new Set()
-        : new Set(filtered.map((r) => r.id)),
+        : new Set(rows.map((r) => r.id)),
     );
 
-  const from = (pagination.page - 1) * pagination.pageSize + 1;
+  const from = pagination.totalRows === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
   const to = Math.min(from + rows.length - 1, pagination.totalRows);
   const pageCount = Math.max(
     1,
@@ -184,7 +204,7 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
       <Box sx={{ opacity: loading ? 0.6 : 1, minWidth: 0 }}>
         <DataGrid
           columns={columns}
-          rows={filtered}
+          rows={rows}
           selected={selected}
           onToggleRow={toggleRow}
           onToggleAll={toggleAll}
@@ -212,7 +232,7 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
         onClose={() => setAddOpen(false)}
         onInserted={() => {
           setSuccessMessage("Row added.");
-          void fetchTablePage(projectId, detail.table.name, 1, pagination.pageSize)
+          void fetchTablePage(projectId, detail.table.name, 1, pagination.pageSize, query)
             .then((refreshed) => {
               setCurrentDetail(refreshed);
               setSelected(new Set());

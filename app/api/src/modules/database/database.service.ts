@@ -89,10 +89,10 @@ export class DatabaseService {
 
   async getOverview(projectId: string, userId: string) {
     const project = await this.getProject(projectId, userId);
-    const schema = quote(project.schemaName);
     const tables = await this.prisma.$queryRawUnsafe<
       Array<{
         name: string;
+        rows: bigint | number;
         bytes: bigint | number;
         dataBytes: bigint | number;
         indexBytes: bigint | number;
@@ -101,6 +101,7 @@ export class DatabaseService {
       }>
     >(
       `SELECT c.relname AS name,
+        GREATEST(c.reltuples::bigint, 0) AS rows,
         pg_total_relation_size(c.oid) AS bytes,
         pg_relation_size(c.oid) AS "dataBytes",
         pg_indexes_size(c.oid) AS "indexBytes",
@@ -111,22 +112,6 @@ export class DatabaseService {
        WHERE n.nspname = $1 AND c.relkind IN ('r', 'p') ORDER BY c.relname`,
       project.schemaName,
     );
-    const rowCounts = new Map<string, bigint>();
-    const countBatchSize = 4;
-    for (let offset = 0; offset < tables.length; offset += countBatchSize) {
-      const batch = tables.slice(offset, offset + countBatchSize);
-      const counts = await Promise.all(
-        batch.map(async (table) => {
-          const result = await this.prisma.$queryRawUnsafe<
-            Array<{ count: bigint }>
-          >(
-            `SELECT COUNT(*)::bigint AS count FROM ${schema}.${quote(table.name)}`,
-          );
-          return [table.name, result[0]?.count ?? 0n] as const;
-        }),
-      );
-      for (const [name, count] of counts) rowCounts.set(name, count);
-    }
     const sizeRows = await this.prisma.$queryRawUnsafe<
       Array<{ bytes: bigint | number }>
     >(
@@ -146,7 +131,7 @@ export class DatabaseService {
       },
       tables: tables.map((table) => ({
         name: table.name,
-        rows: Number(rowCounts.get(table.name) ?? 0n),
+        rows: Number(table.rows),
         size: prettyBytes(Number(table.bytes)),
         sizeBytes: String(table.bytes),
         dataSizeBytes: String(table.dataBytes),
@@ -241,6 +226,7 @@ export class DatabaseService {
     tableName: string,
     rawPage?: string,
     rawPageSize?: string,
+    search?: string,
   ) {
     if (!IDENTIFIER.test(tableName))
       throw new BadRequestException('Invalid table name');
@@ -310,10 +296,28 @@ export class DatabaseService {
       ...visibleColumns.map((column) => quote(column.name)),
     ].join(', ');
     const orderBy = primary ? quote(primary) : 'ctid';
+    const trimmedSearch = search?.trim();
+    const queryParams: unknown[] = [];
+    let paramIndex = 1;
+    let whereClause = '';
+
+    if (trimmedSearch) {
+      const searchPattern = `%${trimmedSearch}%`;
+      const searchExprs = visibleColumns.map(
+        (col) => `CAST(${quote(col.name)} AS TEXT) ILIKE $${paramIndex}`,
+      );
+      if (searchExprs.length > 0) {
+        whereClause = ` WHERE (${searchExprs.join(' OR ')})`;
+        queryParams.push(searchPattern);
+        paramIndex++;
+      }
+    }
+
     const records = await this.prisma.$queryRawUnsafe<
       Array<Record<string, unknown>>
     >(
-      `SELECT ${projection} FROM ${schema}.${table} ORDER BY ${orderBy} LIMIT $1 OFFSET $2`,
+      `SELECT ${projection} FROM ${schema}.${table}${whereClause} ORDER BY ${orderBy} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      ...queryParams,
       pageSize,
       (page - 1) * pageSize,
     );
@@ -358,7 +362,8 @@ export class DatabaseService {
       return row;
     });
     const countRows = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
-      `SELECT COUNT(*)::bigint AS count FROM ${schema}.${table}`,
+      `SELECT COUNT(*)::bigint AS count FROM ${schema}.${table}${whereClause}`,
+      ...queryParams,
     );
     const totalRows = Number(countRows[0]?.count ?? 0n);
     const tableStats = await this.prisma.$queryRawUnsafe<
@@ -497,6 +502,9 @@ export class DatabaseService {
         !['true', 'false'].includes(value)
       ) {
         throw new BadRequestException(`Column "${name}" must be true or false`);
+      }
+      if (typeof value === 'object') {
+        throw new BadRequestException(`Column "${name}" cannot be an object`);
       }
       return String(value);
     });

@@ -344,7 +344,10 @@ describe('ProjectService', () => {
       expect(prismaMock.project.findMany).toHaveBeenCalledTimes(1);
       expect(prismaMock.project.findMany).toHaveBeenCalledWith({
         where: { ownerId: userId },
-        include: { projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 } },
+        include: {
+          projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 },
+          dailyUsages: { orderBy: { day: 'desc' }, take: 1 },
+        },
         orderBy: { updatedAt: 'desc' },
       });
       expect(result).toEqual(mockProjects.map((project) => ({ ...project, dbBytes: '0', fileBytes: '0' })));
@@ -357,7 +360,10 @@ describe('ProjectService', () => {
 
       expect(prismaMock.project.findMany).toHaveBeenCalledWith({
         where: { ownerId: userId },
-        include: { projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 } },
+        include: {
+          projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 },
+          dailyUsages: { orderBy: { day: 'desc' }, take: 1 },
+        },
         orderBy: { updatedAt: 'desc' },
       });
       expect(result).toEqual([]);

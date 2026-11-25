@@ -62,6 +62,22 @@ describe('DatabaseController', () => {
     );
   });
 
+  it('delegates table detail requests with search filter', async () => {
+    const detail = { table: { name: 'profiles' }, rows: [] };
+    databaseService.getTable.mockResolvedValue(detail);
+    await expect(
+      controller.getTable('project-1', 'profiles', '1', '10', 'user-1', 'john'),
+    ).resolves.toBe(detail);
+    expect(databaseService.getTable).toHaveBeenCalledWith(
+      'project-1',
+      'user-1',
+      'profiles',
+      '1',
+      '10',
+      'john',
+    );
+  });
+
   it('delegates table creation with the authenticated caller', async () => {
     const dto = {
       name: 'events',

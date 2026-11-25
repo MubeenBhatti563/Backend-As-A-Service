@@ -7,11 +7,21 @@ export type NewTableDefinition = {
   columns: Array<{ name: string; type: 'text' | 'integer' | 'bigint' | 'boolean' | 'uuid' | 'timestamptz' | 'jsonb'; nullable: boolean }>;
 };
 
-export async function fetchTablePage(projectId: string, tableName: string, page: number, pageSize: number) {
-  const response = await apiClient.get(
+export async function fetchTablePage(
+  projectId: string,
+  tableName: string,
+  page: number,
+  pageSize: number,
+  query?: string,
+) {
+  const params: Record<string, unknown> = { page, pageSize };
+  if (query && query.trim()) {
+    params.q = query.trim();
+  }
+  const response = (await apiClient.get(
     `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}`,
-    { params: { page, pageSize } },
-  ) as unknown as ApiResponse<TableDetail>;
+    { params },
+  )) as unknown as ApiResponse<TableDetail>;
   return response.data;
 }
 

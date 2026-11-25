@@ -9,8 +9,8 @@ export class UsageTelemetryInterceptor implements NestInterceptor {
   constructor(private readonly telemetry: UsageTelemetryService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const request = context.switchToHttp().getRequest<FastifyRequest & { params?: { projectId?: string } }>();
-    const projectId = request.params?.projectId;
+    const request = context.switchToHttp().getRequest<FastifyRequest & { params?: { projectId?: string; id?: string } }>();
+    const projectId = request.params?.projectId ?? request.params?.id;
     if (!projectId) return next.handle();
     return next.handle().pipe(tap({
       next: () => {

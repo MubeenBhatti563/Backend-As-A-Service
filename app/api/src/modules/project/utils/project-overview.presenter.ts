@@ -27,10 +27,17 @@ export interface ProjectOverviewPresenterParams {
 
 export function formatBytes(bytes: bigint | number): string {
   const b = typeof bytes === 'bigint' ? Number(bytes) : bytes;
-  if (b >= 1024 * 1024 * 1024) {
-    return `${(b / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (!b || b <= 0) return '0 B';
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) {
+    const val = Number((b / 1024).toFixed(1));
+    return `${val} KB`;
   }
-  return `${Math.max(1, Math.round(b / (1024 * 1024)))} MB`;
+  if (b < 1024 * 1024 * 1024) {
+    const val = Number((b / (1024 * 1024)).toFixed(1));
+    return `${val} MB`;
+  }
+  return `${(b / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 export function timeAgo(date: Date, now: Date = new Date()): string {
@@ -101,7 +108,7 @@ export function presentProjectOverview({
     return day;
   });
   const byDay = new Map(dailyUsage.map((usageRow) => [usageRow.day.toISOString().slice(0, 10), usageRow]));
-  let lastDbBytes = 0;
+  let lastDbBytes = dailyUsage.length > 0 ? Number(dailyUsage[0].dbBytes) : (usage ? Number(usage.dbBytes) : 0);
   const requestsPoints = days.map((day) => {
     const row = byDay.get(day.toISOString().slice(0, 10));
     return { label: day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }), value: Number(row?.apiRequests ?? 0n) };
@@ -109,7 +116,10 @@ export function presentProjectOverview({
   const dbPoints = days.map((day) => {
     const row = byDay.get(day.toISOString().slice(0, 10));
     if (row) lastDbBytes = Number(row.dbBytes);
-    return { label: day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }), value: lastDbBytes / (1024 * 1024) };
+    return {
+      label: day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
+      value: Number((lastDbBytes / (1024 * 1024)).toFixed(2)),
+    };
   });
   const charts = [
     {

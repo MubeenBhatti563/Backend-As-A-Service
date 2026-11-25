@@ -14,6 +14,14 @@ describe('UsageTelemetryInterceptor', () => {
     expect(telemetry.recordProjectRequest).toHaveBeenCalledWith('project-1');
 
     telemetry.recordProjectRequest.mockClear();
+    const contextWithId = {
+      switchToHttp: () => ({ getRequest: () => ({ params: { id: 'project-from-id' } }), getResponse: () => response }),
+    } as never;
+    interceptor.intercept(contextWithId, { handle: () => of({ ok: true }) } as never).subscribe();
+    await Promise.resolve();
+    expect(telemetry.recordProjectRequest).toHaveBeenCalledWith('project-from-id');
+
+    telemetry.recordProjectRequest.mockClear();
     const noProject = { switchToHttp: () => ({ getRequest: () => ({ params: {} }), getResponse: () => response }) } as never;
     interceptor.intercept(noProject, { handle: () => of({ ok: true }) } as never).subscribe();
     expect(telemetry.recordProjectRequest).not.toHaveBeenCalled();

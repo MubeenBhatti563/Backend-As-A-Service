@@ -141,14 +141,26 @@ export class ProjectService {
   async getAllProjects(userId: string) {
     const projects = await this.prismaService.project.findMany({
       where: { ownerId: userId },
-      include: { projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 } },
+      include: {
+        projectUsages: { orderBy: { periodStart: 'desc' }, take: 1 },
+        dailyUsages: { orderBy: { day: 'desc' }, take: 1 },
+      },
       orderBy: { updatedAt: 'desc' },
     });
-    return projects.map(({ projectUsages, ...project }) => ({
-      ...project,
-      dbBytes: projectUsages?.[0]?.dbBytes.toString() ?? '0',
-      fileBytes: projectUsages?.[0]?.fileBytes.toString() ?? '0',
-    }));
+    return projects.map(({ projectUsages, dailyUsages, ...project }) => {
+      const usageDbBytes = projectUsages?.[0]?.dbBytes;
+      const dailyDbBytes = dailyUsages?.[0]?.dbBytes;
+      const dbBytes = (
+        usageDbBytes !== undefined && usageDbBytes !== 0n
+          ? usageDbBytes
+          : (dailyDbBytes ?? usageDbBytes ?? 0n)
+      ).toString();
+      return {
+        ...project,
+        dbBytes,
+        fileBytes: projectUsages?.[0]?.fileBytes.toString() ?? '0',
+      };
+    });
   }
 
   async getRecentActivity(userId: string) {
@@ -229,9 +241,9 @@ export class ProjectService {
     });
 
     const now = new Date();
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-    const usage = await this.prismaService.projectUsage.findFirst({
+    let usage = await this.prismaService.projectUsage.findFirst({
       where: {
         projectId,
         periodStart: { gte: periodStart },
@@ -252,6 +264,43 @@ export class ProjectService {
       orderBy: { day: 'asc' },
       select: { day: true, apiRequests: true, dbBytes: true },
     });
+
+    if (!usage || usage.dbBytes === 0n) {
+      const latestDaily =
+        dailyUsage.length > 0
+          ? dailyUsage[dailyUsage.length - 1]
+          : await this.prismaService.projectUsageDaily.findFirst({
+              where: { projectId },
+              orderBy: { day: 'desc' },
+            });
+      let dbBytes = latestDaily?.dbBytes ?? 0n;
+      if (dbBytes === 0n) {
+        try {
+          const res = await this.prismaService.$queryRawUnsafe<Array<{ bytes: bigint }>>(
+            `SELECT COALESCE(SUM(pg_total_relation_size(c.oid)), 0)::bigint AS bytes
+             FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = $1 AND c.relkind IN ('r', 'p')`,
+            project.schemaName,
+          );
+          if (res[0]?.bytes) {
+            dbBytes = BigInt(res[0].bytes);
+          }
+        } catch {
+          // Schema might be pending provisioning or inaccessible
+        }
+      }
+      usage = {
+        id: usage?.id ?? 'computed',
+        projectId,
+        periodStart,
+        periodEnd: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)),
+        dbBytes,
+        fileBytes: usage?.fileBytes ?? 0n,
+        apiRequests: usage?.apiRequests ?? latestDaily?.apiRequests ?? 0n,
+        peakRealtimeConns: usage?.peakRealtimeConns ?? 0,
+        updatedAt: new Date(),
+      };
+    }
 
     return presentProjectOverview({
       project,

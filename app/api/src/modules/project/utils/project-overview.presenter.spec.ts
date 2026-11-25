@@ -6,6 +6,12 @@ import {
 
 describe('ProjectOverviewPresenter', () => {
   describe('formatBytes', () => {
+    it('should format bytes and kilobytes correctly', () => {
+      expect(formatBytes(0)).toBe('0 B');
+      expect(formatBytes(512)).toBe('512 B');
+      expect(formatBytes(49152)).toBe('48 KB');
+    });
+
     it('should format megabytes correctly', () => {
       expect(formatBytes(1048576)).toBe('1 MB');
       expect(formatBytes(52428800)).toBe('50 MB');

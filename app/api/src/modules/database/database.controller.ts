@@ -30,7 +30,18 @@ export class DatabaseController {
     @Query('page') page: string | undefined,
     @Query('pageSize') pageSize: string | undefined,
     @GetUser('userId') userId: string,
+    @Query('q') query?: string,
   ) {
+    if (query !== undefined) {
+      return this.databaseService.getTable(
+        projectId,
+        userId,
+        tableName,
+        page,
+        pageSize,
+        query,
+      );
+    }
     return this.databaseService.getTable(
       projectId,
       userId,

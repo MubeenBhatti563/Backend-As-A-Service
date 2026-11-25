@@ -162,4 +162,93 @@ describe('DatabaseService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.$executeRawUnsafe).not.toHaveBeenCalled();
   });
+
+  it('retrieves overview stats without performing sequential table count scans', async () => {
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([
+        {
+          name: 'users',
+          rows: 42n,
+          bytes: 16384n,
+          dataBytes: 8192n,
+          indexBytes: 8192n,
+          rls: false,
+          modified: new Date('2026-11-20T10:00:00Z'),
+        },
+      ])
+      .mockResolvedValueOnce([{ bytes: 16384n }]);
+    prisma.$queryRaw.mockResolvedValueOnce([{ count: 2n }]);
+
+    const overview = await service.getOverview('project-1', 'user-1');
+
+    expect(overview.tables).toHaveLength(1);
+    expect(overview.tables[0].name).toBe('users');
+    expect(overview.tables[0].rows).toBe(42);
+    // Verified: no batch COUNT(*) queries dispatched
+    expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(2);
+  });
+
+  it('applies parameterized ILIKE filter when searching table records', async () => {
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([
+        {
+          name: 'id',
+          type: 'uuid',
+          primary: true,
+          estimatedRows: 1n,
+          writable: false,
+          nullable: false,
+          hasDefault: true,
+          isForeignKey: false,
+          foreignKeyTable: null,
+          foreignKeyColumn: null,
+        },
+        {
+          name: 'title',
+          type: 'text',
+          primary: false,
+          estimatedRows: 1n,
+          writable: true,
+          nullable: false,
+          hasDefault: false,
+          isForeignKey: false,
+          foreignKeyTable: null,
+          foreignKeyColumn: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ __row_id: '123', id: '123', title: 'hello world' }])
+      .mockResolvedValueOnce([{ count: 1n }])
+      .mockResolvedValueOnce([{ bytes: 8192n, rls: false }]);
+
+    const result = await service.getTable('project-1', 'user-1', 'notes', '1', '10', 'hello');
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.pagination.totalRows).toBe(1);
+    expect(prisma.$queryRawUnsafe).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('WHERE (CAST("id" AS TEXT) ILIKE $1 OR CAST("title" AS TEXT) ILIKE $1)'),
+      '%hello%',
+      10,
+      0,
+    );
+  });
+
+  it('rejects object values for non-jsonb columns in insertRow', async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([
+      {
+        name: 'title',
+        type: 'text',
+        nullable: false,
+        writable: true,
+        hasDefault: false,
+        isForeignKey: false,
+      },
+    ]);
+
+    await expect(
+      service.insertRow('project-1', 'user-1', 'notes', {
+        title: { nested: 'value' } as never,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
 });
