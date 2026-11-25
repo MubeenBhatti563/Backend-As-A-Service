@@ -48,6 +48,8 @@ export function SectionTabs<T extends string>({ tabs, value, ariaLabel, dense = 
             lineHeight: "18px",
             fontWeight: dense ? 500 : 400,
             color: "text.secondary",
+            textDecoration: "none",
+            "&:hover": { color: "text.primary" },
             "&.Mui-selected": { color: "text.primary", fontWeight: 600 },
           }}
         />
