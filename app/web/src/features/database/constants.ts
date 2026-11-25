@@ -5,6 +5,12 @@
  */
 export const SURFACE = "#0E131F";
 
+/**
+ * Figma canvas fill (#060913): the ER diagram canvas background.
+ * No theme token matches (background.default is #0e111a).
+ */
+export const CANVAS = "#060913";
+
 export const projectDatabaseBase = (projectId: string) =>
   `/dashboard/projects/${projectId}/database`;
 
