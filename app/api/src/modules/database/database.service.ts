@@ -615,15 +615,120 @@ export class DatabaseService {
         throw new BadRequestException('Invalid or duplicate column definition');
       }
       names.add(column.name);
-      const generatedUuid = column.type === 'uuid';
+
+      let defaultSql = '';
+      if (column.defaultValue !== undefined && column.defaultValue.trim() !== '') {
+        const def = column.defaultValue.trim();
+        if (column.type === 'boolean') {
+          if (['true', 'false'].includes(def.toLowerCase())) {
+            defaultSql = ` DEFAULT ${def.toLowerCase()}`;
+          } else {
+            throw new BadRequestException(
+              `Default value for boolean column "${column.name}" must be true or false`,
+            );
+          }
+        } else if (column.type === 'integer' || column.type === 'bigint') {
+          if (/^-?\d+$/.test(def)) {
+            defaultSql = ` DEFAULT ${def}`;
+          } else {
+            throw new BadRequestException(
+              `Default value for "${column.name}" must be a number`,
+            );
+          }
+        } else if (column.type === 'uuid') {
+          if (
+            def.toLowerCase() === 'gen_random_uuid()' ||
+            def.toLowerCase() === 'uuid_generate_v4()'
+          ) {
+            defaultSql = ' DEFAULT gen_random_uuid()';
+          } else if (
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              def,
+            )
+          ) {
+            defaultSql = ` DEFAULT '${def}'::uuid`;
+          } else {
+            throw new BadRequestException(
+              `Default value for uuid column "${column.name}" must be a UUID or gen_random_uuid()`,
+            );
+          }
+        } else if (column.type === 'timestamptz') {
+          if (['now()', 'current_timestamp'].includes(def.toLowerCase())) {
+            defaultSql = ' DEFAULT CURRENT_TIMESTAMP';
+          } else {
+            defaultSql = ` DEFAULT '${def.replace(/'/g, "''")}'::timestamptz`;
+          }
+        } else if (column.type === 'jsonb') {
+          try {
+            JSON.parse(def);
+            defaultSql = ` DEFAULT '${def.replace(/'/g, "''")}'::jsonb`;
+          } catch {
+            throw new BadRequestException(
+              `Default value for jsonb column "${column.name}" must be valid JSON`,
+            );
+          }
+        } else {
+          defaultSql = ` DEFAULT '${def.replace(/'/g, "''")}'`;
+        }
+      } else if (column.type === 'uuid' && !column.foreignKey) {
+        defaultSql = ' DEFAULT gen_random_uuid()';
+      }
+
+      let fkSql = '';
+      if (column.foreignKey) {
+        const refTable = column.foreignKey.table.trim();
+        const refCol = column.foreignKey.column.trim();
+        if (!IDENTIFIER.test(refTable) || !IDENTIFIER.test(refCol)) {
+          throw new BadRequestException('Invalid foreign key identifiers');
+        }
+        const refExists = await this.prisma.$queryRawUnsafe<
+          Array<{ exists: boolean }>
+        >(
+          `SELECT EXISTS (
+             SELECT 1 FROM pg_attribute a
+             JOIN pg_class c ON c.oid = a.attrelid
+             JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = $1 AND c.relname = $2 AND a.attname = $3 AND a.attnum > 0 AND NOT a.attisdropped
+          ) AS exists`,
+          project.schemaName,
+          refTable,
+          refCol,
+        );
+        if (!refExists[0]?.exists) {
+          throw new BadRequestException(
+            `Referenced table or column "${refTable}"."${refCol}" does not exist`,
+          );
+        }
+        fkSql = ` REFERENCES ${quote(project.schemaName)}.${quote(refTable)}(${quote(refCol)}) ON DELETE ${column.nullable ? 'SET NULL' : 'CASCADE'}`;
+      }
+
+      const uniqueSql = column.isUnique ? ' UNIQUE' : '';
       definitions.push(
-        `${quote(column.name)} ${SQL_TYPES[column.type]}${generatedUuid ? ' DEFAULT gen_random_uuid()' : ''}${column.nullable ? '' : ' NOT NULL'}`,
+        `${quote(column.name)} ${SQL_TYPES[column.type]}${defaultSql}${column.nullable ? '' : ' NOT NULL'}${uniqueSql}${fkSql}`,
       );
     }
     await this.prisma.$executeRawUnsafe(
       `CREATE TABLE ${quote(project.schemaName)}.${quote(dto.name)} (${definitions.join(', ')})`,
     );
     return { name: dto.name };
+  }
+
+  async dropTable(projectId: string, userId: string, tableName: string) {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    const project = await this.getProject(projectId, userId);
+    const tableExists = await this.prisma.$queryRawUnsafe<
+      Array<{ exists: boolean }>
+    >(
+      "SELECT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p')) AS exists",
+      project.schemaName,
+      tableName,
+    );
+    if (!tableExists[0]?.exists) throw new NotFoundException('Table not found');
+    await this.prisma.$executeRawUnsafe(
+      `DROP TABLE ${quote(project.schemaName)}.${quote(tableName)} CASCADE`,
+    );
+    return { dropped: true, name: tableName };
   }
 
   async insertRow(
@@ -741,6 +846,184 @@ export class DatabaseService {
       );
     }
     return { inserted: true };
+  }
+
+  async updateRow(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    rowId: string,
+    dto: InsertRowDto,
+  ) {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    if (!rowId || !rowId.trim())
+      throw new BadRequestException('Invalid row ID');
+    const project = await this.getProject(projectId, userId);
+    const metadata = await this.prisma.$queryRawUnsafe<
+      Array<{
+        name: string;
+        type: string;
+        nullable: boolean;
+        writable: boolean;
+        hasDefault: boolean;
+        primary: boolean;
+      }>
+    >(
+      `SELECT a.attname AS name, format_type(a.atttypid, a.atttypmod) AS type,
+        NOT a.attnotnull AS nullable,
+        (a.attgenerated = '' AND a.attidentity = '') AS writable,
+        d.adbin IS NOT NULL AS "hasDefault",
+        EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.oid AND i.indisprimary AND a.attnum = ANY(i.indkey)) AS primary
+       FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+       LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p') AND a.attnum > 0 AND NOT a.attisdropped`,
+      project.schemaName,
+      tableName,
+    );
+    if (metadata.length === 0) throw new NotFoundException('Table not found');
+    const primaryCol =
+      metadata.find((c) => c.primary && !isSensitiveColumn(c.name))?.name ??
+      'id';
+    const supplied = Object.keys(dto).filter(
+      (k) => k !== primaryCol && k !== '__row_id',
+    );
+    const byName = new Map(metadata.map((column) => [column.name, column]));
+
+    for (const name of supplied) {
+      const column = byName.get(name);
+      if (
+        !column ||
+        !column.writable ||
+        isSensitiveColumn(name) ||
+        isManagedTimestamp(column.name, column.type, column.hasDefault) ||
+        !castTypeFor(column.type)
+      ) {
+        throw new BadRequestException(`Column "${name}" cannot be updated`);
+      }
+      if (dto[name] === null && !column.nullable) {
+        throw new BadRequestException(`Column "${name}" cannot be null`);
+      }
+    }
+
+    if (supplied.length === 0) {
+      return { updated: true };
+    }
+
+    const values = supplied.map((name) => {
+      const value = dto[name];
+      const column = byName.get(name)!;
+      if (value === null) return null;
+      if (column.type === 'jsonb') {
+        try {
+          return typeof value === 'string'
+            ? JSON.stringify(JSON.parse(value))
+            : JSON.stringify(value);
+        } catch {
+          throw new BadRequestException(
+            `Column "${name}" must contain valid JSON`,
+          );
+        }
+      }
+      if (
+        column.type === 'boolean' &&
+        typeof value === 'string' &&
+        !['true', 'false'].includes(value)
+      ) {
+        throw new BadRequestException(`Column "${name}" must be true or false`);
+      }
+      if (typeof value === 'object') {
+        throw new BadRequestException(`Column "${name}" cannot be an object`);
+      }
+      return String(value);
+    });
+
+    const setClauses = supplied
+      .map(
+        (name, idx) =>
+          `${quote(name)} = $${idx + 1}::${castTypeFor(byName.get(name)!.type)}`,
+      )
+      .join(', ');
+
+    const rowIdParamIndex = supplied.length + 1;
+    const result = await this.prisma.$queryRawUnsafe<
+      Array<Record<string, unknown>>
+    >(
+      `UPDATE ${quote(project.schemaName)}.${quote(tableName)} SET ${setClauses} WHERE ${quote(primaryCol)}::text = $${rowIdParamIndex} RETURNING *`,
+      ...values,
+      rowId.trim(),
+    );
+    if (result.length === 0) {
+      throw new NotFoundException('Row not found');
+    }
+    return { updated: true };
+  }
+
+  async deleteRow(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    rowId: string,
+  ) {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    if (!rowId || !rowId.trim())
+      throw new BadRequestException('Invalid row ID');
+    const project = await this.getProject(projectId, userId);
+    const metadata = await this.prisma.$queryRawUnsafe<
+      Array<{ name: string; primary: boolean }>
+    >(
+      `SELECT a.attname AS name,
+        EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.oid AND i.indisprimary AND a.attnum = ANY(i.indkey)) AS primary
+       FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p') AND a.attnum > 0 AND NOT a.attisdropped`,
+      project.schemaName,
+      tableName,
+    );
+    if (metadata.length === 0) throw new NotFoundException('Table not found');
+    const primaryCol =
+      metadata.find((c) => c.primary && !isSensitiveColumn(c.name))?.name ??
+      'id';
+    await this.prisma.$executeRawUnsafe(
+      `DELETE FROM ${quote(project.schemaName)}.${quote(tableName)} WHERE ${quote(primaryCol)}::text = $1`,
+      rowId.trim(),
+    );
+    return { deleted: true };
+  }
+
+  async deleteRows(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    rowIds: string[],
+  ) {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    if (!rowIds || rowIds.length === 0)
+      throw new BadRequestException('No row IDs provided');
+    const cleanIds = rowIds.map((id) => String(id).trim()).filter(Boolean);
+    if (cleanIds.length === 0)
+      throw new BadRequestException('No valid row IDs provided');
+    const project = await this.getProject(projectId, userId);
+    const metadata = await this.prisma.$queryRawUnsafe<
+      Array<{ name: string; primary: boolean }>
+    >(
+      `SELECT a.attname AS name,
+        EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.oid AND i.indisprimary AND a.attnum = ANY(i.indkey)) AS primary
+       FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p') AND a.attnum > 0 AND NOT a.attisdropped`,
+      project.schemaName,
+      tableName,
+    );
+    if (metadata.length === 0) throw new NotFoundException('Table not found');
+    const primaryCol =
+      metadata.find((c) => c.primary && !isSensitiveColumn(c.name))?.name ??
+      'id';
+    await this.prisma.$executeRawUnsafe(
+      `DELETE FROM ${quote(project.schemaName)}.${quote(tableName)} WHERE ${quote(primaryCol)}::text = ANY($1::text[])`,
+      cleanIds,
+    );
+    return { deleted: true, count: cleanIds.length };
   }
 
   async getForeignKeyOptions(

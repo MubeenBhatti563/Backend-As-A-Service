@@ -314,6 +314,104 @@ describe('DatabaseService', () => {
     );
   });
 
+  it('creates a table with unique, default, and foreign key constraints', async () => {
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([{ exists: false }]) // tableExists check
+      .mockResolvedValueOnce([{ exists: true }]); // foreign key refExists check
+    prisma.$executeRawUnsafe.mockResolvedValue(0);
+
+    const result = await service.createTable('project-1', 'user-1', {
+      name: 'comments',
+      columns: [
+        {
+          name: 'post_id',
+          type: 'uuid',
+          nullable: false,
+          foreignKey: { table: 'posts', column: 'id' },
+        },
+        {
+          name: 'slug',
+          type: 'text',
+          nullable: false,
+          isUnique: true,
+          defaultValue: 'test-slug',
+        },
+      ],
+    });
+
+    expect(result).toEqual({ name: 'comments' });
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      'CREATE TABLE "tenant_abc"."comments" ("id" UUID PRIMARY KEY DEFAULT gen_random_uuid(), "post_id" UUID NOT NULL REFERENCES "tenant_abc"."posts"("id") ON DELETE CASCADE, "slug" TEXT DEFAULT \'test-slug\' NOT NULL UNIQUE)',
+    );
+  });
+
+  it('drops a table successfully', async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ exists: true }]);
+    prisma.$executeRawUnsafe.mockResolvedValue(0);
+
+    const result = await service.dropTable('project-1', 'user-1', 'comments');
+    expect(result).toEqual({ dropped: true, name: 'comments' });
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      'DROP TABLE "tenant_abc"."comments" CASCADE',
+    );
+  });
+
+  it('updates a row by primary key', async () => {
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([
+        {
+          name: 'id',
+          type: 'uuid',
+          primary: true,
+          writable: false,
+          nullable: false,
+          hasDefault: true,
+        },
+        {
+          name: 'title',
+          type: 'text',
+          primary: false,
+          writable: true,
+          nullable: false,
+          hasDefault: false,
+        },
+      ])
+      .mockResolvedValueOnce([{ id: 'row-1', title: 'Updated title' }]);
+
+    const result = await service.updateRow('project-1', 'user-1', 'posts', 'row-1', {
+      title: 'Updated title',
+    });
+
+    expect(result).toEqual({ updated: true });
+    expect(prisma.$queryRawUnsafe).toHaveBeenNthCalledWith(
+      2,
+      'UPDATE "tenant_abc"."posts" SET "title" = $1::TEXT WHERE "id"::text = $2 RETURNING *',
+      'Updated title',
+      'row-1',
+    );
+  });
+
+  it('deletes a row and deletes multiple rows', async () => {
+    prisma.$queryRawUnsafe.mockResolvedValue([
+      { name: 'id', primary: true },
+    ]);
+    prisma.$executeRawUnsafe.mockResolvedValue(1);
+
+    const deleteOne = await service.deleteRow('project-1', 'user-1', 'posts', 'row-1');
+    expect(deleteOne).toEqual({ deleted: true });
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      'DELETE FROM "tenant_abc"."posts" WHERE "id"::text = $1',
+      'row-1',
+    );
+
+    const deleteMany = await service.deleteRows('project-1', 'user-1', 'posts', ['row-1', 'row-2']);
+    expect(deleteMany).toEqual({ deleted: true, count: 2 });
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      'DELETE FROM "tenant_abc"."posts" WHERE "id"::text = ANY($1::text[])',
+      ['row-1', 'row-2'],
+    );
+  });
+
   it('rejects object values for non-jsonb columns in insertRow', async () => {
     prisma.$queryRawUnsafe.mockResolvedValueOnce([
       {

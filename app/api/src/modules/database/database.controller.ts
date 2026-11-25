@@ -1,7 +1,20 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { DatabaseService } from './database.service';
-import { CreateTableDto, InsertRowDto } from './dto/create-table.dto';
+import {
+  CreateTableDto,
+  DeleteRowsDto,
+  InsertRowDto,
+} from './dto/create-table.dto';
 
 @Controller('project/:projectId/database')
 export class DatabaseController {
@@ -68,6 +81,15 @@ export class DatabaseController {
     return this.databaseService.createTable(projectId, userId, dto);
   }
 
+  @Delete('tables/:tableName')
+  dropTable(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.dropTable(projectId, userId, tableName);
+  }
+
   @Post('tables/:tableName/rows')
   insertRow(
     @Param('projectId') projectId: string,
@@ -76,6 +98,48 @@ export class DatabaseController {
     @GetUser('userId') userId: string,
   ) {
     return this.databaseService.insertRow(projectId, userId, tableName, dto);
+  }
+
+  @Patch('tables/:tableName/rows/:rowId')
+  updateRow(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Param('rowId') rowId: string,
+    @Body() dto: InsertRowDto,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.updateRow(
+      projectId,
+      userId,
+      tableName,
+      rowId,
+      dto,
+    );
+  }
+
+  @Delete('tables/:tableName/rows/:rowId')
+  deleteRow(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Param('rowId') rowId: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.deleteRow(projectId, userId, tableName, rowId);
+  }
+
+  @Post('tables/:tableName/rows/delete-many')
+  deleteRows(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Body() dto: DeleteRowsDto,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.deleteRows(
+      projectId,
+      userId,
+      tableName,
+      dto.rowIds,
+    );
   }
 
   @Get('tables/:tableName/foreign-key-options/:columnName')

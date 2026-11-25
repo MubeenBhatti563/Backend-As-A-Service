@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import {
   Box,
   Checkbox,
+  IconButton,
+  Menu,
+  MenuItem,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
 } from "@mui/material";
+import { IconDotsVertical, IconPencil, IconTrash } from "@tabler/icons-react";
 import { SURFACE } from "../constants";
 import type { CellKind, GridColumn, GridRow } from "../types";
 import { StatusChip, toneFor } from "./StatusChip";
@@ -62,12 +67,84 @@ function renderCell(kind: CellKind, value: string) {
   }
 }
 
+function RowActionsMenu({
+  row,
+  onEdit,
+  onDelete,
+}: {
+  row: GridRow;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  return (
+    <>
+      <IconButton
+        size="small"
+        aria-label={`Actions for row ${row.id}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setAnchorEl(e.currentTarget);
+        }}
+        sx={{
+          color: "text.secondary",
+          "&:hover": { color: "text.primary", bgcolor: "background.elevated" },
+        }}
+      >
+        <IconDotsVertical size={16} />
+      </IconButton>
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={() => setAnchorEl(null)}
+        onClick={(e) => e.stopPropagation()}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "8px",
+              bgcolor: "background.paper",
+              border: "1px solid",
+              borderColor: "border.default",
+              minWidth: 140,
+            },
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            setAnchorEl(null);
+            onEdit();
+          }}
+          sx={{ fontSize: 13, gap: 1.5 }}
+        >
+          <IconPencil size={15} />
+          Edit row
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setAnchorEl(null);
+            onDelete();
+          }}
+          sx={{ fontSize: 13, gap: 1.5, color: "error.main" }}
+        >
+          <IconTrash size={15} />
+          Delete row
+        </MenuItem>
+      </Menu>
+    </>
+  );
+}
+
 interface Props {
   columns: GridColumn[];
   rows: GridRow[];
   selected: ReadonlySet<string>;
   onToggleRow: (id: string) => void;
   onToggleAll: () => void;
+  onEditRow?: (row: GridRow) => void;
+  onDeleteRow?: (row: GridRow) => void;
 }
 
 export function DataGrid({
@@ -76,6 +153,8 @@ export function DataGrid({
   selected,
   onToggleRow,
   onToggleAll,
+  onEditRow,
+  onDeleteRow,
 }: Props) {
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const someSelected = !allSelected && rows.some((r) => selected.has(r.id));
@@ -134,7 +213,7 @@ export function DataGrid({
                   width: KIND_WIDTH[col.kind],
                   py: { xs: 2, sm: 3 },
                   px: 0,
-                  pr: i === lastCol ? { xs: 2, sm: 4 } : 2,
+                  pr: i === lastCol ? 2 : 2,
                   color: "text.disabled",
                   fontSize: 11,
                   lineHeight: "14px",
@@ -145,6 +224,20 @@ export function DataGrid({
                 {col.label}
               </TableCell>
             ))}
+            <TableCell
+              align="right"
+              sx={{
+                width: 50,
+                minWidth: 50,
+                py: { xs: 2, sm: 3 },
+                pr: { xs: 2, sm: 3 },
+                pl: 1,
+                position: "sticky",
+                right: 0,
+                zIndex: 2,
+                bgcolor: "background.elevated",
+              }}
+            />
           </TableRow>
         </TableHead>
 
@@ -152,7 +245,7 @@ export function DataGrid({
           {rows.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={columns.length + 1}
+                colSpan={columns.length + 2}
                 align="center"
                 sx={{ py: 8, borderBottom: 0, color: "text.disabled" }}
               >
@@ -194,7 +287,7 @@ export function DataGrid({
                   sx={{
                     py: { xs: 2, sm: 3 },
                     px: 0,
-                    pr: i === lastCol ? { xs: 2, sm: 4 } : 2,
+                    pr: i === lastCol ? 2 : 2,
                     lineHeight: "17px",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -207,6 +300,25 @@ export function DataGrid({
                   </Box>
                 </TableCell>
               ))}
+
+              <TableCell
+                align="right"
+                sx={{
+                  py: 1,
+                  pr: { xs: 1.5, sm: 2 },
+                  pl: 0.5,
+                  position: "sticky",
+                  right: 0,
+                  zIndex: 1,
+                  bgcolor: selected.has(row.id) ? "action.selected" : SURFACE,
+                }}
+              >
+                <RowActionsMenu
+                  row={row}
+                  onEdit={() => onEditRow?.(row)}
+                  onDelete={() => onDeleteRow?.(row)}
+                />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

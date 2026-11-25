@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Alert,
   Box,
   IconButton,
+  Menu,
+  MenuItem,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -13,10 +18,17 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { IconDatabase, IconDotsVertical } from "@tabler/icons-react";
+import {
+  IconDatabase,
+  IconDotsVertical,
+  IconEye,
+  IconTrash,
+} from "@tabler/icons-react";
 import { SURFACE, tableDetailHref } from "../constants";
 import type { DatabaseTable } from "../types";
 import { RlsBadge } from "./RlsBadge";
+import { dropDatabaseTable } from "../table.client-api";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 
 const COLUMNS = [
   { label: "Table name", width: undefined },
@@ -42,14 +54,47 @@ interface Props {
 
 export function TablesGrid({ projectId, tables, query }: Props) {
   const router = useRouter();
+  const [tableToDelete, setTableToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuTableName, setMenuTableName] = useState<string | null>(null);
+
   const formatDate = (value: string | null) => {
     if (!value) return null;
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return null;
     return {
-      date: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(date),
-      time: new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(date),
+      date: new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(date),
+      time: new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "UTC",
+      }).format(date),
     };
+  };
+
+  const handleDropConfirm = async () => {
+    if (!tableToDelete) return;
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      await dropDatabaseTable(projectId, tableToDelete);
+      setTableToDelete(null);
+      setSuccessMessage(`Table "${tableToDelete}" dropped.`);
+      router.refresh();
+    } catch {
+      setDeleteError("Could not drop table. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -71,7 +116,11 @@ export function TablesGrid({ projectId, tables, query }: Props) {
       }}
     >
       <Table
-        sx={{ minWidth: { xs: 720, md: 800 }, tableLayout: "fixed", width: "100%" }}
+        sx={{
+          minWidth: { xs: 720, md: 800 },
+          tableLayout: "fixed",
+          width: "100%",
+        }}
         aria-label="Database tables"
       >
         <TableHead>
@@ -210,8 +259,18 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                     borderColor: "border.default",
                   }}
                 >
-                  <Tooltip title={`Total physical size: ${BigInt(table.sizeBytes).toLocaleString("en-US")} bytes (includes table data, indexes and TOAST)`} describeChild>
-                    <Box component="span" sx={{ cursor: "help", borderBottom: "1px dotted", borderColor: "border.strong" }}>
+                  <Tooltip
+                    title={`Total physical size: ${BigInt(table.sizeBytes).toLocaleString("en-US")} bytes (includes table data, indexes and TOAST)`}
+                    describeChild
+                  >
+                    <Box
+                      component="span"
+                      sx={{
+                        cursor: "help",
+                        borderBottom: "1px dotted",
+                        borderColor: "border.strong",
+                      }}
+                    >
                       {table.size}
                     </Box>
                   </Tooltip>
@@ -227,18 +286,50 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                   }}
                 >
                   {maintained ? (
-                    <Tooltip title={`${maintained.date} ${maintained.time} UTC`} describeChild>
-                      <Box component="span" sx={{ display: "inline-flex", flexDirection: "column", gap: 0.25, cursor: "help" }}>
-                        <Typography component="span" variant="body2" sx={{ fontSize: 12, lineHeight: 1.3, color: "text.primary" }}>
+                    <Tooltip
+                      title={`${maintained.date} ${maintained.time} UTC`}
+                      describeChild
+                    >
+                      <Box
+                        component="span"
+                        sx={{
+                          display: "inline-flex",
+                          flexDirection: "column",
+                          gap: 0.25,
+                          cursor: "help",
+                        }}
+                      >
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          sx={{
+                            fontSize: 12,
+                            lineHeight: 1.3,
+                            color: "text.primary",
+                          }}
+                        >
                           {maintained.date}
                         </Typography>
-                        <Typography component="span" variant="caption" sx={{ fontSize: 11, lineHeight: 1.3, color: "text.disabled" }}>
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          sx={{
+                            fontSize: 11,
+                            lineHeight: 1.3,
+                            color: "text.disabled",
+                          }}
+                        >
                           {maintained.time} UTC
                         </Typography>
                       </Box>
                     </Tooltip>
                   ) : (
-                    <Typography variant="body2" sx={{ fontSize: 12, color: "text.disabled" }}>No maintenance recorded</Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontSize: 12, color: "text.disabled" }}
+                    >
+                      No maintenance recorded
+                    </Typography>
                   )}
                 </TableCell>
 
@@ -265,6 +356,8 @@ export function TablesGrid({ projectId, tables, query }: Props) {
                     aria-label={`Actions for ${table.name}`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      setMenuAnchorEl(e.currentTarget);
+                      setMenuTableName(table.name);
                     }}
                     sx={{
                       p: 0.75,
@@ -283,6 +376,85 @@ export function TablesGrid({ projectId, tables, query }: Props) {
           })}
         </TableBody>
       </Table>
+
+      {/* Row action dropdown menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={() => {
+          setMenuAnchorEl(null);
+          setMenuTableName(null);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "8px",
+              bgcolor: "background.paper",
+              border: "1px solid",
+              borderColor: "border.default",
+              minWidth: 140,
+            },
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            if (menuTableName) {
+              router.push(tableDetailHref(projectId, menuTableName));
+            }
+            setMenuAnchorEl(null);
+            setMenuTableName(null);
+          }}
+          sx={{ fontSize: 13, gap: 1.5 }}
+        >
+          <IconEye size={15} />
+          View table
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (menuTableName) {
+              setTableToDelete(menuTableName);
+            }
+            setMenuAnchorEl(null);
+            setMenuTableName(null);
+          }}
+          sx={{ fontSize: 13, gap: 1.5, color: "error.main" }}
+        >
+          <IconTrash size={15} />
+          Drop table
+        </MenuItem>
+      </Menu>
+
+      {/* Confirmation dialog for dropping a table */}
+      <ConfirmDeleteDialog
+        open={Boolean(tableToDelete)}
+        title={`Drop table "${tableToDelete ?? ""}"?`}
+        description={`Are you sure you want to drop table "${tableToDelete ?? ""}"? All rows and data will be permanently deleted.`}
+        confirmLabel="Drop table"
+        submitting={isDeleting}
+        onClose={() => setTableToDelete(null)}
+        onConfirm={handleDropConfirm}
+      />
+
+      <Snackbar
+        open={Boolean(deleteError)}
+        autoHideDuration={5000}
+        onClose={() => setDeleteError("")}
+      >
+        <Alert severity="error" onClose={() => setDeleteError("")}>
+          {deleteError}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={Boolean(successMessage)}
+        autoHideDuration={3500}
+        onClose={() => setSuccessMessage("")}
+      >
+        <Alert severity="success" onClose={() => setSuccessMessage("")}>
+          {successMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

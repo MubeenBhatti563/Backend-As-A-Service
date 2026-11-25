@@ -119,3 +119,30 @@ export interface RelationshipsData {
   relations: ErRelation[];
 }
 
+export type DatabaseColumnType =
+  | "text"
+  | "integer"
+  | "bigint"
+  | "boolean"
+  | "uuid"
+  | "timestamptz"
+  | "jsonb";
+
+export interface CreateTableColumnDefinition {
+  name: string;
+  type: DatabaseColumnType;
+  nullable: boolean;
+  isUnique?: boolean;
+  defaultValue?: string;
+  foreignKey?: {
+    table: string;
+    column: string;
+  };
+}
+
+export interface CreateTableRequest {
+  name: string;
+  columns: CreateTableColumnDefinition[];
+}
+
+

@@ -30,6 +30,10 @@ export const createTableDefinitionSchema = z.object({
       }),
     type: databaseColumnTypeSchema,
     nullable: z.boolean(),
+    isUnique: z.boolean().optional(),
+    defaultValue: z.string().optional(),
+    foreignKeyTable: z.string().optional(),
+    foreignKeyColumn: z.string().optional(),
   })).min(1, "Add at least one column.").max(30, "A table can have up to 30 custom columns.")
     .superRefine((columns, context) => {
       const used = new Set<string>();
@@ -40,6 +44,9 @@ export const createTableDefinitionSchema = z.object({
             context.addIssue({ code: "custom", path: [index, "name"], message: "Column names must be unique." });
           }
           used.add(trimmed);
+        }
+        if (column.foreignKeyTable && !column.foreignKeyColumn) {
+          context.addIssue({ code: "custom", path: [index, "foreignKeyColumn"], message: "Select a referenced column." });
         }
       });
     }),

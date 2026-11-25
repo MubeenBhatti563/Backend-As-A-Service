@@ -10,7 +10,11 @@ describe('DatabaseController', () => {
     getRelationships: jest.fn(),
     getTable: jest.fn(),
     createTable: jest.fn(),
+    dropTable: jest.fn(),
     insertRow: jest.fn(),
+    updateRow: jest.fn(),
+    deleteRow: jest.fn(),
+    deleteRows: jest.fn(),
     getForeignKeyOptions: jest.fn(),
   };
 
@@ -121,6 +125,63 @@ describe('DatabaseController', () => {
       'user-1',
       'profiles',
       dto,
+    );
+  });
+
+  it('delegates dropTable requests with table name and caller identity', async () => {
+    const dropped = { dropped: true, name: 'profiles' };
+    databaseService.dropTable.mockResolvedValue(dropped);
+    await expect(
+      controller.dropTable('project-1', 'profiles', 'user-1'),
+    ).resolves.toBe(dropped);
+    expect(databaseService.dropTable).toHaveBeenCalledWith(
+      'project-1',
+      'user-1',
+      'profiles',
+    );
+  });
+
+  it('delegates updateRow requests with table name, rowId, caller, and body', async () => {
+    const dto = { display_name: 'Ada Lovelace' };
+    const updated = { updated: true };
+    databaseService.updateRow.mockResolvedValue(updated);
+    await expect(
+      controller.updateRow('project-1', 'profiles', 'row-1', dto as never, 'user-1'),
+    ).resolves.toBe(updated);
+    expect(databaseService.updateRow).toHaveBeenCalledWith(
+      'project-1',
+      'user-1',
+      'profiles',
+      'row-1',
+      dto,
+    );
+  });
+
+  it('delegates deleteRow requests with table name, rowId, and caller', async () => {
+    const deleted = { deleted: true };
+    databaseService.deleteRow.mockResolvedValue(deleted);
+    await expect(
+      controller.deleteRow('project-1', 'profiles', 'row-1', 'user-1'),
+    ).resolves.toBe(deleted);
+    expect(databaseService.deleteRow).toHaveBeenCalledWith(
+      'project-1',
+      'user-1',
+      'profiles',
+      'row-1',
+    );
+  });
+
+  it('delegates deleteRows requests with table name, rowIds, and caller', async () => {
+    const deleted = { deleted: true, count: 2 };
+    databaseService.deleteRows.mockResolvedValue(deleted);
+    await expect(
+      controller.deleteRows('project-1', 'profiles', { rowIds: ['row-1', 'row-2'] } as never, 'user-1'),
+    ).resolves.toBe(deleted);
+    expect(databaseService.deleteRows).toHaveBeenCalledWith(
+      'project-1',
+      'user-1',
+      'profiles',
+      ['row-1', 'row-2'],
     );
   });
 

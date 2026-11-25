@@ -1,11 +1,8 @@
 import apiClient from '@/lib/api-client';
-import type { ApiResponse } from '@baas/types';
+import type { ApiResponse, CreateTableRequest, RelationshipsData } from '@baas/types';
 import type { TableDetail } from './types';
 
-export type NewTableDefinition = {
-  name: string;
-  columns: Array<{ name: string; type: 'text' | 'integer' | 'bigint' | 'boolean' | 'uuid' | 'timestamptz' | 'jsonb'; nullable: boolean }>;
-};
+export type NewTableDefinition = CreateTableRequest;
 
 export async function fetchTablePage(
   projectId: string,
@@ -29,6 +26,12 @@ export async function createDatabaseTable(projectId: string, definition: NewTabl
   return apiClient.post(`/project/${encodeURIComponent(projectId)}/database/tables`, definition);
 }
 
+export async function dropDatabaseTable(projectId: string, tableName: string) {
+  return apiClient.delete(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}`,
+  );
+}
+
 export async function insertDatabaseRow(projectId: string, tableName: string, values: Record<string, string | null>) {
   return apiClient.post(
     `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/rows`,
@@ -36,9 +39,41 @@ export async function insertDatabaseRow(projectId: string, tableName: string, va
   );
 }
 
+export async function updateDatabaseRow(
+  projectId: string,
+  tableName: string,
+  rowId: string,
+  values: Record<string, string | null>,
+) {
+  return apiClient.patch(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/rows/${encodeURIComponent(rowId)}`,
+    values,
+  );
+}
+
+export async function deleteDatabaseRow(projectId: string, tableName: string, rowId: string) {
+  return apiClient.delete(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/rows/${encodeURIComponent(rowId)}`,
+  );
+}
+
+export async function deleteDatabaseRows(projectId: string, tableName: string, rowIds: string[]) {
+  return apiClient.post(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/rows/delete-many`,
+    { rowIds },
+  );
+}
+
 export async function fetchForeignKeyOptions(projectId: string, tableName: string, columnName: string) {
-  const response = await apiClient.get(
+  const response = (await apiClient.get(
     `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/foreign-key-options/${encodeURIComponent(columnName)}`,
-  ) as unknown as ApiResponse<{ values: string[]; limit: number }>;
+  )) as unknown as ApiResponse<{ values: string[]; limit: number }>;
+  return response.data;
+}
+
+export async function fetchDatabaseRelationships(projectId: string) {
+  const response = (await apiClient.get(
+    `/project/${encodeURIComponent(projectId)}/database/relationships`,
+  )) as unknown as ApiResponse<RelationshipsData>;
   return response.data;
 }

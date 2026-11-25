@@ -1,20 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Button, InputAdornment, OutlinedInput, Snackbar, Alert } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  InputAdornment,
+  OutlinedInput,
+  Snackbar,
+} from "@mui/material";
 import {
   IconAdjustmentsHorizontal,
   IconArrowsSort,
   IconDownload,
   IconPlus,
   IconSearch,
+  IconTrash,
 } from "@tabler/icons-react";
 import { SURFACE } from "../constants";
-import type { TableDetail } from "../types";
+import type { GridRow, TableDetail } from "../types";
 import { DataGrid } from "./DataGrid";
 import { PaginationFooter } from "./PaginationFooter";
-import { fetchTablePage } from "../table.client-api";
+import {
+  deleteDatabaseRow,
+  deleteDatabaseRows,
+  fetchTablePage,
+} from "../table.client-api";
 import { AddRowDialog } from "./AddRowDialog";
+import { EditRowDialog } from "./EditRowDialog";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 
 const toolbarButtonSx = {
   minHeight: 33,
@@ -29,9 +43,20 @@ const toolbarButtonSx = {
   "& .MuiButton-startIcon": { mr: "6px", ml: 0 },
 } as const;
 
-export function TableDataView({ detail, projectId }: { detail: TableDetail; projectId: string }) {
+export function TableDataView({
+  detail,
+  projectId,
+}: {
+  detail: TableDetail;
+  projectId: string;
+}) {
   const [currentDetail, setCurrentDetail] = useState(detail);
   const [addOpen, setAddOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState<GridRow | null>(null);
+  const [deletingRow, setDeletingRow] = useState<GridRow | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
   const [loadError, setLoadError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -94,7 +119,50 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
         : new Set(rows.map((r) => r.id)),
     );
 
-  const from = pagination.totalRows === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const handleDeleteSingleRow = async () => {
+    if (!deletingRow) return;
+    setActionLoading(true);
+    try {
+      await deleteDatabaseRow(projectId, detail.table.name, deletingRow.id);
+      setDeletingRow(null);
+      setSuccessMessage("Row deleted.");
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(deletingRow.id);
+        return next;
+      });
+      await loadData(pagination.page, query);
+    } catch {
+      setLoadError("Could not delete row. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    setActionLoading(true);
+    try {
+      await deleteDatabaseRows(
+        projectId,
+        detail.table.name,
+        Array.from(selected),
+      );
+      setBulkDeleteOpen(false);
+      setSelected(new Set());
+      setSuccessMessage(`Deleted ${selected.size} rows.`);
+      await loadData(1, query);
+    } catch {
+      setLoadError("Could not delete selected rows. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const from =
+    pagination.totalRows === 0
+      ? 0
+      : (pagination.page - 1) * pagination.pageSize + 1;
   const to = Math.min(from + rows.length - 1, pagination.totalRows);
   const pageCount = Math.max(
     1,
@@ -164,6 +232,25 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
           >
             Sort
           </Button>
+          {selected.size > 0 && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<IconTrash size={16} />}
+              onClick={() => setBulkDeleteOpen(true)}
+              sx={{
+                ...toolbarButtonSx,
+                color: "error.main",
+                borderColor: "error.main",
+                "&:hover": {
+                  bgcolor: "rgba(239, 68, 68, 0.08)",
+                  borderColor: "error.main",
+                },
+              }}
+            >
+              Delete selected ({selected.size})
+            </Button>
+          )}
         </Box>
 
         {/* Right group: export + add row */}
@@ -208,6 +295,8 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
           selected={selected}
           onToggleRow={toggleRow}
           onToggleAll={toggleAll}
+          onEditRow={(row) => setEditingRow(row)}
+          onDeleteRow={(row) => setDeletingRow(row)}
         />
         <PaginationFooter
           from={from}
@@ -218,12 +307,27 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
           onPageChange={changePage}
         />
       </Box>
-      <Snackbar open={Boolean(loadError)} autoHideDuration={5000} onClose={() => setLoadError("")}>
-        <Alert severity="error" onClose={() => setLoadError("")}>{loadError}</Alert>
+
+      <Snackbar
+        open={Boolean(loadError)}
+        autoHideDuration={5000}
+        onClose={() => setLoadError("")}
+      >
+        <Alert severity="error" onClose={() => setLoadError("")}>
+          {loadError}
+        </Alert>
       </Snackbar>
-      <Snackbar open={Boolean(successMessage)} autoHideDuration={3500} onClose={() => setSuccessMessage("")}>
-        <Alert severity="success" onClose={() => setSuccessMessage("")}>{successMessage}</Alert>
+      <Snackbar
+        open={Boolean(successMessage)}
+        autoHideDuration={3500}
+        onClose={() => setSuccessMessage("")}
+      >
+        <Alert severity="success" onClose={() => setSuccessMessage("")}>
+          {successMessage}
+        </Alert>
       </Snackbar>
+
+      {/* Add Row Dialog */}
       <AddRowDialog
         open={addOpen}
         projectId={projectId}
@@ -232,13 +336,74 @@ export function TableDataView({ detail, projectId }: { detail: TableDetail; proj
         onClose={() => setAddOpen(false)}
         onInserted={() => {
           setSuccessMessage("Row added.");
-          void fetchTablePage(projectId, detail.table.name, 1, pagination.pageSize, query)
+          void fetchTablePage(
+            projectId,
+            detail.table.name,
+            1,
+            pagination.pageSize,
+            query,
+          )
             .then((refreshed) => {
               setCurrentDetail(refreshed);
               setSelected(new Set());
             })
-            .catch(() => setLoadError("The row was added, but the table could not be refreshed. Reload to see the latest data."));
+            .catch(() =>
+              setLoadError(
+                "The row was added, but the table could not be refreshed. Reload to see the latest data.",
+              ),
+            );
         }}
+      />
+
+      {/* Edit Row Dialog */}
+      <EditRowDialog
+        open={Boolean(editingRow)}
+        projectId={projectId}
+        tableName={detail.table.name}
+        columns={columns}
+        row={editingRow}
+        onClose={() => setEditingRow(null)}
+        onUpdated={() => {
+          setSuccessMessage("Row updated.");
+          setEditingRow(null);
+          void fetchTablePage(
+            projectId,
+            detail.table.name,
+            pagination.page,
+            pagination.pageSize,
+            query,
+          )
+            .then((refreshed) => {
+              setCurrentDetail(refreshed);
+            })
+            .catch(() =>
+              setLoadError(
+                "The row was updated, but the table could not be refreshed. Reload to see the latest data.",
+              ),
+            );
+        }}
+      />
+
+      {/* Single Row Delete Confirmation Dialog */}
+      <ConfirmDeleteDialog
+        open={Boolean(deletingRow)}
+        title="Delete row?"
+        description={`Are you sure you want to delete this row (${deletingRow?.id ?? ""})? This action cannot be undone.`}
+        confirmLabel="Delete row"
+        submitting={actionLoading}
+        onClose={() => setDeletingRow(null)}
+        onConfirm={handleDeleteSingleRow}
+      />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        title={`Delete ${selected.size} selected rows?`}
+        description={`Are you sure you want to permanently delete ${selected.size} selected rows from ${detail.table.name}? This action cannot be undone.`}
+        confirmLabel={`Delete ${selected.size} rows`}
+        submitting={actionLoading}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDelete}
       />
     </Box>
   );
