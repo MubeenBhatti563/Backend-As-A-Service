@@ -120,17 +120,41 @@ export class DatabaseService {
       }>
     >(
       `SELECT c.relname AS name,
-        GREATEST(c.reltuples::bigint, 0) AS rows,
+        GREATEST(
+          COALESCE(s.n_live_tup, 0),
+          c.reltuples::bigint,
+          0
+        ) AS rows,
         pg_total_relation_size(c.oid) AS bytes,
         pg_relation_size(c.oid) AS "dataBytes",
         pg_indexes_size(c.oid) AS "indexBytes",
         c.relrowsecurity AS rls,
-        (SELECT MAX(GREATEST(s.last_vacuum, s.last_autovacuum, s.last_analyze, s.last_autoanalyze))
-          FROM pg_stat_user_tables s WHERE s.schemaname = n.nspname AND s.relname = c.relname) AS modified
-       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        (SELECT MAX(GREATEST(st.last_vacuum, st.last_autovacuum, st.last_analyze, st.last_autoanalyze))
+          FROM pg_stat_user_tables st WHERE st.schemaname = n.nspname AND st.relname = c.relname) AS modified
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       LEFT JOIN pg_stat_user_tables s ON s.schemaname = n.nspname AND s.relname = c.relname
        WHERE n.nspname = $1 AND c.relkind IN ('r', 'p') ORDER BY c.relname`,
       project.schemaName,
     );
+
+    const uncounted = tables.filter((table) => Number(table.rows) === 0);
+    if (uncounted.length > 0) {
+      await Promise.all(
+        uncounted.map(async (table) => {
+          try {
+            const countResult = await this.prisma.$queryRawUnsafe<
+              Array<{ count: bigint | number }>
+            >(
+              `SELECT COUNT(*)::bigint AS count FROM ${quote(project.schemaName)}.${quote(table.name)}`,
+            );
+            table.rows = countResult[0]?.count ?? 0n;
+          } catch {
+            // Keep estimated 0 if table was concurrently dropped
+          }
+        }),
+      );
+    }
     const sizeRows = await this.prisma.$queryRawUnsafe<
       Array<{ bytes: bigint | number }>
     >(
