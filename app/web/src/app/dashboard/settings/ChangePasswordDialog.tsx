@@ -45,7 +45,8 @@ export function ChangePasswordDialog({
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    trigger,
+    formState: { errors, isSubmitting, dirtyFields },
   } = useForm<ChangePasswordValues>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: {
@@ -110,7 +111,13 @@ export function ChangePasswordDialog({
             fullWidth
             error={!!errors.currentPassword}
             helperText={errors.currentPassword?.message}
-            {...register("currentPassword")}
+            {...register("currentPassword", {
+              onChange: () => {
+                if (dirtyFields.newPassword) {
+                  void trigger("newPassword");
+                }
+              },
+            })}
           />
 
           <TextField
@@ -121,7 +128,13 @@ export function ChangePasswordDialog({
             fullWidth
             error={!!errors.newPassword}
             helperText={errors.newPassword?.message}
-            {...register("newPassword")}
+            {...register("newPassword", {
+              onChange: () => {
+                if (dirtyFields.confirmPassword) {
+                  void trigger("confirmPassword");
+                }
+              },
+            })}
             slotProps={{
               input: {
                 endAdornment: (

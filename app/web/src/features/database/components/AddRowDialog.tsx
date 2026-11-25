@@ -89,10 +89,11 @@ export function AddRowDialog({ open, projectId, tableName, columns, onClose, onI
   const submit = handleSubmit(async (values) => {
     const payload = Object.fromEntries(
       Object.entries(values)
-        .filter(([, value]) => value.trim().length > 0)
+        .filter(([, value]) => value !== undefined && value !== null && String(value).trim().length > 0)
         .map(([key, value]) => {
           const type = normalizeDatabaseType(writableColumns.find((column) => column.key === key)?.dataType ?? "text");
-          return [key, type === "timestamp with time zone" ? new Date(value).toISOString() : value];
+          const strVal = String(value).trim();
+          return [key, type === "timestamp with time zone" ? new Date(strVal).toISOString() : strVal];
         }),
     );
     try {
