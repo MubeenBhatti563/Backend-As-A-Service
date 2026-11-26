@@ -145,4 +145,85 @@ export interface CreateTableRequest {
   columns: CreateTableColumnDefinition[];
 }
 
+/* ---------- Table Structure ---------- */
+
+export interface TableStructureColumn {
+  name: string;
+  type: string;
+  formattedType: string;
+  isPrimary: boolean;
+  isNullable: boolean;
+  isUnique: boolean;
+  hasDefault: boolean;
+  defaultValue: string | null;
+  isForeignKey: boolean;
+  foreignKey: {
+    tableName: string;
+    columnName: string;
+    constraintName?: string;
+  } | null;
+  isWritable: boolean;
+}
+
+export interface TableStructureResponse {
+  table: DatabaseTable;
+  columns: TableStructureColumn[];
+  primaryKeys: string[];
+  uniqueConstraintsCount: number;
+  foreignKeysCount: number;
+}
+
+/* ---------- Table Relationships ---------- */
+
+export interface TableRelationshipItem {
+  id: string;
+  direction: "outgoing" | "incoming";
+  constraintName: string;
+  sourceTable: string;
+  sourceColumn: string;
+  targetTable: string;
+  targetColumn: string;
+  cardinality: "1:1" | "1:N";
+  onDelete?: string;
+  onUpdate?: string;
+}
+
+export interface TableRelationshipsResponse {
+  table: DatabaseTable;
+  relationships: TableRelationshipItem[];
+  erData: RelationshipsData;
+}
+
+/* ---------- Table Indexes ---------- */
+
+export interface TableIndexesResponse {
+  table: DatabaseTable;
+  stats: {
+    totalIndexes: number;
+    uniqueIndexes: number;
+    totalSizeBytes: string;
+  };
+  indexes: DatabaseIndex[];
+}
+
+export interface CreateIndexRequest {
+  name?: string;
+  columns: string[];
+  method?: "btree" | "hash" | "gin" | "gist";
+  isUnique?: boolean;
+}
+
+export interface AddColumnRequest {
+  name: string;
+  type: DatabaseColumnType;
+  nullable: boolean;
+  isUnique?: boolean;
+  defaultValue?: string;
+  foreignKey?: {
+    table: string;
+    column: string;
+  };
+}
+
+
 

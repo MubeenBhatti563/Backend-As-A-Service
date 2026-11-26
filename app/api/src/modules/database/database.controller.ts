@@ -11,6 +11,8 @@ import {
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { DatabaseService } from './database.service';
 import {
+  AddColumnDto,
+  CreateIndexDto,
   CreateTableDto,
   DeleteRowsDto,
   InsertRowDto,
@@ -154,6 +156,92 @@ export class DatabaseController {
       userId,
       tableName,
       columnName,
+    );
+  }
+
+  @Get('tables/:tableName/structure')
+  getTableStructure(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.getTableStructure(projectId, userId, tableName);
+  }
+
+  @Post('tables/:tableName/columns')
+  addColumn(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Body() dto: AddColumnDto,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.addColumn(projectId, userId, tableName, dto);
+  }
+
+  @Delete('tables/:tableName/columns/:columnName')
+  dropColumn(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Param('columnName') columnName: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.dropColumn(
+      projectId,
+      userId,
+      tableName,
+      columnName,
+    );
+  }
+
+  @Get('tables/:tableName/relationships')
+  getTableRelationships(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.getTableRelationships(
+      projectId,
+      userId,
+      tableName,
+    );
+  }
+
+  @Get('tables/:tableName/indexes')
+  getTableIndexes(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.getTableIndexes(projectId, userId, tableName);
+  }
+
+  @Post('tables/:tableName/indexes')
+  createTableIndex(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Body() dto: CreateIndexDto,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.createTableIndex(
+      projectId,
+      userId,
+      tableName,
+      dto,
+    );
+  }
+
+  @Delete('tables/:tableName/indexes/:indexName')
+  dropTableIndex(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Param('indexName') indexName: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.dropTableIndex(
+      projectId,
+      userId,
+      tableName,
+      indexName,
     );
   }
 }

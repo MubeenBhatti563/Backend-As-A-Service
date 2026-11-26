@@ -430,4 +430,104 @@ describe('DatabaseService', () => {
       }),
     ).rejects.toThrow(BadRequestException);
   });
+
+  it('retrieves table structure with columns, primary keys, and constraint counts', async () => {
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([{ bytes: 16384n, rls: false, rows: 10n }]) // tableMeta
+      .mockResolvedValueOnce([
+        {
+          name: 'id',
+          type: 'uuid',
+          isPrimary: true,
+          isUnique: false,
+          isNullable: false,
+          isWritable: false,
+          hasDefault: true,
+          defaultValue: 'gen_random_uuid()',
+          isForeignKey: false,
+          foreignKeyTable: null,
+          foreignKeyColumn: null,
+          foreignKeyConstraint: null,
+        },
+        {
+          name: 'title',
+          type: 'text',
+          isPrimary: false,
+          isUnique: true,
+          isNullable: false,
+          isWritable: true,
+          hasDefault: false,
+          defaultValue: null,
+          isForeignKey: false,
+          foreignKeyTable: null,
+          foreignKeyColumn: null,
+          foreignKeyConstraint: null,
+        },
+      ]);
+
+    const result = await service.getTableStructure('project-1', 'user-1', 'posts');
+    expect(result.table.name).toBe('posts');
+    expect(result.columns).toHaveLength(2);
+    expect(result.primaryKeys).toEqual(['id']);
+    expect(result.uniqueConstraintsCount).toBe(1);
+    expect(result.foreignKeysCount).toBe(0);
+  });
+
+  it('adds a column to a table and drops a column', async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ exists: false }]);
+    prisma.$executeRawUnsafe.mockResolvedValue(0);
+
+    const addRes = await service.addColumn('project-1', 'user-1', 'posts', {
+      name: 'views',
+      type: 'integer',
+      nullable: true,
+      defaultValue: '0',
+    });
+    expect(addRes).toEqual({ added: true, column: 'views' });
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      'ALTER TABLE "tenant_abc"."posts" ADD COLUMN "views" INTEGER DEFAULT 0',
+    );
+
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ isPrimary: false }]);
+    const dropRes = await service.dropColumn('project-1', 'user-1', 'posts', 'views');
+    expect(dropRes).toEqual({ dropped: true, column: 'views' });
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      'ALTER TABLE "tenant_abc"."posts" DROP COLUMN "views" CASCADE',
+    );
+  });
+
+  it('retrieves table indexes and creates/drops an index', async () => {
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([{ bytes: 16384n, rls: false, rows: 10n }])
+      .mockResolvedValueOnce([
+        {
+          name: 'posts_title_idx',
+          tableName: 'posts',
+          method: 'btree',
+          columns: ['title'],
+          isUnique: false,
+          isPrimary: false,
+          isValid: true,
+          definition: 'CREATE INDEX posts_title_idx ON posts USING btree (title)',
+          sizeBytes: 8192n,
+        },
+      ]);
+
+    const indexRes = await service.getTableIndexes('project-1', 'user-1', 'posts');
+    expect(indexRes.table.name).toBe('posts');
+    expect(indexRes.indexes).toHaveLength(1);
+    expect(indexRes.stats.totalIndexes).toBe(1);
+
+    prisma.$executeRawUnsafe.mockResolvedValue(0);
+    const createRes = await service.createTableIndex('project-1', 'user-1', 'posts', {
+      columns: ['created_at'],
+      method: 'btree',
+      isUnique: false,
+    });
+    expect(createRes.created).toBe(true);
+
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ isPrimary: false }]);
+    const dropRes = await service.dropTableIndex('project-1', 'user-1', 'posts', 'posts_title_idx');
+    expect(dropRes).toEqual({ dropped: true, name: 'posts_title_idx' });
+  });
 });

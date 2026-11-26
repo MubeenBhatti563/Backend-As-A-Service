@@ -38,3 +38,17 @@ export const deleteRowsSchema = z.object({
 });
 
 export class DeleteRowsDto extends createZodDto(deleteRowsSchema) {}
+
+export const addColumnSchema = createTableColumnSchema;
+
+export class AddColumnDto extends createZodDto(addColumnSchema) {}
+
+export const createIndexSchema = z.object({
+  name: z.string().trim().regex(/^[a-z][a-z0-9_]{0,62}$/, 'Use a lowercase index name').optional(),
+  columns: z.array(z.string().trim().regex(/^[a-z][a-z0-9_]{0,62}$/)).min(1).max(10),
+  method: z.enum(['btree', 'hash', 'gin', 'gist']).default('btree'),
+  isUnique: z.boolean().default(false),
+});
+
+export class CreateIndexDto extends createZodDto(createIndexSchema) {}
+

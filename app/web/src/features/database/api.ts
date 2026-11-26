@@ -4,6 +4,9 @@ import type {
   DatabaseOverview,
   RelationshipsData,
   TableDetail,
+  TableIndexesResponse,
+  TableRelationshipsResponse,
+  TableStructureResponse,
 } from './types';
 
 const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3000/api/v1').replace(/\/$/, '');
@@ -39,4 +42,16 @@ export function getDatabaseRelationships(projectId: string): Promise<Relationshi
 
 export function getTableDetail(projectId: string, tableName: string): Promise<TableDetail | null> {
   return getData<TableDetail>(`/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}`);
+}
+
+export function getTableStructure(projectId: string, tableName: string): Promise<TableStructureResponse | null> {
+  return getData<TableStructureResponse>(`/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/structure`);
+}
+
+export function getTableRelationships(projectId: string, tableName: string): Promise<TableRelationshipsResponse | null> {
+  return getData<TableRelationshipsResponse>(`/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/relationships`);
+}
+
+export function getTableIndexes(projectId: string, tableName: string): Promise<TableIndexesResponse | null> {
+  return getData<TableIndexesResponse>(`/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/indexes`);
 }

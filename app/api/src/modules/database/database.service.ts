@@ -10,9 +10,19 @@ import type {
   ErTable,
   RelationTone,
   RelationshipsData,
+  TableIndexesResponse,
+  TableRelationshipItem,
+  TableRelationshipsResponse,
+  TableStructureColumn,
+  TableStructureResponse,
 } from '@baas/types';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import type { CreateTableDto, InsertRowDto } from './dto/create-table.dto';
+import type {
+  AddColumnDto,
+  CreateIndexDto,
+  CreateTableDto,
+  InsertRowDto,
+} from './dto/create-table.dto';
 
 const IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
 const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
@@ -67,8 +77,13 @@ function prettyBytes(bytes: number): string {
 
 function formatColumnType(rawType: string): string {
   const lower = rawType.toLowerCase();
-  if (lower.startsWith('character varying') || lower.startsWith('varchar')) return 'varchar';
-  if (lower.startsWith('timestamp with time zone') || lower.startsWith('timestamptz')) return 'timestamptz';
+  if (lower.startsWith('character varying') || lower.startsWith('varchar'))
+    return 'varchar';
+  if (
+    lower.startsWith('timestamp with time zone') ||
+    lower.startsWith('timestamptz')
+  )
+    return 'timestamptz';
   if (lower.startsWith('timestamp without time zone')) return 'timestamp';
   if (lower === 'integer' || lower === 'int4') return 'integer';
   if (lower === 'bigint' || lower === 'int8') return 'bigint';
@@ -370,7 +385,10 @@ export class DatabaseService {
     }
 
     const ranks = new Map<string, number>();
-    const getRank = (tableName: string, visited = new Set<string>()): number => {
+    const getRank = (
+      tableName: string,
+      visited = new Set<string>(),
+    ): number => {
       if (ranks.has(tableName)) return ranks.get(tableName)!;
       if (visited.has(tableName)) return 0;
       visited.add(tableName);
@@ -588,7 +606,9 @@ export class DatabaseService {
       }
       return row;
     });
-    const countRows = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+    const countRows = await this.prisma.$queryRawUnsafe<
+      Array<{ count: bigint }>
+    >(
       `SELECT COUNT(*)::bigint AS count FROM ${schema}.${table}${whereClause}`,
       ...queryParams,
     );
@@ -641,7 +661,10 @@ export class DatabaseService {
       names.add(column.name);
 
       let defaultSql = '';
-      if (column.defaultValue !== undefined && column.defaultValue.trim() !== '') {
+      if (
+        column.defaultValue !== undefined &&
+        column.defaultValue.trim() !== ''
+      ) {
         const def = column.defaultValue.trim();
         if (column.type === 'boolean') {
           if (['true', 'false'].includes(def.toLowerCase())) {
@@ -1098,5 +1121,571 @@ export class DatabaseService {
        LIMIT 100`,
     );
     return { values: rows.map((row) => row.value), limit: 100 };
+  }
+
+  async getTableStructure(
+    projectId: string,
+    userId: string,
+    tableName: string,
+  ): Promise<TableStructureResponse> {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    const project = await this.getProject(projectId, userId);
+
+    const tableMeta = await this.prisma.$queryRawUnsafe<
+      Array<{ bytes: bigint | number; rls: boolean; rows: bigint | number }>
+    >(
+      `SELECT pg_total_relation_size(c.oid) AS bytes,
+        c.relrowsecurity AS rls,
+        GREATEST(COALESCE(s.n_live_tup, 0), c.reltuples::bigint, 0) AS rows
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       LEFT JOIN pg_stat_user_tables s ON s.schemaname = n.nspname AND s.relname = c.relname
+       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p')`,
+      project.schemaName,
+      tableName,
+    );
+    if (tableMeta.length === 0) throw new NotFoundException('Table not found');
+
+    const columnsMeta = await this.prisma.$queryRawUnsafe<
+      Array<{
+        name: string;
+        type: string;
+        isPrimary: boolean;
+        isUnique: boolean;
+        isNullable: boolean;
+        isWritable: boolean;
+        hasDefault: boolean;
+        defaultValue: string | null;
+        isForeignKey: boolean;
+        foreignKeyTable: string | null;
+        foreignKeyColumn: string | null;
+        foreignKeyConstraint: string | null;
+      }>
+    >(
+      `SELECT a.attname AS name,
+        format_type(a.atttypid, a.atttypmod) AS type,
+        EXISTS (
+          SELECT 1 FROM pg_index i
+          WHERE i.indrelid = c.oid AND i.indisprimary AND a.attnum = ANY(i.indkey)
+        ) AS "isPrimary",
+        EXISTS (
+          SELECT 1 FROM pg_index i
+          WHERE i.indrelid = c.oid AND i.indisunique AND NOT i.indisprimary AND a.attnum = ANY(i.indkey)
+        ) AS "isUnique",
+        NOT a.attnotnull AS "isNullable",
+        (a.attgenerated = '' AND a.attidentity = '') AS "isWritable",
+        d.adbin IS NOT NULL AS "hasDefault",
+        pg_get_expr(d.adbin, d.adrelid) AS "defaultValue",
+        EXISTS (
+          SELECT 1 FROM pg_constraint fk_con
+          WHERE fk_con.conrelid = c.oid AND fk_con.contype = 'f' AND a.attnum = ANY(fk_con.conkey)
+        ) AS "isForeignKey",
+        fk.ref_table AS "foreignKeyTable",
+        fk.ref_column AS "foreignKeyColumn",
+        fk.conname AS "foreignKeyConstraint"
+       FROM pg_attribute a
+       JOIN pg_class c ON c.oid = a.attrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+       LEFT JOIN LATERAL (
+         SELECT con.conname, ref.relname AS ref_table, ref_attr.attname AS ref_column
+         FROM pg_constraint con
+         JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS key_pair(local_attnum, ref_attnum, position) ON TRUE
+         JOIN pg_class ref ON ref.oid = con.confrelid
+         JOIN pg_namespace ref_ns ON ref_ns.oid = ref.relnamespace
+         JOIN pg_attribute ref_attr ON ref_attr.attrelid = ref.oid AND ref_attr.attnum = key_pair.ref_attnum
+         WHERE con.conrelid = c.oid AND con.contype = 'f' AND key_pair.local_attnum = a.attnum AND ref_ns.nspname = $1
+         ORDER BY con.oid LIMIT 1
+       ) fk ON TRUE
+       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p') AND a.attnum > 0 AND NOT a.attisdropped
+       ORDER BY a.attnum`,
+      project.schemaName,
+      tableName,
+    );
+
+    const primaryKeys: string[] = [];
+    let uniqueConstraintsCount = 0;
+    let foreignKeysCount = 0;
+
+    const columns: TableStructureColumn[] = columnsMeta.map((col) => {
+      if (col.isPrimary) primaryKeys.push(col.name);
+      if (col.isUnique) uniqueConstraintsCount++;
+      if (col.isForeignKey) foreignKeysCount++;
+
+      return {
+        name: col.name,
+        type: col.type,
+        formattedType: formatColumnType(col.type),
+        isPrimary: Boolean(col.isPrimary),
+        isNullable: Boolean(col.isNullable),
+        isUnique: Boolean(col.isUnique),
+        hasDefault: Boolean(col.hasDefault),
+        defaultValue: col.defaultValue,
+        isForeignKey: Boolean(col.isForeignKey),
+        foreignKey:
+          col.foreignKeyTable && col.foreignKeyColumn
+            ? {
+                tableName: col.foreignKeyTable,
+                columnName: col.foreignKeyColumn,
+                constraintName: col.foreignKeyConstraint ?? undefined,
+              }
+            : null,
+        isWritable: Boolean(col.isWritable),
+      };
+    });
+
+    const totalRows = Number(tableMeta[0]?.rows ?? 0);
+    return {
+      table: {
+        name: tableName,
+        rows: totalRows,
+        size: prettyBytes(Number(tableMeta[0]?.bytes ?? 0)),
+        sizeBytes: String(tableMeta[0]?.bytes ?? 0),
+        lastMaintained: null,
+        rls: tableMeta[0]?.rls ? 'active' : 'disabled',
+      },
+      columns,
+      primaryKeys,
+      uniqueConstraintsCount,
+      foreignKeysCount,
+    };
+  }
+
+  async addColumn(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    dto: AddColumnDto,
+  ) {
+    if (!IDENTIFIER.test(tableName) || !IDENTIFIER.test(dto.name))
+      throw new BadRequestException('Invalid table or column name');
+    if (!SQL_TYPES[dto.type])
+      throw new BadRequestException('Invalid column type');
+
+    const project = await this.getProject(projectId, userId);
+
+    const colExists = await this.prisma.$queryRawUnsafe<
+      Array<{ exists: boolean }>
+    >(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_attribute a
+         JOIN pg_class c ON c.oid = a.attrelid
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = $1 AND c.relname = $2 AND a.attname = $3 AND a.attnum > 0 AND NOT a.attisdropped
+       ) AS exists`,
+      project.schemaName,
+      tableName,
+      dto.name,
+    );
+    if (colExists[0]?.exists)
+      throw new ConflictException(`Column "${dto.name}" already exists`);
+
+    let defaultSql = '';
+    if (dto.defaultValue !== undefined && dto.defaultValue.trim() !== '') {
+      const def = dto.defaultValue.trim();
+      if (dto.type === 'boolean') {
+        if (['true', 'false'].includes(def.toLowerCase())) {
+          defaultSql = ` DEFAULT ${def.toLowerCase()}`;
+        } else {
+          throw new BadRequestException(
+            'Default boolean value must be true or false',
+          );
+        }
+      } else if (dto.type === 'integer' || dto.type === 'bigint') {
+        if (/^-?\d+$/.test(def)) {
+          defaultSql = ` DEFAULT ${def}`;
+        } else {
+          throw new BadRequestException('Default value must be a number');
+        }
+      } else if (dto.type === 'uuid') {
+        if (
+          ['gen_random_uuid()', 'uuid_generate_v4()'].includes(
+            def.toLowerCase(),
+          )
+        ) {
+          defaultSql = ' DEFAULT gen_random_uuid()';
+        } else if (
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            def,
+          )
+        ) {
+          defaultSql = ` DEFAULT '${def}'::uuid`;
+        } else {
+          throw new BadRequestException(
+            'Default value must be a valid UUID or gen_random_uuid()',
+          );
+        }
+      } else if (dto.type === 'timestamptz') {
+        if (['now()', 'current_timestamp'].includes(def.toLowerCase())) {
+          defaultSql = ' DEFAULT CURRENT_TIMESTAMP';
+        } else {
+          defaultSql = ` DEFAULT '${def.replace(/'/g, "''")}'::timestamptz`;
+        }
+      } else if (dto.type === 'jsonb') {
+        try {
+          JSON.parse(def);
+          defaultSql = ` DEFAULT '${def.replace(/'/g, "''")}'::jsonb`;
+        } catch {
+          throw new BadRequestException('Default value must be valid JSON');
+        }
+      } else {
+        defaultSql = ` DEFAULT '${def.replace(/'/g, "''")}'`;
+      }
+    } else if (dto.type === 'uuid' && !dto.foreignKey) {
+      defaultSql = ' DEFAULT gen_random_uuid()';
+    }
+
+    let fkSql = '';
+    if (dto.foreignKey) {
+      const refTable = dto.foreignKey.table.trim();
+      const refCol = dto.foreignKey.column.trim();
+      if (!IDENTIFIER.test(refTable) || !IDENTIFIER.test(refCol))
+        throw new BadRequestException('Invalid foreign key identifiers');
+      const refExists = await this.prisma.$queryRawUnsafe<
+        Array<{ exists: boolean }>
+      >(
+        `SELECT EXISTS (
+           SELECT 1 FROM pg_attribute a
+           JOIN pg_class c ON c.oid = a.attrelid
+           JOIN pg_namespace n ON n.oid = c.relnamespace
+           WHERE n.nspname = $1 AND c.relname = $2 AND a.attname = $3 AND a.attnum > 0 AND NOT a.attisdropped
+         ) AS exists`,
+        project.schemaName,
+        refTable,
+        refCol,
+      );
+      if (!refExists[0]?.exists)
+        throw new BadRequestException(
+          `Referenced table or column "${refTable}"."${refCol}" does not exist`,
+        );
+
+      fkSql = ` REFERENCES ${quote(project.schemaName)}.${quote(refTable)}(${quote(refCol)}) ON DELETE ${dto.nullable ? 'SET NULL' : 'CASCADE'}`;
+    }
+
+    const uniqueSql = dto.isUnique ? ' UNIQUE' : '';
+    const nullableSql = dto.nullable ? '' : ' NOT NULL';
+
+    await this.prisma.$executeRawUnsafe(
+      `ALTER TABLE ${quote(project.schemaName)}.${quote(tableName)} ADD COLUMN ${quote(dto.name)} ${SQL_TYPES[dto.type]}${defaultSql}${nullableSql}${uniqueSql}${fkSql}`,
+    );
+
+    return { added: true, column: dto.name };
+  }
+
+  async dropColumn(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    columnName: string,
+  ) {
+    if (!IDENTIFIER.test(tableName) || !IDENTIFIER.test(columnName))
+      throw new BadRequestException('Invalid table or column name');
+    if (columnName.toLowerCase() === 'id')
+      throw new BadRequestException('Cannot drop the primary key id column');
+
+    const project = await this.getProject(projectId, userId);
+
+    const colMeta = await this.prisma.$queryRawUnsafe<
+      Array<{ isPrimary: boolean }>
+    >(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_index i
+         JOIN pg_class c ON c.oid = i.indrelid
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey)
+         WHERE n.nspname = $1 AND c.relname = $2 AND a.attname = $3 AND i.indisprimary
+       ) AS "isPrimary"
+       FROM pg_attribute a
+       JOIN pg_class c ON c.oid = a.attrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = $1 AND c.relname = $2 AND a.attname = $3 AND a.attnum > 0 AND NOT a.attisdropped`,
+      project.schemaName,
+      tableName,
+      columnName,
+    );
+    if (colMeta.length === 0) throw new NotFoundException('Column not found');
+    if (colMeta[0]?.isPrimary)
+      throw new BadRequestException('Cannot drop a primary key column');
+
+    await this.prisma.$executeRawUnsafe(
+      `ALTER TABLE ${quote(project.schemaName)}.${quote(tableName)} DROP COLUMN ${quote(columnName)} CASCADE`,
+    );
+
+    return { dropped: true, column: columnName };
+  }
+
+  async getTableRelationships(
+    projectId: string,
+    userId: string,
+    tableName: string,
+  ): Promise<TableRelationshipsResponse> {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    const project = await this.getProject(projectId, userId);
+
+    const tableMeta = await this.prisma.$queryRawUnsafe<
+      Array<{ bytes: bigint | number; rls: boolean; rows: bigint | number }>
+    >(
+      `SELECT pg_total_relation_size(c.oid) AS bytes,
+        c.relrowsecurity AS rls,
+        GREATEST(COALESCE(s.n_live_tup, 0), c.reltuples::bigint, 0) AS rows
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       LEFT JOIN pg_stat_user_tables s ON s.schemaname = n.nspname AND s.relname = c.relname
+       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p')`,
+      project.schemaName,
+      tableName,
+    );
+    if (tableMeta.length === 0) throw new NotFoundException('Table not found');
+
+    const allRelationships = await this.getRelationships(projectId, userId);
+
+    const directRelations = allRelationships.relations.filter(
+      (r) => r.from.table === tableName || r.to.table === tableName,
+    );
+
+    const connectedTableNames = new Set<string>([tableName]);
+    for (const r of directRelations) {
+      connectedTableNames.add(r.from.table);
+      connectedTableNames.add(r.to.table);
+    }
+
+    const filteredErTables = allRelationships.tables.filter((t) =>
+      connectedTableNames.has(t.name),
+    );
+
+    const rawFkMeta = await this.prisma.$queryRawUnsafe<
+      Array<{
+        constraintName: string;
+        sourceTable: string;
+        sourceColumn: string;
+        targetTable: string;
+        targetColumn: string;
+        onDeleteCode: string;
+        onUpdateCode: string;
+        isUnique: boolean;
+      }>
+    >(
+      `SELECT con.conname AS "constraintName",
+        src.relname AS "sourceTable",
+        src_attr.attname AS "sourceColumn",
+        ref.relname AS "targetTable",
+        ref_attr.attname AS "targetColumn",
+        con.confdeltype AS "onDeleteCode",
+        con.confupdtype AS "onUpdateCode",
+        EXISTS (
+          SELECT 1 FROM pg_index i
+          WHERE i.indrelid = src.oid AND i.indisunique AND src_attr.attnum = ANY(i.indkey)
+        ) AS "isUnique"
+       FROM pg_constraint con
+       JOIN pg_class src ON src.oid = con.conrelid
+       JOIN pg_namespace src_ns ON src_ns.oid = src.relnamespace
+       JOIN pg_class ref ON ref.oid = con.confrelid
+       JOIN pg_namespace ref_ns ON ref_ns.oid = ref.relnamespace
+       JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS key_pair(local_attnum, ref_attnum, position) ON TRUE
+       JOIN pg_attribute src_attr ON src_attr.attrelid = src.oid AND src_attr.attnum = key_pair.local_attnum
+       JOIN pg_attribute ref_attr ON ref_attr.attrelid = ref.oid AND ref_attr.attnum = key_pair.ref_attnum
+       WHERE con.contype = 'f' AND src_ns.nspname = $1 AND ref_ns.nspname = $1
+         AND (src.relname = $2 OR ref.relname = $2)
+       ORDER BY con.conname`,
+      project.schemaName,
+      tableName,
+    );
+
+    const ACTION_MAP: Record<string, string> = {
+      a: 'NO ACTION',
+      r: 'RESTRICT',
+      c: 'CASCADE',
+      n: 'SET NULL',
+      d: 'SET DEFAULT',
+    };
+
+    const relationships: TableRelationshipItem[] = rawFkMeta.map((fk) => ({
+      id: `${fk.sourceTable}-${fk.sourceColumn}-${fk.targetTable}-${fk.targetColumn}`,
+      direction: fk.sourceTable === tableName ? 'outgoing' : 'incoming',
+      constraintName: fk.constraintName,
+      sourceTable: fk.sourceTable,
+      sourceColumn: fk.sourceColumn,
+      targetTable: fk.targetTable,
+      targetColumn: fk.targetColumn,
+      cardinality: fk.isUnique ? '1:1' : '1:N',
+      onDelete: ACTION_MAP[fk.onDeleteCode] ?? 'NO ACTION',
+      onUpdate: ACTION_MAP[fk.onUpdateCode] ?? 'NO ACTION',
+    }));
+
+    return {
+      table: {
+        name: tableName,
+        rows: Number(tableMeta[0]?.rows ?? 0),
+        size: prettyBytes(Number(tableMeta[0]?.bytes ?? 0)),
+        sizeBytes: String(tableMeta[0]?.bytes ?? 0),
+        lastMaintained: null,
+        rls: tableMeta[0]?.rls ? 'active' : 'disabled',
+      },
+      relationships,
+      erData: {
+        tables: filteredErTables,
+        relations: directRelations,
+      },
+    };
+  }
+
+  async getTableIndexes(
+    projectId: string,
+    userId: string,
+    tableName: string,
+  ): Promise<TableIndexesResponse> {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    const project = await this.getProject(projectId, userId);
+
+    const tableMeta = await this.prisma.$queryRawUnsafe<
+      Array<{ bytes: bigint | number; rls: boolean; rows: bigint | number }>
+    >(
+      `SELECT pg_total_relation_size(c.oid) AS bytes,
+        c.relrowsecurity AS rls,
+        GREATEST(COALESCE(s.n_live_tup, 0), c.reltuples::bigint, 0) AS rows
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       LEFT JOIN pg_stat_user_tables s ON s.schemaname = n.nspname AND s.relname = c.relname
+       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p')`,
+      project.schemaName,
+      tableName,
+    );
+    if (tableMeta.length === 0) throw new NotFoundException('Table not found');
+
+    const indexes = await this.prisma.$queryRawUnsafe<
+      Array<{
+        name: string;
+        tableName: string;
+        method: string;
+        columns: string[];
+        isUnique: boolean;
+        isPrimary: boolean;
+        isValid: boolean;
+        definition: string;
+        sizeBytes: bigint | number;
+      }>
+    >(
+      `SELECT index_class.relname AS name,
+        table_class.relname AS "tableName",
+        access_method.amname AS method,
+        COALESCE((
+          SELECT array_agg(pg_get_indexdef(index_meta.indexrelid, keys.position, true) ORDER BY keys.position)
+          FROM generate_series(1, index_meta.indnatts) AS keys(position)
+        ), ARRAY[]::text[]) AS columns,
+        index_meta.indisunique AS "isUnique",
+        index_meta.indisprimary AS "isPrimary",
+        index_meta.indisvalid AS "isValid",
+        pg_get_indexdef(index_meta.indexrelid) AS definition,
+        pg_relation_size(index_meta.indexrelid)::bigint AS "sizeBytes"
+       FROM pg_index index_meta
+       JOIN pg_class index_class ON index_class.oid = index_meta.indexrelid
+       JOIN pg_class table_class ON table_class.oid = index_meta.indrelid
+       JOIN pg_namespace table_namespace ON table_namespace.oid = table_class.relnamespace
+       JOIN pg_am access_method ON access_method.oid = index_class.relam
+       WHERE table_namespace.nspname = $1 AND table_class.relname = $2
+       ORDER BY index_class.relname`,
+      project.schemaName,
+      tableName,
+    );
+
+    const totalSizeBytes = indexes.reduce(
+      (total, index) => total + BigInt(index.sizeBytes),
+      0n,
+    );
+
+    return {
+      table: {
+        name: tableName,
+        rows: Number(tableMeta[0]?.rows ?? 0),
+        size: prettyBytes(Number(tableMeta[0]?.bytes ?? 0)),
+        sizeBytes: String(tableMeta[0]?.bytes ?? 0),
+        lastMaintained: null,
+        rls: tableMeta[0]?.rls ? 'active' : 'disabled',
+      },
+      stats: {
+        totalIndexes: indexes.length,
+        uniqueIndexes: indexes.filter((index) => index.isUnique).length,
+        totalSizeBytes: totalSizeBytes.toString(),
+      },
+      indexes: indexes.map((index) => ({
+        ...index,
+        sizeBytes: String(index.sizeBytes),
+      })),
+    };
+  }
+
+  async createTableIndex(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    dto: CreateIndexDto,
+  ) {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    for (const col of dto.columns) {
+      if (!IDENTIFIER.test(col))
+        throw new BadRequestException(`Invalid column identifier "${col}"`);
+    }
+
+    const project = await this.getProject(projectId, userId);
+
+    const indexName =
+      dto.name?.trim() ||
+      `${tableName}_${dto.columns.join('_')}_${dto.isUnique ? 'uniq_' : ''}idx`.slice(
+        0,
+        63,
+      );
+    if (!IDENTIFIER.test(indexName))
+      throw new BadRequestException('Invalid index name');
+
+    const method = ['btree', 'hash', 'gin', 'gist'].includes(dto.method)
+      ? dto.method
+      : 'btree';
+    const uniqueSql = dto.isUnique ? 'UNIQUE ' : '';
+    const columnsSql = dto.columns.map(quote).join(', ');
+
+    await this.prisma.$executeRawUnsafe(
+      `CREATE ${uniqueSql}INDEX ${quote(indexName)} ON ${quote(project.schemaName)}.${quote(tableName)} USING ${method} (${columnsSql})`,
+    );
+
+    return { created: true, name: indexName };
+  }
+
+  async dropTableIndex(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    indexName: string,
+  ) {
+    if (!IDENTIFIER.test(tableName) || !IDENTIFIER.test(indexName))
+      throw new BadRequestException('Invalid table or index name');
+    const project = await this.getProject(projectId, userId);
+
+    const indexMeta = await this.prisma.$queryRawUnsafe<
+      Array<{ isPrimary: boolean }>
+    >(
+      `SELECT i.indisprimary AS "isPrimary"
+       FROM pg_index i
+       JOIN pg_class ic ON ic.oid = i.indexrelid
+       JOIN pg_class tc ON tc.oid = i.indrelid
+       JOIN pg_namespace n ON n.oid = tc.relnamespace
+       WHERE n.nspname = $1 AND tc.relname = $2 AND ic.relname = $3`,
+      project.schemaName,
+      tableName,
+      indexName,
+    );
+    if (indexMeta.length === 0)
+      throw new NotFoundException('Index not found on this table');
+    if (indexMeta[0]?.isPrimary)
+      throw new BadRequestException('Cannot drop the primary key index');
+
+    await this.prisma.$executeRawUnsafe(
+      `DROP INDEX ${quote(project.schemaName)}.${quote(indexName)} CASCADE`,
+    );
+
+    return { dropped: true, name: indexName };
   }
 }

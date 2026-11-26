@@ -1,7 +1,14 @@
 import apiClient from '@/lib/api-client';
-import type { ApiResponse, CreateTableRequest, RelationshipsData } from '@baas/types';
+import type {
+  AddColumnRequest,
+  ApiResponse,
+  CreateIndexRequest,
+  CreateTableRequest,
+  RelationshipsData,
+} from '@baas/types';
 import type { TableDetail } from './types';
 
+export type { AddColumnRequest, CreateIndexRequest };
 export type NewTableDefinition = CreateTableRequest;
 
 export async function fetchTablePage(
@@ -76,4 +83,46 @@ export async function fetchDatabaseRelationships(projectId: string) {
     `/project/${encodeURIComponent(projectId)}/database/relationships`,
   )) as unknown as ApiResponse<RelationshipsData>;
   return response.data;
+}
+
+export async function addDatabaseColumn(
+  projectId: string,
+  tableName: string,
+  column: AddColumnRequest,
+) {
+  return apiClient.post(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/columns`,
+    column,
+  );
+}
+
+export async function dropDatabaseColumn(
+  projectId: string,
+  tableName: string,
+  columnName: string,
+) {
+  return apiClient.delete(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/columns/${encodeURIComponent(columnName)}`,
+  );
+}
+
+export async function createDatabaseIndex(
+  projectId: string,
+  tableName: string,
+  index: CreateIndexRequest,
+) {
+  return apiClient.post(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/indexes`,
+    index,
+  );
+}
+
+export async function dropDatabaseIndex(
+  projectId: string,
+  tableName: string,
+  indexName: string,
+) {
+  return apiClient.delete(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/indexes/${encodeURIComponent(indexName)}`,
+  );
 }

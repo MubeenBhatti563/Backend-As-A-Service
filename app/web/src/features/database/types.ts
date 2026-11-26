@@ -16,4 +16,12 @@ export type {
   RelationTone,
   ErRelation,
   RelationshipsData,
+  TableStructureColumn,
+  TableStructureResponse,
+  TableRelationshipItem,
+  TableRelationshipsResponse,
+  TableIndexesResponse,
+  CreateIndexRequest,
+  AddColumnRequest,
+  DatabaseColumnType,
 } from "@baas/types";
