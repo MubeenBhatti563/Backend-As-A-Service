@@ -461,6 +461,81 @@ export const theme = createTheme({
         },
       },
     },
+
+    // ── Dropdown / Select ────────────────────────────────────────────────────
+    // Makes <Select> and its pop-up menu look identical to the project selector
+
+    MuiSelect: {
+      defaultProps: {
+        MenuProps: {
+          // Keeps the pop-up close to the trigger, like the project selector
+          anchorOrigin: { vertical: "bottom", horizontal: "left" },
+          transformOrigin: { vertical: "top", horizontal: "left" },
+          slotProps: {
+            paper: {
+              sx: {
+                mt: "6px",
+                minWidth: 180,
+                bgcolor: "background.default",
+                backgroundImage: "none",
+                border: `1px solid ${colors.border.default}`,
+                borderRadius: "8px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                py: 1,
+              },
+            },
+          },
+        },
+      },
+    },
+
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          marginTop: 6,
+          backgroundColor: colors.background.default,
+          backgroundImage: "none",
+          border: `1px solid ${colors.border.default}`,
+          borderRadius: 8,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+        },
+        list: {
+          padding: "4px",
+        },
+      },
+    },
+
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          borderRadius: 6,
+          marginInline: "0px",
+          fontSize: 13,
+          fontWeight: 400,
+          color: colors.text.primary,
+          minHeight: 34,
+          padding: "6px 10px",
+
+          "&:hover": {
+            backgroundColor: colors.background.elevated,
+          },
+
+          "&.Mui-selected": {
+            backgroundColor: colors.background.elevated,
+            fontWeight: 600,
+
+            "&:hover": {
+              backgroundColor: colors.background.elevated,
+            },
+          },
+
+          "&.Mui-disabled": {
+            color: colors.text.disabled,
+            opacity: 1,
+          },
+        },
+      },
+    },
   },
 });
 

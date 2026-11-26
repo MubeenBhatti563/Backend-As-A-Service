@@ -86,7 +86,25 @@ export function DatabaseActionDialog({
             bgcolor: "background.paper",
           }}
         >
-          <Button onClick={onClose} disabled={saving} color="inherit">Cancel</Button>
+          <Button
+            onClick={onClose}
+            disabled={saving}
+            variant="outlined"
+            sx={{
+              color: "text.primary",
+              bgcolor: "background.elevated",
+              border: "1px solid",
+              borderColor: "border.strong",
+              textTransform: "none",
+              fontWeight: 500,
+              "&:hover": {
+                bgcolor: "rgba(255,255,255,0.08)",
+                borderColor: "text.disabled",
+              },
+            }}
+          >
+            Cancel
+          </Button>
           <Button type="submit" variant="contained" disabled={saving || submitDisabled} sx={{ minWidth: 132 }}>
             {saving ? submittingLabel : submitLabel}
           </Button>
