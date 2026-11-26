@@ -3,33 +3,47 @@ export * from "./constants";
 export * from "./api";
 export * from "./er-types";
 export * from "./relationships-mock-data";
+
+// Shared common database components
 export * from "./components/DatabaseHeader";
 export * from "./components/DatabaseTabs";
-export * from "./components/DatabaseTablesView";
-export * from "./components/DatabaseIndexesView";
-export * from "./components/TablesGrid";
-export * from "./components/RlsBadge";
 export * from "./components/HeaderStat";
-export * from "./components/StatusChip";
 export * from "./components/SectionTabs";
 export * from "./components/TableDetailHeader";
 export * from "./components/TableDetailTabs";
-export * from "./components/DataGrid";
-export * from "./components/PaginationFooter";
-export * from "./components/TableDataView";
-export * from "./components/CreateTableDialog";
-export * from "./components/AddRowDialog";
-export * from "./components/EditRowDialog";
 export * from "./components/ConfirmDeleteDialog";
 export * from "./components/DatabaseActionDialog";
-export * from "./components/AddColumnDialog";
-export * from "./components/TableStructureView";
-export * from "./components/TableRelationshipsView";
-export * from "./components/CreateIndexDialog";
-export * from "./components/TableIndexesView";
-export * from "./components/TableNodeCard";
-export * from "./components/RelationEdge";
-export * from "./components/RelationshipsToolbar";
-export * from "./components/RelationshipsView";
+
+// Tables overview and creation
+export * from "./components/tables/DatabaseTablesView";
+export * from "./components/tables/TablesGrid";
+export * from "./components/tables/CreateTableDialog";
+export * from "./components/tables/RlsBadge";
+
+// Table data rows and editing
+export * from "./components/table-data/TableDataView";
+export * from "./components/table-data/DataGrid";
+export * from "./components/table-data/AddRowDialog";
+export * from "./components/table-data/EditRowDialog";
+export * from "./components/table-data/PaginationFooter";
+export * from "./components/table-data/StatusChip";
+
+// Table structure and column management
+export * from "./components/table-structure/TableStructureView";
+export * from "./components/table-structure/AddColumnDialog";
+
+// Indexes
+export * from "./components/indexes/DatabaseIndexesView";
+export * from "./components/indexes/TableIndexesView";
+export * from "./components/indexes/CreateIndexDialog";
+
+// Relationships and ER Diagrams
+export * from "./components/relationships/RelationshipsView";
+export * from "./components/relationships/TableRelationshipsView";
+export * from "./components/relationships/RelationshipsToolbar";
+export * from "./components/relationships/RelationEdge";
+export * from "./components/relationships/TableNodeCard";
+
+// SQL Editor
 export * from "./components/sql-editor/SqlEditorView";
 export * from "./components/sql-editor/SqlEditorHeader";

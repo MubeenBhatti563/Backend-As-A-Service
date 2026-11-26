@@ -23,8 +23,8 @@ import {
   IconLink,
   IconRefresh,
 } from "@tabler/icons-react";
-import { SURFACE } from "../constants";
-import type { TableRelationshipsResponse } from "../types";
+import { SURFACE } from "../../constants";
+import type { TableRelationshipsResponse } from "../../types";
 import { RelationshipsView } from "./RelationshipsView";
 
 function StatCard({

@@ -21,18 +21,30 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  IconColumns,
+  IconDatabase,
   IconKey,
-  IconLink,
   IconPlus,
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
-import { SURFACE } from "../constants";
-import type { TableStructureColumn, TableStructureResponse } from "../types";
-import { AddColumnDialog } from "./AddColumnDialog";
-import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
-import { dropDatabaseColumn } from "../table.client-api";
+import { SURFACE } from "../../constants";
+import type { DatabaseIndex, TableIndexesResponse } from "../../types";
+import { CreateIndexDialog } from "./CreateIndexDialog";
+import { ConfirmDeleteDialog } from "../ConfirmDeleteDialog";
+import { dropDatabaseIndex } from "../../table.client-api";
+
+function formatBytes(value: string): string {
+  const bytes = BigInt(value || "0");
+  if (bytes < BigInt(1024)) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB", "PB"];
+  let size = Number(bytes);
+  let unit = -1;
+  do {
+    size /= 1024;
+    unit += 1;
+  } while (size >= 1024 && unit < units.length - 1);
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(size)} ${units[unit]}`;
+}
 
 function StatCard({
   label,
@@ -42,7 +54,7 @@ function StatCard({
 }: {
   label: string;
   value: string | number;
-  icon: typeof IconColumns;
+  icon: typeof IconDatabase;
   color?: string;
 }) {
   return (
@@ -105,35 +117,45 @@ function StatCard({
 
 interface Props {
   projectId: string;
-  structure: TableStructureResponse;
+  indexesData: TableIndexesResponse;
 }
 
-export function TableStructureView({ projectId, structure }: Props) {
+export function TableIndexesView({ projectId, indexesData }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
-  const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [indexToDelete, setIndexToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
-  const filteredColumns = useMemo(() => {
+  const filteredIndexes = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return structure.columns;
-    return structure.columns.filter((c) =>
-      c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q),
+    if (!q) return indexesData.indexes;
+    return indexesData.indexes.filter(
+      (idx) =>
+        idx.name.toLowerCase().includes(q) ||
+        idx.columns.some((c) => c.toLowerCase().includes(q)) ||
+        idx.method.toLowerCase().includes(q),
     );
-  }, [structure.columns, query]);
+  }, [indexesData.indexes, query]);
+
+  // Extract unique columns seen across indexes or from table
+  const availableColumns = useMemo(() => {
+    const set = new Set<string>();
+    indexesData.indexes.forEach((idx) => idx.columns.forEach((c) => set.add(c)));
+    return Array.from(set);
+  }, [indexesData.indexes]);
 
   const handleDropConfirm = async () => {
-    if (!columnToDelete) return;
+    if (!indexToDelete) return;
     setIsDeleting(true);
     try {
-      await dropDatabaseColumn(projectId, structure.table.name, columnToDelete);
-      setFeedback({ message: `Column "${columnToDelete}" dropped successfully.`, severity: "success" });
-      setColumnToDelete(null);
+      await dropDatabaseIndex(projectId, indexesData.table.name, indexToDelete);
+      setFeedback({ message: `Index "${indexToDelete}" dropped successfully.`, severity: "success" });
+      setIndexToDelete(null);
       router.refresh();
     } catch {
-      setFeedback({ message: "Could not drop column. Check constraints or retry.", severity: "error" });
+      setFeedback({ message: "Could not drop index. Please try again.", severity: "error" });
     } finally {
       setIsDeleting(false);
     }
@@ -141,26 +163,25 @@ export function TableStructureView({ projectId, structure }: Props) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {/* Overview Metric Cards */}
+      {/* Metric Cards */}
       <Box sx={{ display: "flex", gap: 2.5, flexWrap: "wrap" }}>
-        <StatCard label="Columns" value={structure.columns.length} icon={IconColumns} color="text.primary" />
         <StatCard
-          label="Primary Key"
-          value={structure.primaryKeys.join(", ") || "None"}
+          label="Total Indexes"
+          value={indexesData.stats.totalIndexes}
+          icon={IconDatabase}
+          color="text.primary"
+        />
+        <StatCard
+          label="Unique Indexes"
+          value={indexesData.stats.uniqueIndexes}
           icon={IconKey}
           color="warning.main"
         />
         <StatCard
-          label="Unique Fields"
-          value={structure.uniqueConstraintsCount}
-          icon={IconKey}
+          label="Total Index Size"
+          value={formatBytes(indexesData.stats.totalSizeBytes)}
+          icon={IconDatabase}
           color="secondary.main"
-        />
-        <StatCard
-          label="Foreign Keys"
-          value={structure.foreignKeysCount}
-          icon={IconLink}
-          color="info.main"
         />
       </Box>
 
@@ -176,7 +197,7 @@ export function TableStructureView({ projectId, structure }: Props) {
       >
         <OutlinedInput
           size="small"
-          placeholder="Filter columns…"
+          placeholder="Filter indexes…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           startAdornment={
@@ -198,7 +219,7 @@ export function TableStructureView({ projectId, structure }: Props) {
         <Button
           variant="contained"
           startIcon={<IconPlus size={16} />}
-          onClick={() => setAddOpen(true)}
+          onClick={() => setCreateOpen(true)}
           sx={{
             height: 38,
             px: 2.5,
@@ -208,11 +229,11 @@ export function TableStructureView({ projectId, structure }: Props) {
             textTransform: "none",
           }}
         >
-          Add Column
+          Create Index
         </Button>
       </Box>
 
-      {/* Columns Table */}
+      {/* Indexes Table */}
       <Box
         sx={{
           bgcolor: SURFACE,
@@ -222,23 +243,23 @@ export function TableStructureView({ projectId, structure }: Props) {
           overflowX: "auto",
         }}
       >
-        <Table sx={{ minWidth: 700 }} aria-label="Table columns structure">
+        <Table sx={{ minWidth: 700 }} aria-label="Table indexes">
           <TableHead>
             <TableRow sx={{ bgcolor: "background.elevated" }}>
               <TableCell sx={{ color: "text.disabled", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", py: 2, pl: 3 }}>
-                Column Name
+                Index Name
               </TableCell>
               <TableCell sx={{ color: "text.disabled", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", py: 2 }}>
-                Data Type
+                Method
               </TableCell>
               <TableCell sx={{ color: "text.disabled", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", py: 2 }}>
-                Nullable
+                Indexed Columns
               </TableCell>
               <TableCell sx={{ color: "text.disabled", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", py: 2 }}>
-                Default Value
+                Type
               </TableCell>
               <TableCell sx={{ color: "text.disabled", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", py: 2 }}>
-                Constraints & References
+                Size
               </TableCell>
               <TableCell align="right" sx={{ color: "text.disabled", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", py: 2, pr: 3 }}>
                 Actions
@@ -247,122 +268,93 @@ export function TableStructureView({ projectId, structure }: Props) {
           </TableHead>
 
           <TableBody>
-            {filteredColumns.length === 0 && (
+            {filteredIndexes.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 6, color: "text.disabled" }}>
-                  No columns match “{query}”.
+                  No indexes match “{query}”.
                 </TableCell>
               </TableRow>
             )}
 
-            {filteredColumns.map((col) => (
-              <TableRow key={col.name} hover sx={{ "&:last-child td": { borderBottom: 0 } }}>
-                {/* Column Name */}
+            {filteredIndexes.map((idx) => (
+              <TableRow key={idx.name} hover sx={{ "&:last-child td": { borderBottom: 0 } }}>
+                {/* Index Name */}
                 <TableCell sx={{ py: 2, pl: 3 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                    {col.isPrimary ? (
-                      <Tooltip title="Primary Key">
-                        <Box component="span" sx={{ color: "warning.main", display: "flex" }}>
-                          <IconKey size={16} />
-                        </Box>
-                      </Tooltip>
-                    ) : col.isForeignKey ? (
-                      <Tooltip title="Foreign Key">
-                        <Box component="span" sx={{ color: "info.main", display: "flex" }}>
-                          <IconLink size={16} />
-                        </Box>
-                      </Tooltip>
-                    ) : (
-                      <Box component="span" sx={{ color: "text.disabled", display: "flex" }}>
-                        <IconColumns size={16} />
-                      </Box>
-                    )}
-                    <Typography component="span" sx={{ typography: "code", fontWeight: 600, fontSize: 13, color: "text.primary" }}>
-                      {col.name}
-                    </Typography>
+                    <Box component="span" sx={{ color: idx.isPrimary ? "warning.main" : "secondary.main", display: "flex" }}>
+                      {idx.isPrimary ? <IconKey size={16} /> : <IconDatabase size={16} />}
+                    </Box>
+                    <Tooltip title={idx.definition} describeChild>
+                      <Typography sx={{ typography: "code", fontSize: 13, fontWeight: 600, color: "text.primary", cursor: "help" }}>
+                        {idx.name}
+                      </Typography>
+                    </Tooltip>
                   </Box>
                 </TableCell>
 
-                {/* Data Type */}
+                {/* Method */}
                 <TableCell sx={{ py: 2 }}>
                   <Chip
                     size="small"
-                    label={col.formattedType}
-                    sx={{
-                      typography: "code",
-                      fontSize: 11,
-                      fontWeight: 600,
-                      bgcolor: "background.elevated",
-                      color: "secondary.main",
-                      border: "1px solid",
-                      borderColor: "border.subtle",
-                    }}
+                    label={idx.method.toUpperCase()}
+                    sx={{ typography: "code", fontSize: 11, fontWeight: 600, bgcolor: "background.elevated" }}
                   />
                 </TableCell>
 
-                {/* Nullable */}
+                {/* Columns */}
                 <TableCell sx={{ py: 2 }}>
-                  <Typography variant="body2" sx={{ fontSize: 13, color: col.isNullable ? "text.secondary" : "text.primary", fontWeight: col.isNullable ? 400 : 500 }}>
-                    {col.isNullable ? "YES" : "NO"}
-                  </Typography>
+                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                    {idx.columns.map((c) => (
+                      <Chip
+                        key={c}
+                        size="small"
+                        label={c}
+                        sx={{ typography: "code", fontSize: 11, bgcolor: "background.elevated", color: "text.secondary" }}
+                      />
+                    ))}
+                  </Box>
                 </TableCell>
 
-                {/* Default Value */}
+                {/* Type */}
                 <TableCell sx={{ py: 2 }}>
-                  {col.defaultValue ? (
-                    <Typography component="span" sx={{ typography: "code", fontSize: 12, color: "text.secondary" }}>
-                      {col.defaultValue}
-                    </Typography>
-                  ) : (
-                    <Typography component="span" sx={{ color: "text.disabled", fontSize: 12 }}>
-                      -
-                    </Typography>
-                  )}
-                </TableCell>
-
-                {/* Constraints & References */}
-                <TableCell sx={{ py: 2 }}>
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
-                    {col.isPrimary && (
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    {idx.isPrimary && (
                       <Chip
                         size="small"
-                        label="PRIMARY KEY"
+                        label="PRIMARY"
                         sx={{ fontSize: 10, fontWeight: 700, bgcolor: "rgba(245, 158, 11, 0.12)", color: "#F59E0B" }}
                       />
                     )}
-                    {col.isUnique && (
+                    {idx.isUnique && !idx.isPrimary && (
                       <Chip
                         size="small"
                         label="UNIQUE"
                         sx={{ fontSize: 10, fontWeight: 700, bgcolor: "rgba(139, 92, 246, 0.12)", color: "#A78BFA" }}
                       />
                     )}
-                    {col.foreignKey && (
-                      <Tooltip title={`Referenced by constraint ${col.foreignKey.constraintName ?? ""}`}>
-                        <Chip
-                          size="small"
-                          icon={<IconLink size={12} />}
-                          label={`REFERENCES ${col.foreignKey.tableName}.${col.foreignKey.columnName}`}
-                          sx={{ fontSize: 11, fontWeight: 500, bgcolor: "rgba(59, 130, 246, 0.12)", color: "#60A5FA" }}
-                        />
-                      </Tooltip>
-                    )}
-                    {!col.isPrimary && !col.isUnique && !col.foreignKey && !col.isNullable && (
+                    {!idx.isPrimary && !idx.isUnique && (
                       <Typography variant="caption" sx={{ color: "text.disabled" }}>
-                        NOT NULL
+                        Regular
                       </Typography>
                     )}
                   </Box>
                 </TableCell>
 
+                {/* Size */}
+                <TableCell sx={{ py: 2 }}>
+                  <Typography sx={{ typography: "code", fontSize: 12, color: "text.secondary" }}>
+                    {formatBytes(idx.sizeBytes)}
+                  </Typography>
+                </TableCell>
+
                 {/* Actions */}
                 <TableCell align="right" sx={{ py: 2, pr: 3 }}>
-                  <Tooltip title={col.isPrimary ? "Cannot drop primary key" : `Drop column "${col.name}"`}>
+                  <Tooltip title={idx.isPrimary ? "Cannot drop primary key index" : `Drop index "${idx.name}"`}>
                     <span>
                       <IconButton
                         size="small"
-                        disabled={col.isPrimary}
-                        onClick={() => setColumnToDelete(col.name)}
+                        disabled={idx.isPrimary}
+                        onClick={() => setIndexToDelete(idx.name)}
                         sx={{
                           color: "text.secondary",
                           "&:hover": { color: "error.main", bgcolor: "rgba(239, 68, 68, 0.08)" },
@@ -380,26 +372,27 @@ export function TableStructureView({ projectId, structure }: Props) {
         </Table>
       </Box>
 
-      {/* Add Column Dialog */}
-      <AddColumnDialog
-        open={addOpen}
+      {/* Create Index Dialog */}
+      <CreateIndexDialog
+        open={createOpen}
         projectId={projectId}
-        tableName={structure.table.name}
-        onClose={() => setAddOpen(false)}
-        onAdded={() => {
-          setFeedback({ message: "Column added successfully.", severity: "success" });
+        tableName={indexesData.table.name}
+        availableColumns={availableColumns}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => {
+          setFeedback({ message: "Index created successfully.", severity: "success" });
           router.refresh();
         }}
       />
 
-      {/* Confirm Drop Column Dialog */}
+      {/* Confirm Drop Index Dialog */}
       <ConfirmDeleteDialog
-        open={Boolean(columnToDelete)}
-        title={`Drop column "${columnToDelete ?? ""}"?`}
-        description={`Are you sure you want to drop column "${columnToDelete ?? ""}" from table "${structure.table.name}"? Any data stored in this column will be permanently removed.`}
-        confirmLabel="Drop column"
+        open={Boolean(indexToDelete)}
+        title={`Drop index "${indexToDelete ?? ""}"?`}
+        description={`Are you sure you want to drop index "${indexToDelete ?? ""}" from table "${indexesData.table.name}"?`}
+        confirmLabel="Drop index"
         submitting={isDeleting}
-        onClose={() => setColumnToDelete(null)}
+        onClose={() => setIndexToDelete(null)}
         onConfirm={handleDropConfirm}
       />
 

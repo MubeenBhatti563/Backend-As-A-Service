@@ -8,8 +8,8 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { Box, useTheme } from "@mui/material";
-import { SURFACE } from "../constants";
-import type { ErRelation, RelationTone } from "../er-types";
+import { SURFACE } from "../../constants";
+import type { ErRelation, RelationTone } from "../../er-types";
 
 export type RelationEdgeData = {
   cardinality: ErRelation["cardinality"];

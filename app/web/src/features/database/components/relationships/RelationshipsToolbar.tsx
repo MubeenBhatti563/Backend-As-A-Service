@@ -2,8 +2,8 @@
 
 import { Box, Button, IconButton, Stack, Typography } from "@mui/material";
 import { Plus, ZoomIn, ZoomOut } from "lucide-react";
-import { CANVAS } from "../constants";
-import { toolbarButtonSx } from "./sql-editor/toolbarStyles";
+import { CANVAS } from "../../constants";
+import { toolbarButtonSx } from "../sql-editor/toolbarStyles";
 
 interface Props {
   zoomPercent: number;

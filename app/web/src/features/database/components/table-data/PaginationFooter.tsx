@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Button, Typography } from "@mui/material";
-import { SURFACE } from "../constants";
+import { SURFACE } from "../../constants";
 
 interface Props {
   from: number;

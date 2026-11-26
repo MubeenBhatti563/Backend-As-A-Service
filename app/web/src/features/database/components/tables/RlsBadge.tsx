@@ -1,7 +1,7 @@
 "use client";
 
 import { Box } from "@mui/material";
-import type { RlsStatus } from "../types";
+import type { RlsStatus } from "../../types";
 
 const VARIANTS: Record<
   RlsStatus,

@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Box, Button, InputAdornment, OutlinedInput, Snackbar } from "@mui/material";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
-import { SURFACE } from "../constants";
-import type { DatabaseTable } from "../types";
+import { SURFACE } from "../../constants";
+import type { DatabaseTable } from "../../types";
 import { TablesGrid } from "./TablesGrid";
 import { CreateTableDialog } from "./CreateTableDialog";
 

@@ -16,8 +16,8 @@ import {
   Typography,
 } from "@mui/material";
 import { IconDatabase, IconKey, IconSearch } from "@tabler/icons-react";
-import { SURFACE } from "../constants";
-import type { DatabaseIndexesResponse } from "../types";
+import { SURFACE } from "../../constants";
+import type { DatabaseIndexesResponse } from "../../types";
 
 function formatBytes(value: string): string {
   const bytes = BigInt(value);

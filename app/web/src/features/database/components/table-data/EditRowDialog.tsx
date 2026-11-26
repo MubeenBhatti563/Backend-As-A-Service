@@ -11,17 +11,17 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import type { GridColumn, GridRow } from "../types";
+import type { GridColumn, GridRow } from "../../types";
 import {
   updateDatabaseRow,
   fetchForeignKeyOptions,
-} from "../table.client-api";
+} from "../../table.client-api";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
   createAddRowSchema,
   normalizeDatabaseType,
-} from "../schemas/table-actions.schema";
-import { DatabaseActionDialog } from "./DatabaseActionDialog";
+} from "../../schemas/table-actions.schema";
+import { DatabaseActionDialog } from "../DatabaseActionDialog";
 
 interface Props {
   open: boolean;

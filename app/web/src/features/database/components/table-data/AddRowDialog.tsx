@@ -6,12 +6,12 @@ import { Controller, useForm } from "react-hook-form";
 import {
   Alert, Box, MenuItem, Stack, TextField, Typography,
 } from "@mui/material";
-import type { GridColumn } from "../types";
-import { insertDatabaseRow } from "../table.client-api";
-import { fetchForeignKeyOptions } from "../table.client-api";
+import type { GridColumn } from "../../types";
+import { insertDatabaseRow } from "../../table.client-api";
+import { fetchForeignKeyOptions } from "../../table.client-api";
 import { getErrorMessage } from "@/lib/get-error-message";
-import { createAddRowSchema, normalizeDatabaseType } from "../schemas/table-actions.schema";
-import { DatabaseActionDialog } from "./DatabaseActionDialog";
+import { createAddRowSchema, normalizeDatabaseType } from "../../schemas/table-actions.schema";
+import { DatabaseActionDialog } from "../DatabaseActionDialog";
 
 interface Props {
   open: boolean;

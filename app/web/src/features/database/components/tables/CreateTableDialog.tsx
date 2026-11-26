@@ -31,15 +31,15 @@ import {
   createDatabaseTable,
   fetchDatabaseRelationships,
   type NewTableDefinition,
-} from "../table.client-api";
+} from "../../table.client-api";
 import { getErrorMessage } from "@/lib/get-error-message";
-import { DatabaseActionDialog } from "./DatabaseActionDialog";
+import { DatabaseActionDialog } from "../DatabaseActionDialog";
 import {
   createTableDefinitionSchema,
   type CreateTableDefinition,
   type CreateTableFormValues,
-} from "../schemas/table-actions.schema";
-import type { ErTable } from "../types";
+} from "../../schemas/table-actions.schema";
+import type { ErTable } from "../../types";
 
 const COLUMN_TYPES: Array<{
   value: CreateTableDefinition["columns"][number]["type"];

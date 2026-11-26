@@ -18,9 +18,9 @@ import {
 import {
   createDatabaseIndex,
   type CreateIndexRequest,
-} from "../table.client-api";
+} from "../../table.client-api";
 import { getErrorMessage } from "@/lib/get-error-message";
-import { DatabaseActionDialog } from "./DatabaseActionDialog";
+import { DatabaseActionDialog } from "../DatabaseActionDialog";
 
 const createIndexFormSchema = z.object({
   name: z

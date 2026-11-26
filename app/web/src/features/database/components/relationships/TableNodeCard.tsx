@@ -3,8 +3,8 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { Box, Stack, Typography } from "@mui/material";
 import { Key, Link2, Table as TableIcon, EllipsisVertical } from "lucide-react";
-import { SURFACE } from "../constants";
-import type { ErColumn } from "../er-types";
+import { SURFACE } from "../../constants";
+import type { ErColumn } from "../../er-types";
 
 export type TableNodeData = { name: string; columns: ErColumn[] };
 export type TableNodeType = Node<TableNodeData, "table">;

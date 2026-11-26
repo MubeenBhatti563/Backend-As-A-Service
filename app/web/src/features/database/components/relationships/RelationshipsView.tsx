@@ -11,8 +11,8 @@ import {
   useViewport,
 } from "@xyflow/react";
 import { Box, Stack } from "@mui/material";
-import { CANVAS, SURFACE } from "../constants";
-import type { ErRelation, ErTable, RelationshipsData } from "../er-types";
+import { CANVAS, SURFACE } from "../../constants";
+import type { ErRelation, ErTable, RelationshipsData } from "../../er-types";
 import { RelationEdge, type RelationEdgeType } from "./RelationEdge";
 import { RelationshipsToolbar } from "./RelationshipsToolbar";
 import { TableNodeCard, type TableNodeType } from "./TableNodeCard";

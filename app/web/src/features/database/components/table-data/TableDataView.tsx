@@ -17,18 +17,18 @@ import {
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
-import { SURFACE } from "../constants";
-import type { GridRow, TableDetail } from "../types";
+import { SURFACE } from "../../constants";
+import type { GridRow, TableDetail } from "../../types";
 import { DataGrid } from "./DataGrid";
 import { PaginationFooter } from "./PaginationFooter";
 import {
   deleteDatabaseRow,
   deleteDatabaseRows,
   fetchTablePage,
-} from "../table.client-api";
+} from "../../table.client-api";
 import { AddRowDialog } from "./AddRowDialog";
 import { EditRowDialog } from "./EditRowDialog";
-import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "../ConfirmDeleteDialog";
 
 const toolbarButtonSx = {
   minHeight: 33,

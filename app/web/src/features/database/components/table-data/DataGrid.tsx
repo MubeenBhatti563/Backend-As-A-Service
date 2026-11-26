@@ -14,8 +14,8 @@ import {
   TableRow,
 } from "@mui/material";
 import { IconDotsVertical, IconPencil, IconTrash } from "@tabler/icons-react";
-import { SURFACE } from "../constants";
-import type { CellKind, GridColumn, GridRow } from "../types";
+import { SURFACE } from "../../constants";
+import type { CellKind, GridColumn, GridRow } from "../../types";
 import { StatusChip, toneFor } from "./StatusChip";
 
 const KIND_WIDTH: Partial<Record<CellKind, number>> = {

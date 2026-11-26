@@ -236,15 +236,17 @@ export function ConfirmDeleteDialog({
             sx={{
               height: 38,
               px: 4,
-              borderColor: "border.default",
+              border: 1,
+              borderColor: "border.strong",
+              bgcolor: "rgba(255, 255, 255, 0.05)",
               borderRadius: 1,
-              color: "text.secondary",
+              color: "text.primary",
               fontSize: 14,
               fontWeight: 600,
               lineHeight: "18px",
               "&:hover": {
-                borderColor: "border.strong",
-                bgcolor: "background.elevated",
+                borderColor: "text.secondary",
+                bgcolor: "rgba(255, 255, 255, 0.1)",
                 color: "text.primary",
               },
             }}

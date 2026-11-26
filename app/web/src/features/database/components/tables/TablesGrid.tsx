@@ -24,11 +24,11 @@ import {
   IconEye,
   IconTrash,
 } from "@tabler/icons-react";
-import { SURFACE, tableDetailHref } from "../constants";
-import type { DatabaseTable } from "../types";
+import { SURFACE, tableDetailHref } from "../../constants";
+import type { DatabaseTable } from "../../types";
 import { RlsBadge } from "./RlsBadge";
-import { dropDatabaseTable } from "../table.client-api";
-import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { dropDatabaseTable } from "../../table.client-api";
+import { ConfirmDeleteDialog } from "../ConfirmDeleteDialog";
 
 const COLUMNS = [
   { label: "Table name", width: undefined },

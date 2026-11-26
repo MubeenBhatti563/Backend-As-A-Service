@@ -61,8 +61,15 @@ export function ConfirmDeleteDialog({
           disabled={submitting}
           sx={{
             color: "text.primary",
-            borderColor: "border.default",
+            bgcolor: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid",
+            borderColor: "border.strong",
             textTransform: "none",
+            fontWeight: 500,
+            "&:hover": {
+              bgcolor: "rgba(255, 255, 255, 0.1)",
+              borderColor: "text.secondary",
+            },
           }}
         >
           Cancel

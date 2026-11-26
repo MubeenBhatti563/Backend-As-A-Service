@@ -21,11 +21,11 @@ import {
   addDatabaseColumn,
   fetchDatabaseRelationships,
   type AddColumnRequest,
-} from "../table.client-api";
+} from "../../table.client-api";
 import { getErrorMessage } from "@/lib/get-error-message";
-import { DatabaseActionDialog } from "./DatabaseActionDialog";
-import { databaseColumnTypeSchema } from "../schemas/table-actions.schema";
-import type { ErTable } from "../types";
+import { DatabaseActionDialog } from "../DatabaseActionDialog";
+import { databaseColumnTypeSchema } from "../../schemas/table-actions.schema";
+import type { ErTable } from "../../types";
 
 const COLUMN_TYPES: Array<{
   value: AddColumnRequest["type"];
