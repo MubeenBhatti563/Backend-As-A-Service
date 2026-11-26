@@ -1472,8 +1472,8 @@ export class DatabaseService {
         src_attr.attname AS "sourceColumn",
         ref.relname AS "targetTable",
         ref_attr.attname AS "targetColumn",
-        con.confdeltype AS "onDeleteCode",
-        con.confupdtype AS "onUpdateCode",
+        con.confdeltype::text AS "onDeleteCode",
+        con.confupdtype::text AS "onUpdateCode",
         EXISTS (
           SELECT 1 FROM pg_index i
           WHERE i.indrelid = src.oid AND i.indisunique AND src_attr.attnum = ANY(i.indkey)
