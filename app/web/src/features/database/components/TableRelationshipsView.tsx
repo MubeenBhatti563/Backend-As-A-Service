@@ -1,15 +1,6 @@
 "use client";
 
-import "@xyflow/react/dist/style.css";
-
-import { useCallback, useMemo, useState } from "react";
-import {
-  ReactFlow,
-  ReactFlowProvider,
-  useNodesState,
-  useReactFlow,
-  useViewport,
-} from "@xyflow/react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -32,82 +23,9 @@ import {
   IconLink,
   IconRefresh,
 } from "@tabler/icons-react";
-import { CANVAS, SURFACE } from "../constants";
-import type { ErRelation, ErTable, RelationshipsData } from "../er-types";
+import { SURFACE } from "../constants";
 import type { TableRelationshipsResponse } from "../types";
-import { RelationEdge, type RelationEdgeType } from "./RelationEdge";
-import { RelationshipsToolbar } from "./RelationshipsToolbar";
-import { TableNodeCard, type TableNodeType } from "./TableNodeCard";
-
-const nodeTypes = { table: TableNodeCard };
-const edgeTypes = { relation: RelationEdge };
-
-const toNodes = (tables: ErTable[]): TableNodeType[] =>
-  tables.map((t) => ({
-    id: t.id,
-    type: "table",
-    position: { x: t.x, y: t.y },
-    data: { name: t.name, columns: t.columns },
-  }));
-
-const toEdges = (relations: ErRelation[]): RelationEdgeType[] =>
-  relations.map((r) => ({
-    id: r.id,
-    type: "relation",
-    source: r.from.table,
-    target: r.to.table,
-    sourceHandle: `${r.from.column}-r`,
-    targetHandle: `${r.to.column}-l`,
-    data: {
-      cardinality: r.cardinality,
-      tone: r.tone,
-      dashed: Boolean(r.dashed),
-    },
-  }));
-
-function DiagramInner({ data }: { data: RelationshipsData }) {
-  const initialNodes = useMemo(() => toNodes(data.tables), [data.tables]);
-  const edges = useMemo(() => toEdges(data.relations), [data.relations]);
-
-  const [nodes, setNodes, onNodesChange] = useNodesState<TableNodeType>(initialNodes);
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
-  const { zoom } = useViewport();
-  const zoomPercent = Math.round(zoom * 100);
-
-  const autoArrange = useCallback(() => {
-    setNodes(initialNodes);
-    requestAnimationFrame(() => fitView({ padding: 0.2, duration: 300 }));
-  }, [initialNodes, setNodes, fitView]);
-
-  return (
-    <Box sx={{ width: "100%", height: "100%", position: "relative" }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onNodesChange={onNodesChange}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.2}
-        maxZoom={2}
-        nodesDraggable
-        nodesConnectable={false}
-        elementsSelectable
-        proOptions={{ hideAttribution: true }}
-        style={{ width: "100%", height: "100%" }}
-      />
-      <Box sx={{ position: "absolute", bottom: 16, right: 16, zIndex: 10 }}>
-        <RelationshipsToolbar
-          zoomPercent={zoomPercent}
-          onZoomIn={() => zoomIn({ duration: 200 })}
-          onZoomOut={() => zoomOut({ duration: 200 })}
-          onAutoArrange={autoArrange}
-        />
-      </Box>
-    </Box>
-  );
-}
+import { RelationshipsView } from "./RelationshipsView";
 
 function StatCard({
   label,
@@ -252,35 +170,26 @@ export function TableRelationshipsView({
 
       {/* ER Diagram Canvas */}
       {showCanvas && (
-        <Box
-          sx={{
-            width: "100%",
-            height: 420,
-            borderRadius: "12px",
-            overflow: "hidden",
-            border: "1px solid",
-            borderColor: "border.default",
-            bgcolor: CANVAS,
-          }}
-        >
-          {relationshipsData.erData.tables.length > 0 ? (
-            <ReactFlowProvider>
-              <DiagramInner data={relationshipsData.erData} />
-            </ReactFlowProvider>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                placeItems: "center",
-                height: "100%",
-                color: "text.disabled",
-                typography: "body2",
-              }}
-            >
-              No relationships defined for this table yet.
-            </Box>
-          )}
-        </Box>
+        relationshipsData.erData.tables.length > 0 ? (
+          <RelationshipsView data={relationshipsData.erData} />
+        ) : (
+          <Box
+            sx={{
+              p: 5,
+              bgcolor: SURFACE,
+              border: "1px solid",
+              borderColor: "border.default",
+              borderRadius: "12px",
+              display: "grid",
+              placeItems: "center",
+              minHeight: 240,
+              color: "text.disabled",
+              typography: "body2",
+            }}
+          >
+            No relationships defined for this table yet.
+          </Box>
+        )
       )}
 
       {/* Structured Relationships Table */}
