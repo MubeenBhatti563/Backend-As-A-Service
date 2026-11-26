@@ -4,21 +4,21 @@ Dashboard product data is loaded from the authenticated Nest API using the
 existing API client or a server-side fetch that forwards the session cookie.
 Mock fallbacks are not used in the dashboard.
 
-| UI | API source | Notes |
-| --- | --- | --- |
-| Account projects | `GET /project/get-all-project` | Includes latest recorded project DB and file usage bytes. |
-| Account activity | `GET /project/activity` | Reads persisted activity logs. Empty means no activity is recorded. |
-| Account plan and usage | `GET /plan/my-plan` | Values are from current-period usage records. |
-| Public plan descriptions | `GET /plan/plans` | Prices and limits are read from plan rows. |
-| Project overview | `GET /project/:id/overview` | Reads the last seven daily telemetry records; chart points are persisted counts and storage snapshots. Service-health telemetry and active-user counts are unavailable and omitted/reported unavailable. |
-| Database tables | `GET /project/:id/database` | Counts use exact `COUNT(*)`; storage is PostgreSQL physical relation size. |
-| Database indexes | `GET /project/:id/database/indexes` | Reads index metadata from PostgreSQL catalogs for the owned project schema; byte totals are exact allocated relation sizes. |
-| Database ER diagram | `GET /project/:id/database/relationships` | Graph of all tables and foreign key relationships with topological layout positions. |
-| Table rows | `GET /project/:id/database/tables/:name` | Exact total count and paginated row data. Sensitive columns are omitted. |
-| Table structure | `GET /project/:id/database/tables/:name/structure` | Column definitions, primary keys, data types, nullability, unique/foreign key constraints. |
-| Table relationships | `GET /project/:id/database/tables/:name/relationships` | Directional incoming/outgoing foreign keys and sub-graph ER diagram for a single table. |
-| Table indexes | `GET /project/:id/database/tables/:name/indexes` | Indexes specific to a table, including index method, column list, and allocated size. |
-| Table RLS policies | `GET /project/:id/database/tables/:name/policies` | Row-Level Security status (`relrowsecurity`) and policies defined on the table (`pg_policies`). |
+| UI                       | API source                                             | Notes                                                                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account projects         | `GET /project/get-all-project`                         | Includes latest recorded project DB and file usage bytes.                                                                                                                                                |
+| Account activity         | `GET /project/activity`                                | Reads persisted activity logs. Empty means no activity is recorded.                                                                                                                                      |
+| Account plan and usage   | `GET /plan/my-plan`                                    | Values are from current-period usage records.                                                                                                                                                            |
+| Public plan descriptions | `GET /plan/plans`                                      | Prices and limits are read from plan rows.                                                                                                                                                               |
+| Project overview         | `GET /project/:id/overview`                            | Reads the last seven daily telemetry records; chart points are persisted counts and storage snapshots. Service-health telemetry and active-user counts are unavailable and omitted/reported unavailable. |
+| Database tables          | `GET /project/:id/database`                            | Counts use exact `COUNT(*)`; storage is PostgreSQL physical relation size.                                                                                                                               |
+| Database indexes         | `GET /project/:id/database/indexes`                    | Reads index metadata from PostgreSQL catalogs for the owned project schema; byte totals are exact allocated relation sizes.                                                                              |
+| Database ER diagram      | `GET /project/:id/database/relationships`              | Graph of all tables and foreign key relationships with topological layout positions.                                                                                                                     |
+| Table rows               | `GET /project/:id/database/tables/:name`               | Exact total count and paginated row data. Sensitive columns are omitted.                                                                                                                                 |
+| Table structure          | `GET /project/:id/database/tables/:name/structure`     | Column definitions, primary keys, data types, nullability, unique/foreign key constraints.                                                                                                               |
+| Table relationships      | `GET /project/:id/database/tables/:name/relationships` | Directional incoming/outgoing foreign keys and sub-graph ER diagram for a single table.                                                                                                                  |
+| Table indexes            | `GET /project/:id/database/tables/:name/indexes`       | Indexes specific to a table, including index method, column list, and allocated size.                                                                                                                    |
+| Table RLS policies       | `GET /project/:id/database/tables/:name/policies`      | Row-Level Security status (`relrowsecurity`) and policies defined on the table (`pg_policies`).                                                                                                          |
 
 OAuth provider screens, SQL execution/history/results, and payment checkout are
 intentionally not connected. No Stripe integration is configured. Billing

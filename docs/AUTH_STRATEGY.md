@@ -3,6 +3,7 @@
 This document outlines the authentication architecture and threat model for the BaaS platform.
 
 ## 1. Canonical Authentication: Dashboard / Web Client
+
 - **Mechanism**: Stateful HTTP-only Cookie (`sessionId`)
 - **Engine**: Fastify Session (`@fastify/session`) backed by `RedisSessionStore` and tracked in PostgreSQL (`sessions` table).
 - **Endpoint**: `POST /api/v1/auth/login`
@@ -14,7 +15,9 @@ This document outlines the authentication architecture and threat model for the 
   - Fail-fast enforcement: The server fails to boot in production if `SESSION_SECRET` is missing or shorter than 32 characters.
 
 ### Session Lifecycle & Alignment
+
 All session lifetimes derive from a single source of truth in `session.constants.ts`:
+
 - **Unremembered Login**: `SHORT_SESSION_TTL_MS` (12 hours)
 - **Remember Me**: `REMEMBER_ME_TTL_MS` (7 days)
 - **Cache Invalidation**: On password reset and password change, Redis session keys (`sess:<id>`) are purged **atomically after** the PostgreSQL transaction successfully commits, preventing stale or resurrected session states.
@@ -22,6 +25,7 @@ All session lifetimes derive from a single source of truth in `session.constants
 ---
 
 ## 2. API & Service Operations: Programmatic & SDK Auth
+
 - **Mechanism**: Bearer Tokens (JWT) and Project API Keys (`x-api-key`)
 - **Usage**:
   - **Project API Keys**: Client apps (`pk_live_...`) and backend microservices (`sk_live_...`) query database tables and storage.
