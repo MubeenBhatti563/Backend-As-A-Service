@@ -126,3 +126,22 @@ export async function dropDatabaseIndex(
     `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/indexes/${encodeURIComponent(indexName)}`,
   );
 }
+
+export interface AddForeignKeyRequest {
+  sourceColumn: string;
+  targetTable: string;
+  targetColumn: string;
+  constraintName?: string;
+  onDelete: 'NO ACTION' | 'RESTRICT' | 'CASCADE' | 'SET NULL';
+}
+
+export async function addDatabaseForeignKey(
+  projectId: string,
+  tableName: string,
+  body: AddForeignKeyRequest,
+) {
+  return apiClient.post(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/relationships`,
+    body,
+  );
+}

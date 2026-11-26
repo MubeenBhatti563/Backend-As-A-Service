@@ -16,6 +16,7 @@ import {
   CreateTableDto,
   DeleteRowsDto,
   InsertRowDto,
+  AddForeignKeyDto,
 } from './dto/create-table.dto';
 
 @Controller('project/:projectId/database')
@@ -204,6 +205,16 @@ export class DatabaseController {
       userId,
       tableName,
     );
+  }
+
+  @Post('tables/:tableName/relationships')
+  addForeignKey(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Body() dto: AddForeignKeyDto,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.addForeignKey(projectId, userId, tableName, dto);
   }
 
   @Get('tables/:tableName/indexes')

@@ -52,3 +52,13 @@ export const createIndexSchema = z.object({
 
 export class CreateIndexDto extends createZodDto(createIndexSchema) {}
 
+export const addForeignKeySchema = z.object({
+  sourceColumn: z.string().trim().regex(/^[a-z][a-z0-9_]{0,62}$/, 'Invalid source column name'),
+  targetTable: z.string().trim().regex(/^[a-z][a-z0-9_]{0,62}$/, 'Invalid target table name'),
+  targetColumn: z.string().trim().regex(/^[a-z][a-z0-9_]{0,62}$/, 'Invalid target column name').default('id'),
+  constraintName: z.string().trim().regex(/^[a-z][a-z0-9_]{0,62}$/, 'Invalid constraint name').optional(),
+  onDelete: z.enum(['NO ACTION', 'RESTRICT', 'CASCADE', 'SET NULL']).default('NO ACTION'),
+});
+
+export class AddForeignKeyDto extends createZodDto(addForeignKeySchema) {}
+

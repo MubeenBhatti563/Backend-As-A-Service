@@ -43,7 +43,7 @@ const toEdges = (relations: ErRelation[]): RelationEdgeType[] =>
     },
   }));
 
-function Diagram({ data }: { data: RelationshipsData }) {
+function Diagram({ data, onAddRelationship }: { data: RelationshipsData; onAddRelationship?: () => void }) {
   const initialNodes = useMemo(() => toNodes(data.tables), [data.tables]);
   const edges = useMemo(() => toEdges(data.relations), [data.relations]);
 
@@ -74,6 +74,7 @@ function Diagram({ data }: { data: RelationshipsData }) {
         onZoomIn={() => zoomIn({ duration: 150 })}
         onZoomOut={() => zoomOut({ duration: 150 })}
         onAutoArrange={autoArrange}
+        onAddRelationship={onAddRelationship}
       />
 
       <Box
@@ -109,10 +110,10 @@ function Diagram({ data }: { data: RelationshipsData }) {
   );
 }
 
-export function RelationshipsView({ data }: { data: RelationshipsData }) {
+export function RelationshipsView({ data, onAddRelationship }: { data: RelationshipsData; onAddRelationship?: () => void }) {
   return (
     <ReactFlowProvider>
-      <Diagram data={data} />
+      <Diagram data={data} onAddRelationship={onAddRelationship} />
     </ReactFlowProvider>
   );
 }

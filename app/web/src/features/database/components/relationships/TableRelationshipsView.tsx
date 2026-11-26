@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Button,
@@ -26,6 +27,7 @@ import {
 import { SURFACE } from "../../constants";
 import type { TableRelationshipsResponse } from "../../types";
 import { RelationshipsView } from "./RelationshipsView";
+import { AddRelationshipDialog } from "./AddRelationshipDialog";
 
 function StatCard({
   label,
@@ -105,7 +107,16 @@ export function TableRelationshipsView({
   projectId,
   relationshipsData,
 }: Props) {
+  const router = useRouter();
   const [showCanvas, setShowCanvas] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  const availableColumns = useMemo(() => {
+    const sourceTable = relationshipsData.erData.tables.find(
+      (t) => t.name === relationshipsData.table.name,
+    );
+    return sourceTable?.columns.map((c) => c.name) ?? [];
+  }, [relationshipsData]);
 
   const outgoing = useMemo(
     () => relationshipsData.relationships.filter((r) => r.direction === "outgoing"),
@@ -171,7 +182,10 @@ export function TableRelationshipsView({
       {/* ER Diagram Canvas */}
       {showCanvas && (
         relationshipsData.erData.tables.length > 0 ? (
-          <RelationshipsView data={relationshipsData.erData} />
+          <RelationshipsView
+            data={relationshipsData.erData}
+            onAddRelationship={() => setShowAddDialog(true)}
+          />
         ) : (
           <Box
             sx={{
@@ -312,6 +326,19 @@ export function TableRelationshipsView({
           </Table>
         </Box>
       </Box>
+
+      {/* Add Relationship Dialog */}
+      <AddRelationshipDialog
+        open={showAddDialog}
+        projectId={projectId}
+        tableName={relationshipsData.table.name}
+        availableColumns={availableColumns}
+        onClose={() => setShowAddDialog(false)}
+        onCreated={() => {
+          setShowAddDialog(false);
+          router.refresh();
+        }}
+      />
     </Box>
   );
 }

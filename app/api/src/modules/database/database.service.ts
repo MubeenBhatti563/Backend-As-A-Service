@@ -1415,6 +1415,67 @@ export class DatabaseService {
     return { dropped: true, column: columnName };
   }
 
+  async addForeignKey(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    dto: {
+      sourceColumn: string;
+      targetTable: string;
+      targetColumn: string;
+      constraintName?: string;
+      onDelete: 'NO ACTION' | 'RESTRICT' | 'CASCADE' | 'SET NULL';
+    },
+  ) {
+    const IDENT = /^[a-z_][a-z0-9_]{0,62}$/;
+    if (
+      !IDENT.test(tableName) ||
+      !IDENT.test(dto.sourceColumn) ||
+      !IDENT.test(dto.targetTable) ||
+      !IDENT.test(dto.targetColumn) ||
+      (dto.constraintName && !IDENT.test(dto.constraintName))
+    )
+      throw new BadRequestException('Invalid identifier');
+
+    const project = await this.getProject(projectId, userId);
+    const schema = project.schemaName;
+
+    // Verify source column exists
+    const srcCol = await this.prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_attribute a
+         JOIN pg_class c ON c.oid = a.attrelid
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = $1 AND c.relname = $2 AND a.attname = $3 AND a.attnum > 0 AND NOT a.attisdropped
+       ) AS exists`,
+      schema, tableName, dto.sourceColumn,
+    );
+    if (!srcCol[0]?.exists)
+      throw new BadRequestException(`Column "${dto.sourceColumn}" does not exist in table "${tableName}"`);
+
+    // Verify target table.column exists
+    const tgtCol = await this.prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_attribute a
+         JOIN pg_class c ON c.oid = a.attrelid
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = $1 AND c.relname = $2 AND a.attname = $3 AND a.attnum > 0 AND NOT a.attisdropped
+       ) AS exists`,
+      schema, dto.targetTable, dto.targetColumn,
+    );
+    if (!tgtCol[0]?.exists)
+      throw new BadRequestException(`Column "${dto.targetColumn}" does not exist in table "${dto.targetTable}"`);
+
+    const constraintName = dto.constraintName ??
+      `fk_${tableName}_${dto.sourceColumn}_${dto.targetTable}_${dto.targetColumn}`.slice(0, 63);
+
+    await this.prisma.$executeRawUnsafe(
+      `ALTER TABLE ${quote(schema)}.${quote(tableName)} ADD CONSTRAINT ${quote(constraintName)} FOREIGN KEY (${quote(dto.sourceColumn)}) REFERENCES ${quote(schema)}.${quote(dto.targetTable)}(${quote(dto.targetColumn)}) ON DELETE ${dto.onDelete}`,
+    );
+
+    return { added: true, constraint: constraintName };
+  }
+
   async getTableRelationships(
     projectId: string,
     userId: string,

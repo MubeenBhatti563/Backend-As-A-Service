@@ -43,6 +43,7 @@ export * from "./components/relationships/TableRelationshipsView";
 export * from "./components/relationships/RelationshipsToolbar";
 export * from "./components/relationships/RelationEdge";
 export * from "./components/relationships/TableNodeCard";
+export * from "./components/relationships/AddRelationshipDialog";
 
 // SQL Editor
 export * from "./components/sql-editor/SqlEditorView";
