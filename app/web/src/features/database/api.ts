@@ -7,6 +7,7 @@ import type {
   TableIndexesResponse,
   TableRelationshipsResponse,
   TableStructureResponse,
+  TablePoliciesResponse,
 } from './types';
 
 const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3000/api/v1').replace(/\/$/, '');
@@ -55,3 +56,8 @@ export function getTableRelationships(projectId: string, tableName: string): Pro
 export function getTableIndexes(projectId: string, tableName: string): Promise<TableIndexesResponse | null> {
   return getData<TableIndexesResponse>(`/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/indexes`);
 }
+
+export function getTablePolicies(projectId: string, tableName: string): Promise<TablePoliciesResponse | null> {
+  return getData<TablePoliciesResponse>(`/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/policies`);
+}
+

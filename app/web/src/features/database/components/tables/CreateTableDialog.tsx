@@ -57,6 +57,7 @@ const COLUMN_TYPES: Array<{
 
 const DEFAULT_VALUES: CreateTableFormValues = {
   name: "",
+  enableRls: false,
   columns: [
     {
       name: "",
@@ -131,6 +132,7 @@ export function CreateTableDialog({
     try {
       const payload: NewTableDefinition = {
         name: definition.name,
+        enableRls: Boolean(definition.enableRls),
         columns: definition.columns.map((col) => ({
           name: col.name,
           type: col.type,
@@ -199,6 +201,34 @@ export function CreateTableDialog({
             },
           }}
           {...register("name")}
+        />
+
+        <FormControlLabel
+          control={
+            <Controller
+              control={control}
+              name="enableRls"
+              render={({ field }) => (
+                <Checkbox
+                  checked={Boolean(field.value)}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                  disabled={isSubmitting}
+                  size="small"
+                />
+              )}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Enable Row Level Security (RLS)
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.disabled", display: "block" }}>
+                Restrict row access via security policies. Recommended for tables storing user data.
+              </Typography>
+            </Box>
+          }
+          sx={{ alignItems: "flex-start", ml: -0.5 }}
         />
 
         <Box>

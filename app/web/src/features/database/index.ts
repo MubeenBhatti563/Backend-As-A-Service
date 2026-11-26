@@ -45,6 +45,10 @@ export * from "./components/relationships/RelationEdge";
 export * from "./components/relationships/TableNodeCard";
 export * from "./components/relationships/AddRelationshipDialog";
 
+// Policies (RLS)
+export * from "./components/policies/TablePoliciesView";
+export * from "./components/policies/AddPolicyDialog";
+
 // SQL Editor
 export * from "./components/sql-editor/SqlEditorView";
 export * from "./components/sql-editor/SqlEditorHeader";

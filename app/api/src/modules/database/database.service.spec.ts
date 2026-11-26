@@ -530,4 +530,51 @@ describe('DatabaseService', () => {
     const dropRes = await service.dropTableIndex('project-1', 'user-1', 'posts', 'posts_title_idx');
     expect(dropRes).toEqual({ dropped: true, name: 'posts_title_idx' });
   });
+
+  it('toggles RLS, retrieves policies, and creates/drops table policies', async () => {
+    prisma.project.findFirst.mockResolvedValue({
+      id: 'project-1',
+      userId: 'user-1',
+      schemaName: 'tenant_abc',
+    });
+
+    // 1. toggleTableRls
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ exists: true }]);
+    prisma.$executeRawUnsafe.mockResolvedValueOnce(0);
+    const toggleRes = await service.toggleTableRls('project-1', 'user-1', 'posts', true);
+    expect(toggleRes).toEqual({ tableName: 'posts', rls: 'active' });
+
+    // 2. getTablePolicies
+    prisma.$queryRawUnsafe
+      .mockResolvedValueOnce([{ bytes: 8192n, rls: true, rows: 5n }]) // tableMeta
+      .mockResolvedValueOnce([
+        {
+          name: 'users_can_read_own',
+          command: 'SELECT',
+          roles: ['public'],
+          using: 'auth.uid() = user_id',
+          withCheck: null,
+        },
+      ]); // pg_policies
+    const policiesRes = await service.getTablePolicies('project-1', 'user-1', 'posts');
+    expect(policiesRes.table.name).toBe('posts');
+    expect(policiesRes.rlsEnabled).toBe(true);
+    expect(policiesRes.policies).toHaveLength(1);
+    expect(policiesRes.policies[0]?.name).toBe('users_can_read_own');
+
+    // 3. createTablePolicy
+    prisma.$executeRawUnsafe.mockResolvedValueOnce(0);
+    const createRes = await service.createTablePolicy('project-1', 'user-1', 'posts', {
+      name: 'allow_insert_for_all',
+      command: 'INSERT',
+      roles: ['public'],
+      withCheck: 'true',
+    });
+    expect(createRes).toEqual({ created: true, name: 'allow_insert_for_all' });
+
+    // 4. dropTablePolicy
+    prisma.$executeRawUnsafe.mockResolvedValueOnce(0);
+    const dropRes = await service.dropTablePolicy('project-1', 'user-1', 'posts', 'allow_insert_for_all');
+    expect(dropRes).toEqual({ dropped: true, name: 'allow_insert_for_all' });
+  });
 });

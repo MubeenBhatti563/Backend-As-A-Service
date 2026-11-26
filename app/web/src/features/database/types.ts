@@ -24,4 +24,9 @@ export type {
   CreateIndexRequest,
   AddColumnRequest,
   DatabaseColumnType,
+  PolicyCommand,
+  TablePolicy,
+  TablePoliciesResponse,
+  CreatePolicyRequest,
+  ToggleRlsRequest,
 } from "@baas/types";

@@ -15,6 +15,9 @@ import type {
   TableRelationshipsResponse,
   TableStructureColumn,
   TableStructureResponse,
+  TablePoliciesResponse,
+  TablePolicy,
+  PolicyCommand,
 } from '@baas/types';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import type {
@@ -22,6 +25,7 @@ import type {
   CreateIndexDto,
   CreateTableDto,
   InsertRowDto,
+  CreatePolicyDto,
 } from './dto/create-table.dto';
 
 const IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
@@ -757,6 +761,11 @@ export class DatabaseService {
     await this.prisma.$executeRawUnsafe(
       `CREATE TABLE ${quote(project.schemaName)}.${quote(dto.name)} (${definitions.join(', ')})`,
     );
+    if (dto.enableRls) {
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE ${quote(project.schemaName)}.${quote(dto.name)} ENABLE ROW LEVEL SECURITY`,
+      );
+    }
     return { name: dto.name };
   }
 
@@ -1748,5 +1757,191 @@ export class DatabaseService {
     );
 
     return { dropped: true, name: indexName };
+  }
+
+  async toggleTableRls(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    enabled: boolean,
+  ) {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    const project = await this.getProject(projectId, userId);
+
+    const tableExists = await this.prisma.$queryRawUnsafe<
+      Array<{ exists: boolean }>
+    >(
+      "SELECT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p')) AS exists",
+      project.schemaName,
+      tableName,
+    );
+    if (!tableExists[0]?.exists) throw new NotFoundException('Table not found');
+
+    const action = enabled ? 'ENABLE' : 'DISABLE';
+    await this.prisma.$executeRawUnsafe(
+      `ALTER TABLE ${quote(project.schemaName)}.${quote(tableName)} ${action} ROW LEVEL SECURITY`,
+    );
+
+    return { tableName, rls: enabled ? 'active' : 'disabled' };
+  }
+
+  async getTablePolicies(
+    projectId: string,
+    userId: string,
+    tableName: string,
+  ): Promise<TablePoliciesResponse> {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    const project = await this.getProject(projectId, userId);
+
+    const tableMeta = await this.prisma.$queryRawUnsafe<
+      Array<{ bytes: bigint | number; rls: boolean; rows: bigint | number }>
+    >(
+      `SELECT pg_total_relation_size(c.oid) AS bytes,
+        c.relrowsecurity AS rls,
+        GREATEST(COALESCE(s.n_live_tup, 0), c.reltuples::bigint, 0) AS rows
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       LEFT JOIN pg_stat_user_tables s ON s.schemaname = n.nspname AND s.relname = c.relname
+       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p')`,
+      project.schemaName,
+      tableName,
+    );
+    if (tableMeta.length === 0) throw new NotFoundException('Table not found');
+
+    const policies = await this.prisma.$queryRawUnsafe<
+      Array<{
+        name: string;
+        command: string;
+        roles: string[] | string;
+        using: string | null;
+        withCheck: string | null;
+      }>
+    >(
+      `SELECT 
+        policyname::text AS name,
+        cmd::text AS command,
+        roles::text[] AS roles,
+        qual::text AS "using",
+        with_check::text AS "withCheck"
+       FROM pg_policies
+       WHERE schemaname = $1 AND tablename = $2
+       ORDER BY policyname`,
+      project.schemaName,
+      tableName,
+    );
+
+    return {
+      table: {
+        name: tableName,
+        rows: Number(tableMeta[0]?.rows ?? 0),
+        size: prettyBytes(Number(tableMeta[0]?.bytes ?? 0)),
+        sizeBytes: String(tableMeta[0]?.bytes ?? 0),
+        lastMaintained: null,
+        rls: tableMeta[0]?.rls ? 'active' : 'disabled',
+      },
+      rlsEnabled: Boolean(tableMeta[0]?.rls),
+      policies: policies.map((p) => ({
+        name: p.name,
+        command: (p.command === '*' ? 'ALL' : p.command) as PolicyCommand,
+        roles: Array.isArray(p.roles)
+          ? p.roles
+          : typeof p.roles === 'string'
+            ? p.roles.replace(/[{}]/g, '').split(',').filter(Boolean)
+            : ['public'],
+        using: p.using ?? null,
+        withCheck: p.withCheck ?? null,
+      })),
+    };
+  }
+
+  async createTablePolicy(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    dto: CreatePolicyDto,
+  ) {
+    if (!IDENTIFIER.test(tableName))
+      throw new BadRequestException('Invalid table name');
+    if (!IDENTIFIER.test(dto.name))
+      throw new BadRequestException('Invalid policy name');
+
+    const project = await this.getProject(projectId, userId);
+
+    const rolesList = dto.roles?.length ? dto.roles : ['public'];
+    for (const r of rolesList) {
+      if (!/^[a-z_][a-z0-9_]{0,62}$/i.test(r) && r.toLowerCase() !== 'public') {
+        throw new BadRequestException(`Invalid role identifier "${r}"`);
+      }
+    }
+    const rolesSql = rolesList
+      .map((r) => (r.toLowerCase() === 'public' ? 'PUBLIC' : quote(r)))
+      .join(', ');
+
+    let usingSql = '';
+    let withCheckSql = '';
+
+    const cmd = dto.command.toUpperCase();
+
+    if (cmd === 'INSERT') {
+      const expr = dto.withCheck?.trim() || dto.using?.trim();
+      if (!expr) {
+        throw new BadRequestException(
+          'An INSERT policy requires a WITH CHECK expression',
+        );
+      }
+      withCheckSql = ` WITH CHECK (${expr})`;
+    } else if (cmd === 'SELECT' || cmd === 'DELETE') {
+      const expr = dto.using?.trim();
+      if (!expr) {
+        throw new BadRequestException(
+          `A ${cmd} policy requires a USING expression`,
+        );
+      }
+      usingSql = ` USING (${expr})`;
+    } else {
+      // ALL or UPDATE
+      if (dto.using?.trim()) {
+        usingSql = ` USING (${dto.using.trim()})`;
+      }
+      if (dto.withCheck?.trim()) {
+        withCheckSql = ` WITH CHECK (${dto.withCheck.trim()})`;
+      }
+      if (!usingSql && !withCheckSql) {
+        throw new BadRequestException(
+          'A policy requires at least a USING or WITH CHECK expression',
+        );
+      }
+    }
+
+    const sql = `CREATE POLICY ${quote(dto.name)} ON ${quote(project.schemaName)}.${quote(tableName)} FOR ${cmd} TO ${rolesSql}${usingSql}${withCheckSql}`;
+
+    try {
+      await this.prisma.$executeRawUnsafe(sql);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to create policy';
+      throw new BadRequestException(`PostgreSQL policy error: ${message}`);
+    }
+
+    return { created: true, name: dto.name };
+  }
+
+  async dropTablePolicy(
+    projectId: string,
+    userId: string,
+    tableName: string,
+    policyName: string,
+  ) {
+    if (!IDENTIFIER.test(tableName) || !IDENTIFIER.test(policyName))
+      throw new BadRequestException('Invalid table or policy name');
+    const project = await this.getProject(projectId, userId);
+
+    await this.prisma.$executeRawUnsafe(
+      `DROP POLICY ${quote(policyName)} ON ${quote(project.schemaName)}.${quote(tableName)}`,
+    );
+
+    return { dropped: true, name: policyName };
   }
 }

@@ -5,10 +5,13 @@ import type {
   CreateIndexRequest,
   CreateTableRequest,
   RelationshipsData,
+  CreatePolicyRequest,
+  TablePoliciesResponse,
+  ToggleRlsRequest,
 } from '@baas/types';
 import type { TableDetail } from './types';
 
-export type { AddColumnRequest, CreateIndexRequest };
+export type { AddColumnRequest, CreateIndexRequest, CreatePolicyRequest };
 export type NewTableDefinition = CreateTableRequest;
 
 export async function fetchTablePage(
@@ -145,3 +148,47 @@ export async function addDatabaseForeignKey(
     body,
   );
 }
+
+export async function toggleDatabaseTableRls(
+  projectId: string,
+  tableName: string,
+  enabled: boolean,
+) {
+  const response = (await apiClient.patch(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/rls`,
+    { enabled },
+  )) as unknown as ApiResponse<{ tableName: string; rls: string }>;
+  return response.data;
+}
+
+export async function fetchDatabaseTablePolicies(
+  projectId: string,
+  tableName: string,
+) {
+  const response = (await apiClient.get(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/policies`,
+  )) as unknown as ApiResponse<TablePoliciesResponse>;
+  return response.data;
+}
+
+export async function createDatabaseTablePolicy(
+  projectId: string,
+  tableName: string,
+  policy: CreatePolicyRequest,
+) {
+  return apiClient.post(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/policies`,
+    policy,
+  );
+}
+
+export async function dropDatabaseTablePolicy(
+  projectId: string,
+  tableName: string,
+  policyName: string,
+) {
+  return apiClient.delete(
+    `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/policies/${encodeURIComponent(policyName)}`,
+  );
+}
+

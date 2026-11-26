@@ -17,6 +17,8 @@ import {
   DeleteRowsDto,
   InsertRowDto,
   AddForeignKeyDto,
+  ToggleRlsDto,
+  CreatePolicyDto,
 } from './dto/create-table.dto';
 
 @Controller('project/:projectId/database')
@@ -253,6 +255,60 @@ export class DatabaseController {
       userId,
       tableName,
       indexName,
+    );
+  }
+
+  @Patch('tables/:tableName/rls')
+  toggleTableRls(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Body() dto: ToggleRlsDto,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.toggleTableRls(
+      projectId,
+      userId,
+      tableName,
+      dto.enabled,
+    );
+  }
+
+  @Get('tables/:tableName/policies')
+  getTablePolicies(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.getTablePolicies(projectId, userId, tableName);
+  }
+
+  @Post('tables/:tableName/policies')
+  createTablePolicy(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Body() dto: CreatePolicyDto,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.createTablePolicy(
+      projectId,
+      userId,
+      tableName,
+      dto,
+    );
+  }
+
+  @Delete('tables/:tableName/policies/:policyName')
+  dropTablePolicy(
+    @Param('projectId') projectId: string,
+    @Param('tableName') tableName: string,
+    @Param('policyName') policyName: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.dropTablePolicy(
+      projectId,
+      userId,
+      tableName,
+      policyName,
     );
   }
 }

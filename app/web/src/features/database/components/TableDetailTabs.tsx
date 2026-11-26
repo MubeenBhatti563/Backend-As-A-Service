@@ -23,6 +23,7 @@ export function TableDetailTabs({ projectId, tableName, value }: Props) {
         { value: "structure", label: "Structure", href: href("structure") },
         { value: "relationships", label: "Relationships", href: href("relationships") },
         { value: "indexes", label: "Indexes", href: href("indexes") },
+        { value: "policies", label: "Policies", href: href("policies") },
       ]}
     />
   );

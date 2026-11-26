@@ -20,6 +20,7 @@ export const createTableColumnSchema = z.object({
 export const createTableSchema = z.object({
   name: z.string().trim().regex(/^[a-z][a-z0-9_]{0,62}$/, 'Use a lowercase name starting with a letter'),
   columns: z.array(createTableColumnSchema).min(1).max(30),
+  enableRls: z.boolean().optional(),
 }).superRefine(({ name, columns }, ctx) => {
   const names = columns.map((column) => column.name);
   if (names.includes('id')) ctx.addIssue({ code: 'custom', path: ['columns'], message: 'The id column is created automatically' });
@@ -61,4 +62,21 @@ export const addForeignKeySchema = z.object({
 });
 
 export class AddForeignKeyDto extends createZodDto(addForeignKeySchema) {}
+
+export const toggleRlsSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export class ToggleRlsDto extends createZodDto(toggleRlsSchema) {}
+
+export const createPolicySchema = z.object({
+  name: z.string().trim().regex(/^[a-z_][a-z0-9_]{0,62}$/, 'Use a valid policy name'),
+  command: z.enum(['ALL', 'SELECT', 'INSERT', 'UPDATE', 'DELETE']).default('ALL'),
+  roles: z.array(z.string().trim().regex(/^[a-z_][a-z0-9_]{0,62}$/i)).optional().default(['public']),
+  using: z.string().trim().max(2000).optional(),
+  withCheck: z.string().trim().max(2000).optional(),
+});
+
+export class CreatePolicyDto extends createZodDto(createPolicySchema) {}
+
 

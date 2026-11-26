@@ -50,6 +50,7 @@ export const createTableDefinitionSchema = z.object({
         }
       });
     }),
+  enableRls: z.boolean().default(false),
 });
 
 export type CreateTableFormValues = z.input<typeof createTableDefinitionSchema>;

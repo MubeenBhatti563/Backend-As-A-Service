@@ -52,7 +52,12 @@ export type DatabaseTabValue =
 
 /* ---------- Table detail ---------- */
 
-export type TableTabValue = "data" | "structure" | "relationships" | "indexes";
+export type TableTabValue =
+  | "data"
+  | "structure"
+  | "relationships"
+  | "indexes"
+  | "policies";
 
 export type CellKind =
   | "uuid"
@@ -143,6 +148,7 @@ export interface CreateTableColumnDefinition {
 export interface CreateTableRequest {
   name: string;
   columns: CreateTableColumnDefinition[];
+  enableRls?: boolean;
 }
 
 /* ---------- Table Structure ---------- */
@@ -224,6 +230,37 @@ export interface AddColumnRequest {
     column: string;
   };
 }
+
+/* ---------- Table Policies (RLS) ---------- */
+
+export type PolicyCommand = "ALL" | "SELECT" | "INSERT" | "UPDATE" | "DELETE";
+
+export interface TablePolicy {
+  name: string;
+  command: PolicyCommand;
+  roles: string[];
+  using: string | null;
+  withCheck: string | null;
+}
+
+export interface TablePoliciesResponse {
+  table: DatabaseTable;
+  rlsEnabled: boolean;
+  policies: TablePolicy[];
+}
+
+export interface CreatePolicyRequest {
+  name: string;
+  command: PolicyCommand;
+  roles?: string[];
+  using?: string;
+  withCheck?: string;
+}
+
+export interface ToggleRlsRequest {
+  enabled: boolean;
+}
+
 
 
 

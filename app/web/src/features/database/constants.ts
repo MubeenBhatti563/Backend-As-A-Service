@@ -23,5 +23,5 @@ export const tableDetailHref = (projectId: string, tableName: string) =>
 export const tableSectionHref = (
   projectId: string,
   tableName: string,
-  section: "" | "structure" | "relationships" | "indexes",
+  section: "" | "structure" | "relationships" | "indexes" | "policies",
 ) => `${tableDetailHref(projectId, tableName)}${section ? `/${section}` : ""}`;
