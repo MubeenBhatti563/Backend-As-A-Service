@@ -28,7 +28,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { SURFACE } from "../../constants";
-import type { DatabaseIndex, TableIndexesResponse } from "../../types";
+import type { TableIndexesResponse } from "../../types";
 import { CreateIndexDialog } from "./CreateIndexDialog";
 import { ConfirmDeleteDialog } from "../ConfirmDeleteDialog";
 import { dropDatabaseIndex } from "../../table.client-api";

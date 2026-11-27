@@ -16,7 +16,6 @@ import type {
   TableStructureColumn,
   TableStructureResponse,
   TablePoliciesResponse,
-  TablePolicy,
   PolicyCommand,
   ExecuteQueryResult,
 } from '@baas/types';

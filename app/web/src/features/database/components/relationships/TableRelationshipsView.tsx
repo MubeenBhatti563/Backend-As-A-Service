@@ -7,22 +7,18 @@ import {
   Button,
   Chip,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import {
   IconArrowNarrowRight,
   IconArrowNarrowLeft,
-  IconColumns,
   IconEye,
   IconLink,
-  IconRefresh,
 } from "@tabler/icons-react";
 import { SURFACE } from "../../constants";
 import type { TableRelationshipsResponse } from "../../types";

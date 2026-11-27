@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { Box, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import type { SqlResultColumn, SqlResultRow } from "./types";
 
 function renderCellValue(value: unknown): string {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Editor, { useMonaco, type OnMount } from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import { Box, Stack, Typography } from "@mui/material";
 
 interface TableInfo {
@@ -116,6 +116,7 @@ export function SqlCodeEditor({
 
     // 3. Register auto-completion provider for PostgreSQL
     const disposable = monaco.languages.registerCompletionItemProvider("pgsql", {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       provideCompletionItems: (model: any, position: any) => {
         const word = model.getWordUntilPosition(position);
         const range = {
@@ -126,6 +127,7 @@ export function SqlCodeEditor({
         };
 
         const currentTables = tablesRef.current;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const suggestions: any[] = [];
 
         // Table name suggestions

@@ -7,7 +7,6 @@ import type {
   RelationshipsData,
   CreatePolicyRequest,
   TablePoliciesResponse,
-  ToggleRlsRequest,
   ExecuteQueryResult,
 } from '@baas/types';
 import type { TableDetail } from './types';

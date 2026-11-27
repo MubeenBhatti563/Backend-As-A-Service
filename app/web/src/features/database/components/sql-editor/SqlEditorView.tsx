@@ -32,8 +32,10 @@ export function SqlEditorView({ projectId, data, tables = [] }: Props) {
       if (stored) {
         const parsed = JSON.parse(stored) as QueryHistoryItem[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setHistory(parsed);
-          setActiveId(parsed[0]?.id ?? null);
+          setTimeout(() => {
+            setHistory(parsed);
+            setActiveId(parsed[0]?.id ?? null);
+          }, 0);
         }
       }
     } catch {

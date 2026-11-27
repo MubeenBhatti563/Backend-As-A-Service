@@ -29,7 +29,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { SURFACE } from "../../constants";
-import type { TableStructureColumn, TableStructureResponse } from "../../types";
+import type { TableStructureResponse } from "../../types";
 import { AddColumnDialog } from "./AddColumnDialog";
 import { ConfirmDeleteDialog } from "../ConfirmDeleteDialog";
 import { dropDatabaseColumn } from "../../table.client-api";
