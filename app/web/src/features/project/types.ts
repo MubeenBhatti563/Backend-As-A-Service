@@ -9,6 +9,7 @@ export type {
   ProjectInfo,
   ProjectOption,
   ProjectOverviewData,
+  ProjectUsageData,
   ProjectStatus,
   ServiceHealth,
   StatMetric,

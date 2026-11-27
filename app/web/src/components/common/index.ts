@@ -1,3 +1,4 @@
+export { ComingSoonBanner } from "./ComingSoonBanner";
 export { Badge } from "./Badge";
 export { Brand } from "./Brand";
 export { CheckList } from "./CheckList";

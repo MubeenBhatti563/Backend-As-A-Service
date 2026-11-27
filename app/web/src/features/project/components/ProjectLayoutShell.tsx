@@ -49,6 +49,7 @@ const SEGMENT_TO_KEY: Record<string, ProjectNavKey> = {
   database: "database",
   tables: "database",
   auth: "auth",
+  "api-endpoints": "apiEndpoints",
   storage: "storage",
   realtime: "realtime",
   functions: "functions",

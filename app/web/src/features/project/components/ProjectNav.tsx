@@ -5,6 +5,7 @@ import {
   IconBolt,
   IconBrain,
   IconChartBar,
+  IconCode,
   IconDatabase,
   IconHelpCircle,
   IconKey,
@@ -22,6 +23,7 @@ export type ProjectNavKey =
   | "overview"
   | "database"
   | "auth"
+  | "apiEndpoints"
   | "storage"
   | "realtime"
   | "functions"
@@ -40,6 +42,7 @@ const MAIN: NavEntry[] = [
   { key: "overview", label: "Overview", icon: IconLayoutDashboard },
   { key: "database", label: "Database", icon: IconDatabase },
   { key: "auth", label: "Authentication", icon: IconKey },
+  { key: "apiEndpoints", label: "API Endpoints", icon: IconCode },
   { key: "storage", label: "Storage", icon: IconDatabase },
   { key: "realtime", label: "Realtime", icon: IconBolt },
   { key: "functions", label: "Edge Functions", icon: IconSourceCode },
