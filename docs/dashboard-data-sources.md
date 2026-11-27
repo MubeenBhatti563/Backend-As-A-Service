@@ -12,6 +12,9 @@ Mock fallbacks are not used in the dashboard.
 | Public plan descriptions | `GET /plan/plans`                                      | Prices and limits are read from plan rows.                                                                                                                                                               |
 | Project overview         | `GET /project/:id/overview`                            | Reads the last seven daily telemetry records; chart points are persisted counts and storage snapshots. Service-health telemetry and active-user counts are unavailable and omitted/reported unavailable. |
 | Project usage            | `GET /project/:id/usage`                               | Owner-checked monthly project usage, current plan quotas, and daily API request records for `/dashboard/projects/:id/usage`. File-storage and realtime usage are shown as not tracked until telemetry is implemented. |
+| Authentication           | None                                                   | `/dashboard/projects/:id/auth` and `/auth/:userId` are clearly labeled UI previews using local sample users. Search and role filtering apply only to those samples; detail pages, sessions, security logs, and user/role/settings operations are not backed by project APIs. |
+| API Endpoints             | None                                                   | `/dashboard/projects/:id/api-endpoints` shows illustrative sample endpoint/code/response snippets only. It is not a generated project API; endpoint execution is disabled and cURL copy copies example text only. |
+| Project storage           | None                                                   | `/dashboard/projects/:id/storage` and `/storage/:bucketId` are responsive previews with sample bucket/file rows and sample usage values. Bucket CRUD, uploads, downloads, CDN settings, and storage policies are not connected to project APIs; actions are disabled. |
 | Database tables          | `GET /project/:id/database`                            | Counts use exact `COUNT(*)`; storage is PostgreSQL physical relation size.                                                                                                                               |
 | Database indexes         | `GET /project/:id/database/indexes`                    | Reads index metadata from PostgreSQL catalogs for the owned project schema; byte totals are exact allocated relation sizes.                                                                              |
 | Database ER diagram      | `GET /project/:id/database/relationships`              | Graph of all tables and foreign key relationships with topological layout positions.                                                                                                                     |
@@ -69,12 +72,14 @@ and must not be interpreted as live usage.
 
 ## Unavailable dashboard areas
 
-The project routes for Authentication, API Endpoints, Storage, Realtime, Edge
-Functions, AI Assistant and Logs currently render a shared "Coming soon" page
-with planned capabilities; they are not functional service interfaces yet.
-Project Settings navigation also includes sections that are placeholders.
-Danger Zone actions are disabled until corresponding project-management APIs
-exist. `/help` currently shows the same reusable unavailable banner.
+Realtime, Edge Functions, AI Assistant and Logs currently render a shared
+"Coming soon" page with planned capabilities; they are not functional service
+interfaces yet. Authentication, API Endpoints, and Storage have preview-only
+interfaces and are not connected to project-specific services. Storage summary
+values are examples and are not live telemetry. Project Settings navigation
+also includes sections that are placeholders. Danger Zone actions are disabled
+until corresponding project-management APIs exist. `/help` currently shows
+the same reusable unavailable banner.
 
 The SQL editor's Query History is stored in browser `localStorage` under
 `baas_sql_history_<projectId>`, independently for each project and browser. It

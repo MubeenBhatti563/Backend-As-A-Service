@@ -34,42 +34,6 @@ export const PROJECT_ROUTES = {
 
 export const PROJECT_COMING_SOON_SECTIONS = [
   {
-    slug: "auth",
-    key: "auth",
-    title: "Authentication",
-    description:
-      "Manage project users, authentication providers, sessions, and access settings.",
-    highlights: [
-      "User and session management",
-      "OAuth provider configuration",
-      "Project-level authentication settings",
-    ],
-  },
-  {
-    slug: "api-endpoints",
-    key: "apiEndpoints",
-    title: "API Endpoints",
-    description:
-      "Explore and manage the REST endpoints generated from your project database.",
-    highlights: [
-      "Browse generated endpoints and methods",
-      "Inspect request and response schemas",
-      "Try requests with project API credentials",
-    ],
-  },
-  {
-    slug: "storage",
-    key: "storage",
-    title: "Storage",
-    description:
-      "Manage project files, buckets, and access policies from one place.",
-    highlights: [
-      "Create and organize storage buckets",
-      "Review file usage and upload activity",
-      "Configure bucket access rules",
-    ],
-  },
-  {
     slug: "realtime",
     key: "realtime",
     title: "Realtime",
