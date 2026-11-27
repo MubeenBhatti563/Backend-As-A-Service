@@ -20,14 +20,9 @@ export default async function SqlEditorPage({ params }: PageProps) {
   const database = await getDatabaseOverview(id);
   if (!database) notFound();
 
-  const firstTable = database.tables[0]?.name;
-  const initialQuery = firstTable
-    ? `SELECT *\nFROM ${firstTable}\nLIMIT 50;`
-    : `-- Write your SQL query here\nSELECT current_timestamp, current_database();`;
-
   const editorData: SqlEditorData = {
     schema: "public",
-    initialQuery,
+    initialQuery: "SELECT * FROM users LIMIT 50;",
     history: [],
     result: null,
   };
