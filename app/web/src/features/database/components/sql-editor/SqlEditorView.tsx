@@ -57,6 +57,21 @@ export function SqlEditorView({ projectId, data, tables = [] }: Props) {
     setQuery(item.sql);
   };
 
+  const deleteHistoryItem = (item: QueryHistoryItem) => {
+    persistHistory(history.filter((entry) => entry.id !== item.id));
+    if (activeId === item.id) setActiveId(null);
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    setActiveId(null);
+    try {
+      localStorage.removeItem(`baas_sql_history_${projectId}`);
+    } catch {
+      // Ignore localStorage write errors
+    }
+  };
+
   const run = async () => {
     const trimmed = query.trim();
     if (!trimmed) {
@@ -146,6 +161,8 @@ export function SqlEditorView({ projectId, data, tables = [] }: Props) {
             items={history}
             activeId={activeId}
             onSelect={selectHistory}
+            onDelete={deleteHistoryItem}
+            onClear={clearHistory}
           />
         </Box>
         <Stack
