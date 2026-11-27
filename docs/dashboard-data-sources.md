@@ -11,6 +11,7 @@ Mock fallbacks are not used in the dashboard.
 | Account plan and usage   | `GET /plan/my-plan`                                    | Values are from current-period usage records.                                                                                                                                                            |
 | Public plan descriptions | `GET /plan/plans`                                      | Prices and limits are read from plan rows.                                                                                                                                                               |
 | Project overview         | `GET /project/:id/overview`                            | Reads the last seven daily telemetry records; chart points are persisted counts and storage snapshots. Service-health telemetry and active-user counts are unavailable and omitted/reported unavailable. |
+| Project usage            | `GET /project/:id/usage`                               | Owner-checked monthly project usage, current plan quotas, and daily API request records for `/dashboard/projects/:id/usage`. File-storage and realtime usage are shown as not tracked until telemetry is implemented. |
 | Database tables          | `GET /project/:id/database`                            | Counts use exact `COUNT(*)`; storage is PostgreSQL physical relation size.                                                                                                                               |
 | Database indexes         | `GET /project/:id/database/indexes`                    | Reads index metadata from PostgreSQL catalogs for the owned project schema; byte totals are exact allocated relation sizes.                                                                              |
 | Database ER diagram      | `GET /project/:id/database/relationships`              | Graph of all tables and foreign key relationships with topological layout positions.                                                                                                                     |
@@ -57,3 +58,26 @@ this API, including dashboard reads. It does not mean SDK/API-key traffic: the
 backend does not yet authenticate incoming project API keys or route tenant
 traffic through a gateway. Database snapshots begin after deployment and are
 not retroactively available; the graph fills in as daily telemetry accumulates.
+
+The project usage endpoint scopes the project lookup to the authenticated
+owner. It returns the current UTC calendar month, the owner's active plan
+limits, monthly project usage and available daily API request counts. The
+dashboard fills missing calendar days with zero for the request chart. Database
+usage uses the monthly record when populated, falling back to the latest daily
+snapshot; file-storage and realtime figures are not yet measured per project
+and must not be interpreted as live usage.
+
+## Unavailable dashboard areas
+
+The project routes for Authentication, API Endpoints, Storage, Realtime, Edge
+Functions, AI Assistant and Logs currently render a shared "Coming soon" page
+with planned capabilities; they are not functional service interfaces yet.
+Project Settings navigation also includes sections that are placeholders.
+Danger Zone actions are disabled until corresponding project-management APIs
+exist. `/help` currently shows the same reusable unavailable banner.
+
+The SQL editor's Query History is stored in browser `localStorage` under
+`baas_sql_history_<projectId>`, independently for each project and browser. It
+keeps at most 50 entries without automatic expiry. The editor's **Clear** action
+only clears the current query/results; history entries are removed with their
+individual delete buttons or **Clear all**.
