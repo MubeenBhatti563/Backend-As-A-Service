@@ -8,10 +8,11 @@ import type {
   CreatePolicyRequest,
   TablePoliciesResponse,
   ToggleRlsRequest,
+  ExecuteQueryResult,
 } from '@baas/types';
 import type { TableDetail } from './types';
 
-export type { AddColumnRequest, CreateIndexRequest, CreatePolicyRequest };
+export type { AddColumnRequest, CreateIndexRequest, CreatePolicyRequest, ExecuteQueryResult };
 export type NewTableDefinition = CreateTableRequest;
 
 export async function fetchTablePage(
@@ -191,4 +192,16 @@ export async function dropDatabaseTablePolicy(
     `/project/${encodeURIComponent(projectId)}/database/tables/${encodeURIComponent(tableName)}/policies/${encodeURIComponent(policyName)}`,
   );
 }
+
+export async function executeDatabaseQuery(
+  projectId: string,
+  sql: string,
+) {
+  const response = (await apiClient.post(
+    `/project/${encodeURIComponent(projectId)}/database/query`,
+    { sql },
+  )) as unknown as ApiResponse<ExecuteQueryResult>;
+  return response.data;
+}
+
 

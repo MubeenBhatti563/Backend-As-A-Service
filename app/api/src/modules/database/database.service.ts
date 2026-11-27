@@ -18,6 +18,7 @@ import type {
   TablePoliciesResponse,
   TablePolicy,
   PolicyCommand,
+  ExecuteQueryResult,
 } from '@baas/types';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import type {
@@ -1943,5 +1944,116 @@ export class DatabaseService {
     );
 
     return { dropped: true, name: policyName };
+  }
+
+  async executeQuery(
+    projectId: string,
+    userId: string,
+    sql: string,
+  ): Promise<ExecuteQueryResult> {
+    const trimmed = sql.trim();
+    if (!trimmed) {
+      throw new BadRequestException('SQL query cannot be empty');
+    }
+
+    const DANGEROUS_PATTERNS = [
+      /\bALTER\s+SYSTEM\b/i,
+      /\bDROP\s+DATABASE\b/i,
+      /\bCREATE\s+DATABASE\b/i,
+      /\bCOPY\s+.*\bPROGRAM\b/i,
+      /\bpg_read_file\b/i,
+      /\bpg_write_file\b/i,
+    ];
+    for (const pattern of DANGEROUS_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        throw new BadRequestException('Restricted statement detected');
+      }
+    }
+
+    const project = await this.getProject(projectId, userId);
+    const start = performance.now();
+
+    try {
+      const isSelectOrRead =
+        /^(SELECT|WITH|EXPLAIN|SHOW|VALUES)\b/i.test(trimmed);
+
+      const rawResult = await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          `SET LOCAL search_path = ${quote(project.schemaName)}, public`,
+        );
+        await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '15s'`);
+
+        if (isSelectOrRead || /\bRETURNING\b/i.test(trimmed)) {
+          return await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
+            trimmed,
+          );
+        } else {
+          const affectedCount = await tx.$executeRawUnsafe(trimmed);
+          return { __command: true, affectedCount };
+        }
+      });
+
+      const executionMs = Math.round(performance.now() - start);
+
+      if (
+        rawResult &&
+        typeof rawResult === 'object' &&
+        '__command' in rawResult
+      ) {
+        const count = (rawResult as { affectedCount: number }).affectedCount;
+        const firstWord =
+          trimmed.split(/\s+/)[0]?.toUpperCase() ?? 'STATEMENT';
+        return {
+          columns: ['status'],
+          rows: [
+            {
+              status: `${firstWord} executed successfully (${count} ${count === 1 ? 'row' : 'rows'} affected)`,
+            },
+          ],
+          rowCount: count,
+          executionMs,
+          command: firstWord,
+        };
+      }
+
+      const rowsList = Array.isArray(rawResult) ? rawResult : [];
+      const serializedRows = rowsList.slice(0, 500).map((row) => {
+        const out: Record<string, unknown> = {};
+        for (const [key, val] of Object.entries(row)) {
+          if (typeof val === 'bigint') {
+            out[key] = val.toString();
+          } else if (val instanceof Date) {
+            out[key] = val.toISOString();
+          } else if (Buffer.isBuffer(val)) {
+            out[key] = `\\x${val.toString('hex')}`;
+          } else {
+            out[key] = val;
+          }
+        }
+        return out;
+      });
+
+      const columnSet = new Set<string>();
+      for (const row of serializedRows) {
+        Object.keys(row).forEach((k) => columnSet.add(k));
+      }
+      const columns = Array.from(columnSet);
+
+      return {
+        columns,
+        rows: serializedRows,
+        rowCount: rowsList.length,
+        executionMs,
+      };
+    } catch (err: unknown) {
+      const rawMessage =
+        err instanceof Error ? err.message : 'Database query failed';
+      const cleanMessage = rawMessage
+        .replace(/Raw query failed\. Code: `.*?`\. Message:\s*/i, '')
+        .replace(/Invalid `prisma\.\$queryRawUnsafe\(\)` invocation:\s*/i, '')
+        .replace(/Invalid `prisma\.\$executeRawUnsafe\(\)` invocation:\s*/i, '')
+        .trim();
+      throw new BadRequestException(`SQL execution error: ${cleanMessage}`);
+    }
   }
 }

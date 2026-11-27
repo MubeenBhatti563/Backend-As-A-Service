@@ -127,3 +127,42 @@ The `AddPolicyDialog` provides common architectural presets:
 3. **User Owns Rows**: `ALL` for `authenticated` with `USING (auth.uid() = user_id)` and `WITH CHECK (auth.uid() = user_id)`.
 4. **Authenticated Insert**: `INSERT` for `authenticated` with `WITH CHECK (true)`.
 5. **Custom**: Freeform SQL boolean expressions.
+
+---
+
+## 4. SQL Workspace & Query Execution Engine
+
+The interactive SQL Editor (`/dashboard/projects/[id]/database/sql-editor`) enables developers to run arbitrary queries directly against their tenant database schema.
+
+### A. Monaco Editor Frontend Integration
+
+- **Editor Engine**: Powered by `@monaco-editor/react` (VS Code's editor core).
+- **Custom Theme (`baas-dark`)**: Styled to match `#090D16` input background with custom syntax highlighting tokens for SQL keywords, strings, identifiers, and comments.
+- **Schema-Aware Autocompletion**: Registers a PostgreSQL completion provider providing real-time suggestions for:
+  - Standard SQL keywords (`SELECT`, `JOIN`, `WHERE`, `GROUP BY`, etc.).
+  - Project-specific table names (derived from the project overview).
+  - Project-specific column names and data types.
+- **Execution Shortcuts**: `Cmd + Enter` (macOS) and `Ctrl + Enter` (Linux / Windows) immediately trigger execution without requiring a mouse click.
+- **Local Query History**: Successfully run or saved queries are persisted in `localStorage` under `baas_sql_history_${projectId}` for instant recall.
+
+### B. Backend Execution Sandbox & Security
+
+- **Endpoint**: `POST /api/v1/project/:id/database/query`
+- **Payload**: `{ sql: string }` (maximum 20,000 characters).
+- **Schema Isolation**: The query executes within a PostgreSQL transaction with:
+  ```sql
+  SET LOCAL search_path = quote(project.schemaName), public;
+  ```
+  This allows queries like `SELECT * FROM posts` to automatically resolve to the tenant's isolated schema without leaking other tenants' tables.
+- **Denial-of-Service & Lock Prevention**:
+  ```sql
+  SET LOCAL statement_timeout = '15s';
+  ```
+  A strict 15-second cap prevents runaway Cartesian joins or locks from degrading database performance.
+- **Administrative Command Blacklist**: Reject destructive cluster-level commands before execution (`ALTER SYSTEM`, `DROP DATABASE`, `CREATE DATABASE`, `COPY ... PROGRAM`, `pg_read_file`, `pg_write_file`).
+- **Safe Data Serialization**:
+  - `BigInt` values are serialized to strings.
+  - `Date` instances are formatted as ISO 8601 strings.
+  - Binary buffers are formatted as hex strings (`\x...`).
+- **Performance Capping**: Result payloads are capped at 500 rows per query to preserve browser DOM rendering speed and avoid memory pressure.
+

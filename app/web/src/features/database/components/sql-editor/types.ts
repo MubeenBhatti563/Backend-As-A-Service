@@ -5,10 +5,19 @@ export interface QueryHistoryItem {
   ranAt: string;
 }
 
+export interface SqlResultColumn {
+  key: string;
+  label: string;
+}
+
+export type SqlResultRow = Record<string, unknown>;
+
 export interface QueryResult {
-  columns: GridColumn[];
-  rows: GridRow[];
+  columns: SqlResultColumn[];
+  rows: SqlResultRow[];
   executionMs: number;
+  rowCount?: number;
+  command?: string;
 }
 
 export interface SqlEditorData {
@@ -17,5 +26,5 @@ export interface SqlEditorData {
   history: QueryHistoryItem[];
   result: QueryResult | null;
 }
-import type { GridColumn, GridRow } from "../../types";
+
 

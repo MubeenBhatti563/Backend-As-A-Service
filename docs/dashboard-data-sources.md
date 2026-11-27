@@ -19,8 +19,9 @@ Mock fallbacks are not used in the dashboard.
 | Table relationships      | `GET /project/:id/database/tables/:name/relationships` | Directional incoming/outgoing foreign keys and sub-graph ER diagram for a single table.                                                                                                                  |
 | Table indexes            | `GET /project/:id/database/tables/:name/indexes`       | Indexes specific to a table, including index method, column list, and allocated size.                                                                                                                    |
 | Table RLS policies       | `GET /project/:id/database/tables/:name/policies`      | Row-Level Security status (`relrowsecurity`) and policies defined on the table (`pg_policies`).                                                                                                          |
+| SQL Workspace Query      | `POST /project/:id/database/query`                     | Executes SQL statement within tenant search_path with a 15-second statement timeout; returns column keys, rows (capped at 500), execution duration, and affected count.                                 |
 
-OAuth provider screens, SQL execution/history/results, and payment checkout are
+OAuth provider screens and payment checkout are
 intentionally not connected. No Stripe integration is configured. Billing
 actions are disabled while checkout is unavailable.
 

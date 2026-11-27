@@ -20,11 +20,14 @@ export default async function SqlEditorPage({ params }: PageProps) {
   const database = await getDatabaseOverview(id);
   if (!database) notFound();
 
-  // The API does not expose SQL execution/history yet. Keep the reference UI,
-  // but don't show fabricated results or history as if they came from the DB.
+  const firstTable = database.tables[0]?.name;
+  const initialQuery = firstTable
+    ? `SELECT *\nFROM ${firstTable}\nLIMIT 50;`
+    : `-- Write your SQL query here\nSELECT current_timestamp, current_database();`;
+
   const editorData: SqlEditorData = {
     schema: "public",
-    initialQuery: "SELECT *\nFROM profiles\nLIMIT 100;",
+    initialQuery,
     history: [],
     result: null,
   };
@@ -33,7 +36,7 @@ export default async function SqlEditorPage({ params }: PageProps) {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
       <SqlEditorHeader projectId={id} />
       <DatabaseTabs projectId={id} value="sql-editor" />
-      <SqlEditorView data={editorData} />
+      <SqlEditorView projectId={id} data={editorData} tables={database.tables} />
     </Box>
   );
 }

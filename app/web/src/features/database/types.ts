@@ -29,4 +29,6 @@ export type {
   TablePoliciesResponse,
   CreatePolicyRequest,
   ToggleRlsRequest,
+  ExecuteQueryRequest,
+  ExecuteQueryResult,
 } from "@baas/types";

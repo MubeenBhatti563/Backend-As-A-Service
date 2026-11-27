@@ -261,6 +261,21 @@ export interface ToggleRlsRequest {
   enabled: boolean;
 }
 
+/* ---------- SQL Query Execution ---------- */
+
+export interface ExecuteQueryRequest {
+  sql: string;
+}
+
+export interface ExecuteQueryResult {
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+  rowCount: number;
+  executionMs: number;
+  command?: string;
+}
+
+
 
 
 

@@ -19,6 +19,7 @@ import {
   AddForeignKeyDto,
   ToggleRlsDto,
   CreatePolicyDto,
+  ExecuteQueryDto,
 } from './dto/create-table.dto';
 
 @Controller('project/:projectId/database')
@@ -47,6 +48,15 @@ export class DatabaseController {
     @GetUser('userId') userId: string,
   ) {
     return this.databaseService.getRelationships(projectId, userId);
+  }
+
+  @Post('query')
+  executeQuery(
+    @Param('projectId') projectId: string,
+    @Body() dto: ExecuteQueryDto,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.databaseService.executeQuery(projectId, userId, dto.sql);
   }
 
   @Get('tables/:tableName')

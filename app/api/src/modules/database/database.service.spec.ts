@@ -14,6 +14,7 @@ describe('DatabaseService', () => {
     $queryRaw: jest.fn(),
     $queryRawUnsafe: jest.fn(),
     $executeRawUnsafe: jest.fn(),
+    $transaction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -576,5 +577,38 @@ describe('DatabaseService', () => {
     prisma.$executeRawUnsafe.mockResolvedValueOnce(0);
     const dropRes = await service.dropTablePolicy('project-1', 'user-1', 'posts', 'allow_insert_for_all');
     expect(dropRes).toEqual({ dropped: true, name: 'allow_insert_for_all' });
+  });
+
+  it('executes SELECT and DDL/DML queries safely within tenant schema context', async () => {
+    prisma.project.findFirst.mockResolvedValue({
+      id: 'project-1',
+      userId: 'user-1',
+      schemaName: 'tenant_abc',
+    });
+
+    // Mock transaction execution
+    prisma.$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+      const mockTx = {
+        $executeRawUnsafe: jest.fn().mockResolvedValue(1),
+        $queryRawUnsafe: jest.fn().mockResolvedValue([
+          { id: 'uuid-1', title: 'First Post', views: 100n },
+        ]),
+      };
+      return cb(mockTx);
+    });
+
+    // 1. SELECT query
+    const selectRes = await service.executeQuery('project-1', 'user-1', 'SELECT * FROM posts');
+    expect(selectRes.columns).toEqual(['id', 'title', 'views']);
+    expect(selectRes.rows).toEqual([
+      { id: 'uuid-1', title: 'First Post', views: '100' },
+    ]);
+    expect(selectRes.rowCount).toBe(1);
+    expect(selectRes.executionMs).toBeGreaterThanOrEqual(0);
+
+    // 2. Restricted statement rejected
+    await expect(
+      service.executeQuery('project-1', 'user-1', 'DROP DATABASE postgres'),
+    ).rejects.toThrow('Restricted statement detected');
   });
 });

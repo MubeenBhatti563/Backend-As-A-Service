@@ -79,4 +79,15 @@ export const createPolicySchema = z.object({
 
 export class CreatePolicyDto extends createZodDto(createPolicySchema) {}
 
+export const executeQuerySchema = z.object({
+  sql: z
+    .string()
+    .trim()
+    .min(1, 'SQL query cannot be empty')
+    .max(20000, 'Query exceeds maximum character limit of 20,000'),
+});
+
+export class ExecuteQueryDto extends createZodDto(executeQuerySchema) {}
+
+
 
