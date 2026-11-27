@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
     ACTIVITY: "/project/activity",
     BY_ID: (id: string) => `/project/${id}`,
     OVERVIEW: (id: string) => `/project/${id}/overview`,
+    USAGE: (id: string) => `/project/${id}/usage`,
   },
 
   PLAN: {

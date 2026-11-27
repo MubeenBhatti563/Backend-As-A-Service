@@ -222,6 +222,97 @@ export class ProjectService {
     return project;
   }
 
+  async getProjectUsage(projectId: string, userId: string) {
+    const project = await this.prismaService.project.findFirst({
+      where: { id: projectId, ownerId: userId },
+      select: { id: true, name: true, status: true },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const now = new Date();
+    const periodStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const periodEnd = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+    );
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+    );
+
+    const [usage, daily, subscription, hobbyPlan] = await Promise.all([
+      this.prismaService.projectUsage.findUnique({
+        where: { projectId_periodStart: { projectId, periodStart } },
+      }),
+      this.prismaService.projectUsageDaily.findMany({
+        where: { projectId, day: { gte: periodStart, lt: today } },
+        orderBy: { day: 'asc' },
+        select: {
+          day: true,
+          apiRequests: true,
+          dbBytes: true,
+          updatedAt: true,
+        },
+      }),
+      this.prismaService.subscription.findUnique({
+        where: { userId },
+        include: { plan: true },
+      }),
+      this.prismaService.plan.findUniqueOrThrow({ where: { code: 'HOBBY' } }),
+    ]);
+
+    const plan = subscription?.plan ?? hobbyPlan;
+    const latestDaily = daily.at(-1);
+    const dbBytes =
+      usage?.dbBytes && usage.dbBytes > 0n
+        ? usage.dbBytes
+        : (latestDaily?.dbBytes ?? 0n);
+    const apiRequests =
+      usage?.apiRequests ??
+      daily.reduce((total, record) => total + record.apiRequests, 0n);
+    const updatedAt = [usage?.updatedAt, ...daily.map((record) => record.updatedAt)]
+      .filter((date): date is Date => date instanceof Date)
+      .sort((a, b) => b.getTime() - a.getTime())[0];
+
+    return {
+      project: {
+        id: project.id,
+        name: project.name,
+        status:
+          project.status === 'ACTIVE'
+            ? 'active'
+            : project.status === 'PAUSED'
+              ? 'paused'
+              : 'pending',
+      },
+      period: {
+        start: periodStart.toISOString(),
+        end: periodEnd.toISOString(),
+      },
+      plan: {
+        name: plan.name,
+        apiRequestsMonthly: plan.apiRequestsMonthly?.toString() ?? null,
+        dbStorageBytes: plan.dbStorageBytes?.toString() ?? null,
+        fileStorageBytes: plan.fileStorageBytes?.toString() ?? null,
+        maxRealtimeConnections: plan.maxRealtimeConnections,
+      },
+      usage: {
+        apiRequests: apiRequests.toString(),
+        dbBytes: dbBytes.toString(),
+        fileBytes: (usage?.fileBytes ?? 0n).toString(),
+        peakRealtimeConns: usage?.peakRealtimeConns ?? 0,
+      },
+      daily: daily.map((record) => ({
+        day: record.day.toISOString(),
+        apiRequests: record.apiRequests.toString(),
+      })),
+      updatedAt: updatedAt?.toISOString() ?? null,
+    };
+  }
+
   async getProjectOverview(projectId: string, userId: string) {
     const project = await this.prismaService.project.findFirst({
       where: { id: projectId, ownerId: userId },

@@ -7,6 +7,7 @@ import {
   CreateProjectResponse,
   ProjectData,
   ProjectOverviewData,
+  ProjectUsageData,
 } from "@baas/types";
 
 export type { CreateProjectResponse };
@@ -45,5 +46,13 @@ export const projectApi = {
     return (await apiClient.get(
       API_ENDPOINTS.PROJECT.OVERVIEW(id),
     )) as unknown as ApiResponse<ProjectOverviewData>;
+  },
+
+  getUsage: async (
+    id: string,
+  ): Promise<ApiResponse<ProjectUsageData>> => {
+    return (await apiClient.get(
+      API_ENDPOINTS.PROJECT.USAGE(id),
+    )) as unknown as ApiResponse<ProjectUsageData>;
   },
 };

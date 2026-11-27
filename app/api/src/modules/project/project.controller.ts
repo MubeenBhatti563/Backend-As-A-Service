@@ -45,6 +45,15 @@ export class ProjectController {
     return this.projectService.getProjectOverview(projectId, userId);
   }
 
+  @Get(':id/usage')
+  @HttpCode(HttpStatus.OK)
+  async getProjectUsage(
+    @Param('id') projectId: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.projectService.getProjectUsage(projectId, userId);
+  }
+
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   async getProjectById(

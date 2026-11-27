@@ -28,6 +28,7 @@ describe('ProjectService', () => {
     };
     projectUsage: {
       findFirst: jest.Mock;
+      findUnique: jest.Mock;
     };
     projectUsageDaily: { findMany: jest.Mock };
     activityLog: {
@@ -77,6 +78,7 @@ describe('ProjectService', () => {
       },
       projectUsage: {
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
       },
       projectUsageDaily: { findMany: jest.fn().mockResolvedValue([]) },
       activityLog: {
@@ -546,6 +548,114 @@ describe('ProjectService', () => {
       await expect(
         service.getProjectOverview(projectId, userId),
       ).rejects.toThrow('Project not found');
+    });
+
+    describe('getProjectUsage', () => {
+      const projectId = 'proj-usage';
+      const userId = 'user-usage';
+
+      it('returns project usage, current plan limits, and daily request history', async () => {
+        const day = new Date();
+        day.setUTCHours(0, 0, 0, 0);
+        prismaMock.project.findFirst.mockResolvedValue({
+          id: projectId,
+          name: 'Usage project',
+          status: 'ACTIVE',
+        });
+        prismaMock.projectUsage.findUnique.mockResolvedValue({
+          dbBytes: 2048n,
+          fileBytes: 512n,
+          apiRequests: 25n,
+          peakRealtimeConns: 0,
+          updatedAt: new Date('2026-11-27T10:00:00.000Z'),
+        });
+        prismaMock.projectUsageDaily.findMany.mockResolvedValue([
+          {
+            day,
+            apiRequests: 25n,
+            dbBytes: 2048n,
+            updatedAt: new Date('2026-11-27T10:00:00.000Z'),
+          },
+        ]);
+        prismaMock.plan.findUniqueOrThrow.mockResolvedValue({
+          name: 'Hobby',
+          apiRequestsMonthly: 50_000n,
+          dbStorageBytes: 500_000_000n,
+          fileStorageBytes: 1_000_000_000n,
+          maxRealtimeConnections: 10,
+        });
+
+        const result = await service.getProjectUsage(projectId, userId);
+
+        expect(prismaMock.project.findFirst).toHaveBeenCalledWith({
+          where: { id: projectId, ownerId: userId },
+          select: { id: true, name: true, status: true },
+        });
+        expect(result.project).toEqual({
+          id: projectId,
+          name: 'Usage project',
+          status: 'active',
+        });
+        expect(result.usage).toEqual({
+          apiRequests: '25',
+          dbBytes: '2048',
+          fileBytes: '512',
+          peakRealtimeConns: 0,
+        });
+        expect(result.plan).toEqual({
+          name: 'Hobby',
+          apiRequestsMonthly: '50000',
+          dbStorageBytes: '500000000',
+          fileStorageBytes: '1000000000',
+          maxRealtimeConnections: 10,
+        });
+        expect(result.daily).toEqual([
+          { day: day.toISOString(), apiRequests: '25' },
+        ]);
+        expect(result.updatedAt).toBe('2026-11-27T10:00:00.000Z');
+      });
+
+      it('falls back to daily request totals and zero usage when no monthly record exists', async () => {
+        prismaMock.project.findFirst.mockResolvedValue({
+          id: projectId,
+          name: 'Usage project',
+          status: 'PENDING',
+        });
+        prismaMock.projectUsage.findUnique.mockResolvedValue(null);
+        prismaMock.projectUsageDaily.findMany.mockResolvedValue([
+          {
+            day: new Date('2026-11-01T00:00:00.000Z'),
+            apiRequests: 4n,
+            dbBytes: 0n,
+            updatedAt: new Date('2026-11-01T12:00:00.000Z'),
+          },
+          {
+            day: new Date('2026-11-02T00:00:00.000Z'),
+            apiRequests: 6n,
+            dbBytes: 0n,
+            updatedAt: new Date('2026-11-02T12:00:00.000Z'),
+          },
+        ]);
+
+        const result = await service.getProjectUsage(projectId, userId);
+
+        expect(result.project.status).toBe('pending');
+        expect(result.usage).toEqual({
+          apiRequests: '10',
+          dbBytes: '0',
+          fileBytes: '0',
+          peakRealtimeConns: 0,
+        });
+      });
+
+      it('does not disclose usage when the project is not owned by the user', async () => {
+        prismaMock.project.findFirst.mockResolvedValue(null);
+
+        await expect(
+          service.getProjectUsage(projectId, userId),
+        ).rejects.toThrow('Project not found');
+        expect(prismaMock.projectUsage.findUnique).not.toHaveBeenCalled();
+      });
     });
   });
 });

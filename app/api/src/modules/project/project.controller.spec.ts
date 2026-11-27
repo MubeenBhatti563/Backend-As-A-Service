@@ -10,6 +10,7 @@ describe('ProjectController', () => {
     getRecentActivity: jest.Mock;
     getProjectById: jest.Mock;
     getProjectOverview: jest.Mock;
+    getProjectUsage: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -19,6 +20,7 @@ describe('ProjectController', () => {
       getRecentActivity: jest.fn(),
       getProjectById: jest.fn(),
       getProjectOverview: jest.fn(),
+      getProjectUsage: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -205,6 +207,20 @@ describe('ProjectController', () => {
       );
       expect(result).toEqual(mockOverview);
     });
+
+    describe('getProjectUsage', () => {
+      it('delegates to ProjectService with the project and authenticated user IDs', async () => {
+        const usage = { project: { id: 'proj-123' }, daily: [] };
+        projectServiceMock.getProjectUsage.mockResolvedValue(usage);
+
+        await expect(
+          controller.getProjectUsage('proj-123', 'user-abc'),
+        ).resolves.toEqual(usage);
+        expect(projectServiceMock.getProjectUsage).toHaveBeenCalledWith(
+          'proj-123',
+          'user-abc',
+        );
+      });
+    });
   });
 });
-

@@ -112,3 +112,33 @@ export interface ProjectOverviewData {
   activity: OverviewActivityEvent[];
   health: ServiceHealth[];
 }
+
+export interface ProjectUsageData {
+  project: {
+    id: string;
+    name: string;
+    status: OverviewProjectStatus;
+  };
+  period: {
+    start: string;
+    end: string;
+  };
+  plan: {
+    name: string;
+    apiRequestsMonthly: string | null;
+    dbStorageBytes: string | null;
+    fileStorageBytes: string | null;
+    maxRealtimeConnections: number | null;
+  };
+  usage: {
+    apiRequests: string;
+    dbBytes: string;
+    fileBytes: string;
+    peakRealtimeConns: number;
+  };
+  daily: Array<{
+    day: string;
+    apiRequests: string;
+  }>;
+  updatedAt: string | null;
+}
