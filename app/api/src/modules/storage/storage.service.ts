@@ -12,10 +12,13 @@ import { Prisma, type StorageBucket, type StorageObject } from '@prisma/client';
 import type { MultipartFile } from '@fastify/multipart';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CreateBucketDto } from './dto/create-bucket.dto';
+import { UpdateBucketAccessDto } from './dto/update-bucket-access.dto';
+import { UpdateStorageSettingsDto } from './dto/update-storage-settings.dto';
 import { S3ObjectStore } from './s3-object.store';
 
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 200;
+const DEFAULT_CACHE_TTL_SECONDS = 3600;
 
 @Injectable()
 export class StorageService {
@@ -51,11 +54,58 @@ export class StorageService {
     return {
       id: bucket.id,
       name: bucket.name,
-      access: 'Private' as const,
+      access: bucket.isPublic ? ('Public' as const) : ('Private' as const),
       fileCount,
       sizeBytes: sizeBytes.toString(),
       createdAt: bucket.createdAt.toISOString(),
     };
+  }
+
+  private presentSettings(
+    settings: { cdnBaseUrl: string | null; cacheTtlSeconds: number } | null,
+  ) {
+    return {
+      cdnBaseUrl: settings?.cdnBaseUrl ?? null,
+      cacheTtlSeconds:
+        settings?.cacheTtlSeconds ?? DEFAULT_CACHE_TTL_SECONDS,
+    };
+  }
+
+  async getSettings(projectId: string, userId: string) {
+    await this.assertProjectOwner(projectId, userId);
+    const settings = await this.prisma.projectStorageSettings.findUnique({
+      where: { projectId },
+      select: { cdnBaseUrl: true, cacheTtlSeconds: true },
+    });
+    return this.presentSettings(settings);
+  }
+
+  async updateSettings(
+    projectId: string,
+    userId: string,
+    dto: UpdateStorageSettingsDto,
+  ) {
+    await this.assertProjectOwner(projectId, userId);
+    const data = {
+      ...(dto.cdnBaseUrl !== undefined
+        ? {
+            cdnBaseUrl:
+              dto.cdnBaseUrl === null
+                ? null
+                : new URL(dto.cdnBaseUrl).origin,
+          }
+        : {}),
+      ...(dto.cacheTtlSeconds !== undefined
+        ? { cacheTtlSeconds: dto.cacheTtlSeconds }
+        : {}),
+    };
+    const settings = await this.prisma.projectStorageSettings.upsert({
+      where: { projectId },
+      create: { projectId, ...data },
+      update: data,
+      select: { cdnBaseUrl: true, cacheTtlSeconds: true },
+    });
+    return this.presentSettings(settings);
   }
 
   async listBuckets(projectId: string, userId: string) {
@@ -124,6 +174,24 @@ export class StorageService {
       await tx.storageBucket.delete({ where: { id: bucketId } });
     });
     return { message: 'Bucket deleted' };
+  }
+
+  async updateBucketAccess(
+    projectId: string,
+    userId: string,
+    bucketId: string,
+    dto: UpdateBucketAccessDto,
+  ) {
+    await this.getBucket(projectId, userId, bucketId);
+    const isPublic = dto.access === 'Public';
+    const result = await this.prisma.storageBucket.updateMany({
+      where: { id: bucketId, projectId },
+      data: { isPublic },
+    });
+    if (result.count === 0) {
+      throw new NotFoundException('Storage bucket not found');
+    }
+    return { id: bucketId, access: isPublic ? 'Public' : 'Private' };
   }
 
   async listFiles(
@@ -282,6 +350,30 @@ export class StorageService {
       fileName: file.fileName,
       contentType: file.contentType,
       size: file.size.toString(),
+    };
+  }
+
+  async getPublicFileForDownload(bucketId: string, fileId: string) {
+    const file = await this.prisma.storageObject.findFirst({
+      where: { id: fileId, bucketId },
+      include: {
+        bucket: {
+          select: { isPublic: true, projectId: true },
+        },
+      },
+    });
+    if (!file?.bucket.isPublic) throw new NotFoundException('File not found');
+
+    const settings = await this.prisma.projectStorageSettings.findUnique({
+      where: { projectId: file.bucket.projectId },
+      select: { cacheTtlSeconds: true },
+    });
+    return {
+      body: await this.objectStore.download(file.objectKey),
+      fileName: file.fileName,
+      contentType: file.contentType,
+      cacheTtlSeconds:
+        settings?.cacheTtlSeconds ?? DEFAULT_CACHE_TTL_SECONDS,
     };
   }
 

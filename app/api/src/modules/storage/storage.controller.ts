@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -14,27 +15,34 @@ import {
 } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { GetUser } from '../auth/decorators/get-user.decorator';
+import { UpdateBucketAccessDto } from './dto/update-bucket-access.dto';
+import { UpdateStorageSettingsDto } from './dto/update-storage-settings.dto';
 import { BypassTransform } from '../../common/decorators/bypass-transform.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { CreateBucketDto } from './dto/create-bucket.dto';
 import { StorageService } from './storage.service';
-
-function safeContentType(value: string) {
-  return /^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/.test(value)
-    ? value
-    : 'application/octet-stream';
-}
-
-function attachmentName(value: string) {
-  const encoded = encodeURIComponent(value).replace(
-    /['()*]/g,
-    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-  return `attachment; filename*=UTF-8''${encoded}`;
-}
+import { contentDisposition, safeContentType } from './storage-response.utils';
 
 @Controller('project/:projectId/storage')
 export class StorageController {
   constructor(private readonly storageService: StorageService) {}
+
+  @Get('settings')
+  getSettings(
+    @Param('projectId') projectId: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.storageService.getSettings(projectId, userId);
+  }
+
+  @Patch('settings')
+  updateSettings(
+    @Param('projectId') projectId: string,
+    @GetUser('userId') userId: string,
+    @Body() dto: UpdateStorageSettingsDto,
+  ) {
+    return this.storageService.updateSettings(projectId, userId, dto);
+  }
 
   @Get('buckets')
   listBuckets(
@@ -61,6 +69,21 @@ export class StorageController {
     @GetUser('userId') userId: string,
   ) {
     return this.storageService.deleteBucket(projectId, userId, bucketId);
+  }
+
+  @Patch('buckets/:bucketId/access')
+  updateBucketAccess(
+    @Param('projectId') projectId: string,
+    @Param('bucketId') bucketId: string,
+    @GetUser('userId') userId: string,
+    @Body() dto: UpdateBucketAccessDto,
+  ) {
+    return this.storageService.updateBucketAccess(
+      projectId,
+      userId,
+      bucketId,
+      dto,
+    );
   }
 
   @Get('buckets/:bucketId/files')
@@ -122,7 +145,10 @@ export class StorageController {
     );
     return reply
       .type(safeContentType(file.contentType))
-      .header('Content-Disposition', attachmentName(file.fileName))
+      .header(
+        'Content-Disposition',
+        contentDisposition('attachment', file.fileName),
+      )
       .header('Content-Length', file.size)
       .header('Cache-Control', 'private, no-store')
       .header('X-Content-Type-Options', 'nosniff')
@@ -142,5 +168,37 @@ export class StorageController {
       bucketId,
       fileId,
     );
+  }
+}
+
+@Controller('storage/public')
+export class PublicStorageController {
+  constructor(private readonly storageService: StorageService) {}
+
+  @Public()
+  @Get(':bucketId/:fileId')
+  @BypassTransform()
+  async getPublicFile(
+    @Param('bucketId') bucketId: string,
+    @Param('fileId') fileId: string,
+    @Res() reply: FastifyReply,
+  ) {
+    const file = await this.storageService.getPublicFileForDownload(
+      bucketId,
+      fileId,
+    );
+    const cacheControl = `public, max-age=0, s-maxage=${file.cacheTtlSeconds}`;
+    return reply
+      .type(safeContentType(file.contentType))
+      .header(
+        'Content-Disposition',
+        contentDisposition('inline', file.fileName),
+      )
+      .header('Cache-Control', cacheControl)
+      .header('Access-Control-Allow-Origin', '*')
+      .header('Cross-Origin-Resource-Policy', 'cross-origin')
+      .header('Content-Security-Policy', "default-src 'none'; sandbox")
+      .header('X-Content-Type-Options', 'nosniff')
+      .send(file.body);
   }
 }

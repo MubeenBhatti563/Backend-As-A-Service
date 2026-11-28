@@ -14,7 +14,7 @@ Mock fallbacks are not used in the dashboard.
 | Project usage            | `GET /project/:id/usage`                               | Owner-checked monthly project usage, current plan quotas, and daily API request records for `/dashboard/projects/:id/usage`. File bytes update as storage files are uploaded/deleted; realtime usage is not tracked yet. |
 | Authentication           | None                                                   | `/dashboard/projects/:id/auth` and `/auth/:userId` are clearly labeled UI previews using local sample users. Search and role filtering apply only to those samples; detail pages, sessions, security logs, and user/role/settings operations are not backed by project APIs. |
 | API Endpoints             | None                                                   | `/dashboard/projects/:id/api-endpoints` shows illustrative sample endpoint/code/response snippets only. It is not a generated project API; endpoint execution is disabled and cURL copy copies example text only. |
-| Project storage           | `GET/POST /project/:id/storage/buckets`; `/buckets/:bucketId/files` | Owner-checked private bucket and file APIs backed by PostgreSQL metadata and S3-compatible object storage. Supports bucket create/list/delete (empty only), file list/upload/download/delete; uploads are limited to 50 MiB. |
+| Project storage           | `/project/:id/storage/{settings,buckets,...}`; `GET /storage/public/:bucketId/:fileId` | Owner-checked project settings and bucket/file APIs backed by PostgreSQL metadata and S3-compatible object storage. Buckets default to private; public buckets allow unauthenticated reads through the API, while writes remain authenticated. Uploads are limited to 50 MiB. |
 | Database tables          | `GET /project/:id/database`                            | Counts use exact `COUNT(*)`; storage is PostgreSQL physical relation size.                                                                                                                               |
 | Database indexes         | `GET /project/:id/database/indexes`                    | Reads index metadata from PostgreSQL catalogs for the owned project schema; byte totals are exact allocated relation sizes.                                                                              |
 | Database ER diagram      | `GET /project/:id/database/relationships`              | Graph of all tables and foreign key relationships with topological layout positions.                                                                                                                     |
@@ -76,11 +76,11 @@ Realtime, Edge Functions, AI Assistant and Logs currently render a shared
 "Coming soon" page with planned capabilities; they are not functional service
 interfaces yet. Authentication and API Endpoints have preview-only interfaces
 and are not connected to project-specific services. Storage buckets/files are
-backed by the APIs above; public object URLs, folder management, CDN settings,
-and storage policy configuration are not implemented. Project Settings
-navigation also includes sections that are placeholders. Danger Zone actions
-are disabled until corresponding project-management APIs exist. `/help`
-currently shows the same reusable unavailable banner.
+backed by the APIs above; folder management, fine-grained storage policies,
+and CDN provider provisioning are not implemented. Project Settings navigation
+also includes sections that are placeholders. Danger Zone actions are disabled
+until corresponding project-management APIs exist. `/help` currently shows
+the same reusable unavailable banner.
 
 ## Project storage setup and API
 
@@ -101,8 +101,18 @@ only empty buckets can be deleted. File uploads stream through the API, accept
 one file per request, and enforce a 50 MiB maximum. Downloads are streamed as
 attachments with `nosniff`; object-store credentials and keys are never sent
 to the browser. Objects use generated storage keys, while original filenames
-are stored only as metadata. Public access, CDN URLs, folders, and plan quota
-enforcement are not part of this initial implementation.
+are stored only as metadata.
+
+The Storage **Settings & CDN** tab controls per-bucket public-read access and
+the project's optional HTTPS CDN base URL and shared-cache TTL (0–86400
+seconds). Public access is off by default. Public files are served through
+`GET /api/v1/storage/public/:bucketId/:fileId`; uploads and deletes always
+require an authenticated project owner. To use a custom domain, configure your
+own CDN distribution to forward `/api/v1/storage/public/*` to this API. The app
+does not provision CDN services, DNS, or TLS. Making a bucket private does not
+purge objects already cached at a CDN, so they may remain available until the
+configured TTL expires. Folder management and plan quota enforcement are not
+implemented.
 
 The SQL editor's Query History is stored in browser `localStorage` under
 `baas_sql_history_<projectId>`, independently for each project and browser. It

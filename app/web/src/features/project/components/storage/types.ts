@@ -9,6 +9,11 @@ export interface Bucket {
   createdAt: string;
 }
 
+export interface StorageSettings {
+  cdnBaseUrl: string | null;
+  cacheTtlSeconds: number;
+}
+
 export interface StorageStat {
   id: string;
   label: string;

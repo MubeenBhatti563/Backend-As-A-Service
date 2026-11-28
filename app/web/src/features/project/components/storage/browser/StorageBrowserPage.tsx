@@ -21,8 +21,10 @@ import { FilesTable } from "./FilesTable";
 import {
   deleteStorageFile,
   downloadStorageFile,
+  fetchStorageSettings,
   fetchStorageBuckets,
   fetchStorageFiles,
+  getPublicStorageFileUrl,
   uploadStorageFile,
 } from "../api";
 import type { Bucket } from "../types";
@@ -53,6 +55,7 @@ export function StorageBrowserPage({
   const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [cdnBaseUrl, setCdnBaseUrl] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -79,6 +82,24 @@ export function StorageBrowserPage({
       active = false;
     };
   }, [bucketId, projectId]);
+
+  useEffect(() => {
+    if (bucket?.access !== "Public") return;
+
+    let active = true;
+    fetchStorageSettings(projectId)
+      .then((settings) => {
+        if (active) setCdnBaseUrl(settings.cdnBaseUrl);
+      })
+      .catch((failure: unknown) => {
+        if (active) {
+          setError(getErrorMessage(failure, "Could not load CDN settings."));
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [bucket?.access, projectId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
@@ -187,6 +208,18 @@ export function StorageBrowserPage({
     }
   };
 
+  const copyPublicUrl = async (entry: FileEntry) => {
+    setError("");
+    setNotice("");
+    try {
+      const url = getPublicStorageFileUrl(bucketId, entry.id, cdnBaseUrl);
+      await navigator.clipboard.writeText(url);
+      setNotice("Public file URL copied.");
+    } catch (failure) {
+      setError(getErrorMessage(failure, "Could not copy the public URL."));
+    }
+  };
+
   const deleteFile = useCallback(async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -226,11 +259,13 @@ export function StorageBrowserPage({
           onUploadFile={() => fileInput.current?.click()}
         />
       )}
-      <Alert severity="info">
-        Files are private and accessible only to project owners through the
-        authenticated dashboard. Public URLs, CDN configuration, and folders
-        are not enabled.
-      </Alert>
+      {bucket && (
+        <Alert severity={bucket.access === "Public" ? "warning" : "info"}>
+          {bucket.access === "Public"
+            ? "Anyone with a file URL can read files in this bucket. Uploads and deletes still require authentication."
+            : "Files are private and accessible only to authenticated project owners."}
+        </Alert>
+      )}
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
       <BrowserToolbar
@@ -251,6 +286,8 @@ export function StorageBrowserPage({
           onToggle={toggle}
           onToggleAll={toggleAll}
           onDownload={(entry) => void download(entry)}
+          onCopyUrl={(entry) => void copyPublicUrl(entry)}
+          publicAccess={bucket?.access === "Public"}
           onDelete={setDeleteTarget}
         />
       ) : (
@@ -290,8 +327,15 @@ export function StorageBrowserPage({
                 {entry.type} · {formatBytes(entry.sizeBytes)}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-                <Button size="small" onClick={() => void download(entry)}>Download</Button>
-                <Button size="small" color="error" onClick={() => setDeleteTarget(entry)}>Delete</Button>
+                <Button size="small" variant="outlined" onClick={() => void download(entry)}>Download</Button>
+                <Button
+                  size="small"
+                  disabled={bucket?.access !== "Public"}
+                  onClick={() => void copyPublicUrl(entry)}
+                >
+                  Copy URL
+                </Button>
+                <Button variant="outlined" size="small" color="error" onClick={() => setDeleteTarget(entry)}>Delete</Button>
               </Stack>
             </Box>
           ))}

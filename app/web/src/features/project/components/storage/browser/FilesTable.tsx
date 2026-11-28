@@ -18,16 +18,20 @@ import { formatBytes } from "../format-bytes";
 export function FilesTable({
   entries,
   selectedIds,
+  publicAccess,
   onToggle,
   onToggleAll,
   onDownload,
+  onCopyUrl,
   onDelete,
 }: {
   entries: FileEntry[];
   selectedIds: string[];
+  publicAccess: boolean;
   onToggle: (id: string) => void;
   onToggleAll: () => void;
   onDownload: (entry: FileEntry) => void;
+  onCopyUrl: (entry: FileEntry) => void;
   onDelete: (entry: FileEntry) => void;
 }) {
   const allSelected = entries.length > 0 && selectedIds.length === entries.length;
@@ -115,7 +119,13 @@ export function FilesTable({
                     <Button onClick={() => onDownload(entry)} size="small" variant="outlined" sx={{ fontSize: 10, textTransform: "none" }}>
                       Download
                     </Button>
-                    <Button disabled size="small" variant="outlined" sx={{ fontSize: 10, textTransform: "none" }}>
+                    <Button
+                      disabled={!publicAccess}
+                      onClick={() => onCopyUrl(entry)}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: 10, textTransform: "none" }}
+                    >
                       Copy URL
                     </Button>
                     <IconButton

@@ -39,11 +39,12 @@ model Project {
 
   owner PlatformUser @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  apiKeys        ApiKey[]
-  projectUsages  ProjectUsage[]
-  dailyUsages    ProjectUsageDaily[]
-  activityLogs   ActivityLog[]
-  storageBuckets StorageBucket[]
+  apiKeys         ApiKey[]
+  projectUsages   ProjectUsage[]
+  dailyUsages     ProjectUsageDaily[]
+  activityLogs    ActivityLog[]
+  storageBuckets  StorageBucket[]
+  storageSettings ProjectStorageSettings?
 
   @@index([ownerId])
   @@map("projects")
@@ -53,6 +54,7 @@ model StorageBucket {
   id        String          @id @default(uuid())
   projectId String          @map("project_id")
   name      String          @db.VarChar(63)
+  isPublic  Boolean         @default(false) @map("is_public")
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz
   project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -61,6 +63,18 @@ model StorageBucket {
   @@unique([projectId, name])
   @@index([projectId, createdAt])
   @@map("storage_buckets")
+}
+
+model ProjectStorageSettings {
+  id              String   @id @default(uuid())
+  projectId       String   @unique @map("project_id")
+  cdnBaseUrl      String?  @map("cdn_base_url") @db.VarChar(255)
+  cacheTtlSeconds Int      @default(3600) @map("cache_ttl_seconds")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_storage_settings")
 }
 
 model StorageObject {

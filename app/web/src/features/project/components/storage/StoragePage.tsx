@@ -20,6 +20,7 @@ import { IconPlus, IconX } from "@tabler/icons-react";
 import { UnderlineTabs } from "../shared/UnderlineTabs";
 import { BucketCard } from "./BucketCard";
 import { StatCard } from "./StatCard";
+import { StorageSettingsPanel } from "./StorageSettingsPanel";
 import {
   createStorageBucket,
   deleteStorageBucket,
@@ -116,7 +117,7 @@ export function StoragePage({ projectId }: { projectId: string }) {
           Storage
         </Typography>
         <Typography sx={{ mt: 1, color: "text.secondary", fontSize: 13 }}>
-          Organize project files in private storage buckets.
+          Organize project files in private-by-default storage buckets.
         </Typography>
       </Box>
 
@@ -223,23 +224,18 @@ export function StoragePage({ projectId }: { projectId: string }) {
       )}
 
       {tab === "settings" && (
-        <Box
-          sx={{
-            p: { xs: 4, sm: 5 },
-            bgcolor: "background.default",
-            border: 1,
-            borderColor: "border.default",
-            borderRadius: 1.5,
-          }}
-        >
-          <Typography component="h2" sx={{ fontWeight: 600 }}>
-            Storage settings are not available yet
-          </Typography>
-          <Typography sx={{ mt: 1, fontSize: 13, color: "text.secondary" }}>
-            CDN configuration, bucket policies, and project storage settings
-            will be available when storage services are implemented.
-          </Typography>
-        </Box>
+        <StorageSettingsPanel
+          projectId={projectId}
+          buckets={buckets}
+          bucketsLoading={loading}
+          onBucketAccessChanged={(bucketId, access) =>
+            setBuckets((current) =>
+              current.map((bucket) =>
+                bucket.id === bucketId ? { ...bucket, access } : bucket,
+              ),
+            )
+          }
+        />
       )}
 
       <Dialog

@@ -14,11 +14,17 @@ describe('StorageService', () => {
       create: jest.fn(),
       findFirst: jest.fn(),
       delete: jest.fn(),
+      updateMany: jest.fn(),
     },
     storageObject: {
       groupBy: jest.fn(),
       count: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    projectStorageSettings: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
     },
   };
   const objectStore = {
@@ -40,6 +46,7 @@ describe('StorageService', () => {
     );
     prisma.storageBucket.findMany.mockResolvedValue([]);
     prisma.storageObject.groupBy.mockResolvedValue([]);
+    prisma.projectStorageSettings.findUnique.mockResolvedValue(null);
     service = new StorageService(
       prisma as unknown as PrismaService,
       objectStore as unknown as S3ObjectStore,
@@ -58,8 +65,20 @@ describe('StorageService', () => {
   it('returns persisted buckets and their object count and byte totals', async () => {
     const createdAt = new Date('2026-11-28T12:00:00.000Z');
     prisma.storageBucket.findMany.mockResolvedValue([
-      { id: 'bucket-1', projectId: 'project-1', name: 'assets', createdAt },
-      { id: 'bucket-2', projectId: 'project-1', name: 'docs', createdAt },
+      {
+        id: 'bucket-1',
+        projectId: 'project-1',
+        name: 'assets',
+        isPublic: true,
+        createdAt,
+      },
+      {
+        id: 'bucket-2',
+        projectId: 'project-1',
+        name: 'docs',
+        isPublic: false,
+        createdAt,
+      },
     ]);
     prisma.storageObject.groupBy.mockResolvedValue([
       {
@@ -73,7 +92,7 @@ describe('StorageService', () => {
       {
         id: 'bucket-1',
         name: 'assets',
-        access: 'Private',
+        access: 'Public',
         fileCount: 2,
         sizeBytes: '125',
         createdAt: createdAt.toISOString(),
@@ -87,6 +106,58 @@ describe('StorageService', () => {
         createdAt: createdAt.toISOString(),
       },
     ]);
+  });
+
+  it('returns default CDN settings when none have been saved', async () => {
+    await expect(service.getSettings('project-1', 'user-1')).resolves.toEqual({
+      cdnBaseUrl: null,
+      cacheTtlSeconds: 3600,
+    });
+  });
+
+  it('saves and normalizes project CDN settings', async () => {
+    prisma.projectStorageSettings.upsert.mockResolvedValue({
+      cdnBaseUrl: 'https://cdn.example.com',
+      cacheTtlSeconds: 600,
+    });
+
+    await expect(
+      service.updateSettings('project-1', 'user-1', {
+        cdnBaseUrl: 'https://cdn.example.com/',
+        cacheTtlSeconds: 600,
+      }),
+    ).resolves.toEqual({
+      cdnBaseUrl: 'https://cdn.example.com',
+      cacheTtlSeconds: 600,
+    });
+    expect(prisma.projectStorageSettings.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { projectId: 'project-1' },
+        create: {
+          projectId: 'project-1',
+          cdnBaseUrl: 'https://cdn.example.com',
+          cacheTtlSeconds: 600,
+        },
+      }),
+    );
+  });
+
+  it('updates access only for a bucket in the owned project', async () => {
+    prisma.storageBucket.findFirst.mockResolvedValue({
+      id: 'bucket-1',
+      projectId: 'project-1',
+    });
+    prisma.storageBucket.updateMany.mockResolvedValue({ count: 1 });
+
+    await expect(
+      service.updateBucketAccess('project-1', 'user-1', 'bucket-1', {
+        access: 'Public',
+      }),
+    ).resolves.toEqual({ id: 'bucket-1', access: 'Public' });
+    expect(prisma.storageBucket.updateMany).toHaveBeenCalledWith({
+      where: { id: 'bucket-1', projectId: 'project-1' },
+      data: { isPublic: true },
+    });
   });
 
   it('returns file metadata and a next cursor for a full page', async () => {
@@ -168,5 +239,39 @@ describe('StorageService', () => {
       type: 'image/png',
       sizeBytes: '4',
     });
+  });
+
+  it('serves files publicly only when their bucket is public', async () => {
+    prisma.storageObject.findFirst.mockResolvedValue({
+      id: 'file-1',
+      objectKey: 'project-1/bucket-1/file-1',
+      fileName: 'image.png',
+      contentType: 'image/png',
+      bucket: { isPublic: true, projectId: 'project-1' },
+    });
+    prisma.projectStorageSettings.findUnique.mockResolvedValue({
+      cacheTtlSeconds: 600,
+    });
+    objectStore.download.mockResolvedValue('stream');
+
+    await expect(
+      service.getPublicFileForDownload('bucket-1', 'file-1'),
+    ).resolves.toMatchObject({
+      fileName: 'image.png',
+      contentType: 'image/png',
+      cacheTtlSeconds: 600,
+      body: 'stream',
+    });
+  });
+
+  it('hides files in private buckets from public requests', async () => {
+    prisma.storageObject.findFirst.mockResolvedValue({
+      bucket: { isPublic: false, projectId: 'project-1' },
+    });
+
+    await expect(
+      service.getPublicFileForDownload('bucket-1', 'file-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(objectStore.download).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import type { ApiResponse } from "@baas/types";
 import apiClient from "@/lib/api-client";
-import type { Bucket } from "./types";
+import type { Bucket, StorageSettings } from "./types";
 import type { FileEntry } from "./browser/types";
 
 interface FileListResponse {
@@ -12,10 +12,40 @@ function projectStoragePath(projectId: string) {
   return `/project/${encodeURIComponent(projectId)}/storage`;
 }
 
+export async function fetchStorageSettings(projectId: string) {
+  const response = (await apiClient.get(
+    `${projectStoragePath(projectId)}/settings`,
+  )) as unknown as ApiResponse<StorageSettings>;
+  return response.data;
+}
+
+export async function updateStorageSettings(
+  projectId: string,
+  settings: StorageSettings,
+) {
+  const response = (await apiClient.patch(
+    `${projectStoragePath(projectId)}/settings`,
+    settings,
+  )) as unknown as ApiResponse<StorageSettings>;
+  return response.data;
+}
+
 export async function fetchStorageBuckets(projectId: string) {
   const response = (await apiClient.get(
     `${projectStoragePath(projectId)}/buckets`,
   )) as unknown as ApiResponse<Bucket[]>;
+  return response.data;
+}
+
+export async function updateStorageBucketAccess(
+  projectId: string,
+  bucketId: string,
+  access: Bucket["access"],
+) {
+  const response = (await apiClient.patch(
+    `${projectStoragePath(projectId)}/buckets/${encodeURIComponent(bucketId)}/access`,
+    { access },
+  )) as unknown as ApiResponse<{ id: string; access: Bucket["access"] }>;
   return response.data;
 }
 
@@ -88,4 +118,16 @@ export async function deleteStorageFile(
   await apiClient.delete(
     `${projectStoragePath(projectId)}/buckets/${encodeURIComponent(bucketId)}/files/${encodeURIComponent(fileId)}`,
   );
+}
+
+export function getPublicStorageFileUrl(
+  bucketId: string,
+  fileId: string,
+  cdnBaseUrl?: string | null,
+) {
+  const apiBase = apiClient.defaults.baseURL?.replace(/\/+$/, "") ?? "";
+  const base = cdnBaseUrl
+    ? `${cdnBaseUrl.replace(/\/+$/, "")}/api/v1`
+    : apiBase;
+  return `${base}/storage/public/${encodeURIComponent(bucketId)}/${encodeURIComponent(fileId)}`;
 }
