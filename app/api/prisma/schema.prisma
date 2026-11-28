@@ -39,13 +39,43 @@ model Project {
 
   owner PlatformUser @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  apiKeys       ApiKey[]
-  projectUsages ProjectUsage[]
-  dailyUsages   ProjectUsageDaily[]
-  activityLogs  ActivityLog[]
+  apiKeys        ApiKey[]
+  projectUsages  ProjectUsage[]
+  dailyUsages    ProjectUsageDaily[]
+  activityLogs   ActivityLog[]
+  storageBuckets StorageBucket[]
 
   @@index([ownerId])
   @@map("projects")
+}
+
+model StorageBucket {
+  id        String          @id @default(uuid())
+  projectId String          @map("project_id")
+  name      String          @db.VarChar(63)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  objects   StorageObject[]
+
+  @@unique([projectId, name])
+  @@index([projectId, createdAt])
+  @@map("storage_buckets")
+}
+
+model StorageObject {
+  id          String        @id @default(uuid())
+  bucketId    String        @map("bucket_id")
+  objectKey   String        @unique @map("object_key")
+  fileName    String        @map("file_name") @db.VarChar(255)
+  contentType String        @map("content_type") @db.VarChar(255)
+  size        BigInt
+  uploadedBy  String        @map("uploaded_by")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  bucket      StorageBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  @@index([bucketId, createdAt(sort: Desc)])
+  @@map("storage_objects")
 }
 
 model ApiKey {

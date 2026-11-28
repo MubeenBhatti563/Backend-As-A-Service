@@ -5,7 +5,7 @@ export interface Bucket {
   name: string;
   access: BucketAccess;
   fileCount: number;
-  size: string;
+  sizeBytes: string;
   createdAt: string;
 }
 

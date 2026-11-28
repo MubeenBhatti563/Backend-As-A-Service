@@ -1,8 +1,9 @@
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import Link from "next/link";
-import { IconBucket } from "@tabler/icons-react";
+import { IconBucket, IconTrash } from "@tabler/icons-react";
 import { TagChip } from "../shared/TagChip";
 import type { Bucket } from "./types";
+import { formatBytes } from "./format-bytes";
 
 const ACCESS_CHIP = {
   Public: { tint: "success" as const, color: "success.main" },
@@ -28,9 +29,11 @@ function BucketDetail({ label, value }: { label: string; value: string }) {
 export function BucketCard({
   bucket,
   href,
+  onDelete,
 }: {
   bucket: Bucket;
   href: string;
+  onDelete: (bucket: Bucket) => void;
 }) {
   const fileLabel = `${bucket.fileCount.toLocaleString("en-US")} ${
     bucket.fileCount === 1 ? "file" : "files"
@@ -89,7 +92,27 @@ export function BucketCard({
             {bucket.name}
           </Typography>
         </Stack>
-        <TagChip label={bucket.access} {...ACCESS_CHIP[bucket.access]} />
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <TagChip label={bucket.access} {...ACCESS_CHIP[bucket.access]} />
+          <Tooltip
+            title={
+              bucket.fileCount > 0
+                ? "Delete all files before removing this bucket"
+                : "Delete empty bucket"
+            }
+          >
+            <span>
+              <IconButton
+                aria-label={`Delete ${bucket.name} bucket`}
+                size="small"
+                disabled={bucket.fileCount > 0}
+                onClick={() => onDelete(bucket)}
+              >
+                <IconTrash size={15} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
       </Stack>
 
       <Stack
@@ -99,8 +122,13 @@ export function BucketCard({
         sx={{ m: 0, flexWrap: "wrap" }}
       >
         <BucketDetail label="Files" value={fileLabel} />
-        <BucketDetail label="Size" value={bucket.size} />
-        <BucketDetail label="Created" value={bucket.createdAt} />
+        <BucketDetail label="Size" value={formatBytes(bucket.sizeBytes)} />
+        <BucketDetail
+          label="Created"
+          value={new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
+            new Date(bucket.createdAt),
+          )}
+        />
       </Stack>
     </Box>
   );

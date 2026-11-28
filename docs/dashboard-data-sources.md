@@ -11,10 +11,10 @@ Mock fallbacks are not used in the dashboard.
 | Account plan and usage   | `GET /plan/my-plan`                                    | Values are from current-period usage records.                                                                                                                                                            |
 | Public plan descriptions | `GET /plan/plans`                                      | Prices and limits are read from plan rows.                                                                                                                                                               |
 | Project overview         | `GET /project/:id/overview`                            | Reads the last seven daily telemetry records; chart points are persisted counts and storage snapshots. Service-health telemetry and active-user counts are unavailable and omitted/reported unavailable. |
-| Project usage            | `GET /project/:id/usage`                               | Owner-checked monthly project usage, current plan quotas, and daily API request records for `/dashboard/projects/:id/usage`. File-storage and realtime usage are shown as not tracked until telemetry is implemented. |
+| Project usage            | `GET /project/:id/usage`                               | Owner-checked monthly project usage, current plan quotas, and daily API request records for `/dashboard/projects/:id/usage`. File bytes update as storage files are uploaded/deleted; realtime usage is not tracked yet. |
 | Authentication           | None                                                   | `/dashboard/projects/:id/auth` and `/auth/:userId` are clearly labeled UI previews using local sample users. Search and role filtering apply only to those samples; detail pages, sessions, security logs, and user/role/settings operations are not backed by project APIs. |
 | API Endpoints             | None                                                   | `/dashboard/projects/:id/api-endpoints` shows illustrative sample endpoint/code/response snippets only. It is not a generated project API; endpoint execution is disabled and cURL copy copies example text only. |
-| Project storage           | None                                                   | `/dashboard/projects/:id/storage` and `/storage/:bucketId` are responsive previews with sample bucket/file rows and sample usage values. Bucket CRUD, uploads, downloads, CDN settings, and storage policies are not connected to project APIs; actions are disabled. |
+| Project storage           | `GET/POST /project/:id/storage/buckets`; `/buckets/:bucketId/files` | Owner-checked private bucket and file APIs backed by PostgreSQL metadata and S3-compatible object storage. Supports bucket create/list/delete (empty only), file list/upload/download/delete; uploads are limited to 50 MiB. |
 | Database tables          | `GET /project/:id/database`                            | Counts use exact `COUNT(*)`; storage is PostgreSQL physical relation size.                                                                                                                               |
 | Database indexes         | `GET /project/:id/database/indexes`                    | Reads index metadata from PostgreSQL catalogs for the owned project schema; byte totals are exact allocated relation sizes.                                                                              |
 | Database ER diagram      | `GET /project/:id/database/relationships`              | Graph of all tables and foreign key relationships with topological layout positions.                                                                                                                     |
@@ -67,19 +67,42 @@ owner. It returns the current UTC calendar month, the owner's active plan
 limits, monthly project usage and available daily API request counts. The
 dashboard fills missing calendar days with zero for the request chart. Database
 usage uses the monthly record when populated, falling back to the latest daily
-snapshot; file-storage and realtime figures are not yet measured per project
-and must not be interpreted as live usage.
+snapshot. Storage uploads and deletes increment/decrement the monthly project
+file-byte total. Realtime usage is not yet measured per project.
 
 ## Unavailable dashboard areas
 
 Realtime, Edge Functions, AI Assistant and Logs currently render a shared
 "Coming soon" page with planned capabilities; they are not functional service
-interfaces yet. Authentication, API Endpoints, and Storage have preview-only
-interfaces and are not connected to project-specific services. Storage summary
-values are examples and are not live telemetry. Project Settings navigation
-also includes sections that are placeholders. Danger Zone actions are disabled
-until corresponding project-management APIs exist. `/help` currently shows
-the same reusable unavailable banner.
+interfaces yet. Authentication and API Endpoints have preview-only interfaces
+and are not connected to project-specific services. Storage buckets/files are
+backed by the APIs above; public object URLs, folder management, CDN settings,
+and storage policy configuration are not implemented. Project Settings
+navigation also includes sections that are placeholders. Danger Zone actions
+are disabled until corresponding project-management APIs exist. `/help`
+currently shows the same reusable unavailable banner.
+
+## Project storage setup and API
+
+The API stores object metadata in PostgreSQL and object bytes in a private
+S3-compatible bucket. Local Docker Compose starts MinIO on ports 9000 (S3 API)
+and 9001 (console), using the development-only credentials in `.env.example`;
+change them outside local development. For an API process running on the host,
+set `STORAGE_ENDPOINT=http://127.0.0.1:9000` in `app/api/.env`. Containerized
+API processes use `http://minio:9000`. Configure `STORAGE_REGION`,
+`STORAGE_BUCKET`, `STORAGE_ACCESS_KEY_ID`, and `STORAGE_SECRET_ACCESS_KEY` for
+the chosen object-store provider. The service verifies the object-store bucket
+at startup and creates it if it does not exist.
+
+After updating the API, apply the schema migration with
+`pnpm --filter api exec prisma migrate deploy`. Dashboard storage routes require
+the authenticated project-owner session. Bucket names are unique per project;
+only empty buckets can be deleted. File uploads stream through the API, accept
+one file per request, and enforce a 50 MiB maximum. Downloads are streamed as
+attachments with `nosniff`; object-store credentials and keys are never sent
+to the browser. Objects use generated storage keys, while original filenames
+are stored only as metadata. Public access, CDN URLs, folders, and plan quota
+enforcement are not part of this initial implementation.
 
 The SQL editor's Query History is stored in browser `localStorage` under
 `baas_sql_history_<projectId>`, independently for each project and browser. It

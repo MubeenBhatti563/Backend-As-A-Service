@@ -8,8 +8,8 @@ export interface FileEntry {
   name: string;
   kind: FileEntryKind;
   type: string;
-  size?: string;
-  uploaded?: string;
+  sizeBytes: string;
+  uploadedAt: string;
   owner: string;
 }
 

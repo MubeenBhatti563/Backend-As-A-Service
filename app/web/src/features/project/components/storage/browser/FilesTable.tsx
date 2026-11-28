@@ -13,17 +13,22 @@ import {
 } from "@mui/material";
 import { IconFile, IconFolder, IconTrash } from "@tabler/icons-react";
 import type { FileEntry } from "./types";
+import { formatBytes } from "../format-bytes";
 
 export function FilesTable({
   entries,
   selectedIds,
   onToggle,
   onToggleAll,
+  onDownload,
+  onDelete,
 }: {
   entries: FileEntry[];
   selectedIds: string[];
   onToggle: (id: string) => void;
   onToggleAll: () => void;
+  onDownload: (entry: FileEntry) => void;
+  onDelete: (entry: FileEntry) => void;
 }) {
   const allSelected = entries.length > 0 && selectedIds.length === entries.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
@@ -39,7 +44,7 @@ export function FilesTable({
       }}
     >
       <Table
-        aria-label="Sample files in bucket"
+        aria-label="Files in bucket"
         size="small"
         sx={{
           minWidth: 760,
@@ -54,7 +59,7 @@ export function FilesTable({
                 checked={allSelected}
                 indeterminate={someSelected}
                 onChange={onToggleAll}
-                slotProps={{ input: { "aria-label": "Select all sample files" } }}
+                slotProps={{ input: { "aria-label": "Select all files" } }}
               />
             </TableCell>
             {["Name", "Type", "Size", "Uploaded", "Owner", "Actions"].map((heading) => (
@@ -95,22 +100,29 @@ export function FilesTable({
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ fontSize: 11, color: "text.secondary" }}>{entry.type}</TableCell>
-                <TableCell sx={{ fontSize: 11, color: "text.secondary" }}>{entry.size ?? "—"}</TableCell>
+                <TableCell sx={{ fontSize: 11, color: "text.secondary" }}>{formatBytes(entry.sizeBytes)}</TableCell>
                 <TableCell sx={{ fontSize: 11, color: "text.secondary", whiteSpace: "nowrap" }}>
-                  {entry.uploaded ?? "—"}
+                  {new Intl.DateTimeFormat("en-US", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(entry.uploadedAt))}
                 </TableCell>
                 <TableCell sx={{ fontSize: 11, color: "text.secondary", whiteSpace: "nowrap" }}>
                   {entry.owner}
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
-                    <Button disabled size="small" variant="outlined" sx={{ fontSize: 10, textTransform: "none" }}>
+                    <Button onClick={() => onDownload(entry)} size="small" variant="outlined" sx={{ fontSize: 10, textTransform: "none" }}>
                       Download
                     </Button>
                     <Button disabled size="small" variant="outlined" sx={{ fontSize: 10, textTransform: "none" }}>
                       Copy URL
                     </Button>
-                    <IconButton disabled size="small" aria-label={`Delete ${entry.name}`}>
+                    <IconButton
+                      size="small"
+                      aria-label={`Delete ${entry.name}`}
+                      onClick={() => onDelete(entry)}
+                    >
                       <IconTrash size={15} />
                     </IconButton>
                   </Stack>
@@ -122,7 +134,7 @@ export function FilesTable({
             <TableRow>
               <TableCell colSpan={7}>
                 <Typography sx={{ py: 3, textAlign: "center", fontSize: 12, color: "text.secondary" }}>
-                  No sample files match your search.
+                  No files match your search.
                 </Typography>
               </TableCell>
             </TableRow>

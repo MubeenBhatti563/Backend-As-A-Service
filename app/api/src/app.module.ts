@@ -18,6 +18,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { WorkersModule } from './workers/workers.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { DatabaseModule } from './modules/database/database.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { DatabaseModule } from './modules/database/database.module';
     WorkersModule,
     PlanModule,
     DatabaseModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [

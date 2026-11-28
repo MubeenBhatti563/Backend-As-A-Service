@@ -10,6 +10,7 @@ networks:
 volumes:
   baas-data:
   redis-data:
+  storage-data:
 
 services:
   # -----------------------------------------------
@@ -68,6 +69,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # S3-compatible object storage for local development.
+  minio:
+    image: cgr.dev/chainguard/minio
+    container_name: baas-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-baasminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-baasminio-password}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - storage-data:/data
+    networks:
+      - baas-network
+
   # -----------------------------------------------
   # 5. Nestjs API
   # -----------------------------------------------
@@ -91,6 +109,11 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4000}
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-baas-objects}
+      STORAGE_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-baasminio}
+      STORAGE_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-baasminio-password}
 
     networks:
       - baas-network
@@ -109,6 +132,8 @@ services:
         condition: service_healthy
       cache:
         condition: service_healthy
+      minio:
+        condition: service_started
 
   # -----------------------------------------------
   # 6. Nextjs Web

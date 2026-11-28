@@ -11,6 +11,7 @@ import { DEFAULT_SESSION_TTL_MS } from './modules/auth/constants/session.constan
 import { registerBigIntSerialization } from './common/utils/bigint-serializer.util';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
+import fastifyMultipart from '@fastify/multipart';
 
 // Enable global BigInt JSON serialization
 registerBigIntSerialization();
@@ -20,6 +21,11 @@ async function bootstrap() {
     AppModule,
     new FastifyAdapter(),
   );
+
+  await app.register(fastifyMultipart, {
+    limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 0 },
+    throwFileSizeLimit: false,
+  });
 
   app.setGlobalPrefix('api/v1');
   app.useLogger(app.get(Logger));

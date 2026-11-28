@@ -3,13 +3,16 @@ import { Box, Breadcrumbs, Button, Stack, Typography } from "@mui/material";
 import { IconFolderPlus, IconUpload } from "@tabler/icons-react";
 import { TagChip } from "../../shared/TagChip";
 import type { Bucket } from "../types";
+import { formatBytes } from "../format-bytes";
 
 export function BrowserHeader({
   projectId,
   bucket,
+  onUploadFile,
 }: {
   projectId: string;
   bucket: Bucket;
+  onUploadFile: () => void;
 }) {
   return (
     <Stack
@@ -55,7 +58,7 @@ export function BrowserHeader({
             color={bucket.access === "Public" ? "success.main" : "text.secondary"}
           />
           <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-            {bucket.fileCount.toLocaleString("en-US")} files · {bucket.size}
+            {bucket.fileCount.toLocaleString("en-US")} files · {formatBytes(bucket.sizeBytes)}
           </Typography>
         </Stack>
       </Box>
@@ -70,7 +73,7 @@ export function BrowserHeader({
           Create folder
         </Button>
         <Button
-          disabled
+          onClick={onUploadFile}
           variant="contained"
           startIcon={<IconUpload size={16} />}
           sx={{ textTransform: "none" }}
